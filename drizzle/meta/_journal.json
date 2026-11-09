@@ -1,0 +1,83 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1794170129508,
+      "tag": "0001_initial",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794170129508,
+      "tag": "0002_core_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794180274515,
+      "tag": "0003_profile_dates_and_path_progress",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1794181295241,
+      "tag": "0004_add_binder_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794182472035,
+      "tag": "0005_add_war_stories_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794182517957,
+      "tag": "0006_add_reported_flag_to_war_stories",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794182906536,
+      "tag": "0007_add_wall_of_honor_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1794183954726,
+      "tag": "0008_add_mentor_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1794184828294,
+      "tag": "0009_add_service_timeline_entries",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1794186440886,
+      "tag": "0010_add_home_state_to_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1794187450704,
+      "tag": "0011_squad_invites_and_active_profile",
+      "breakpoints": true
+    }
+  ]
+}

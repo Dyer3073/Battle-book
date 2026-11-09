@@ -1,0 +1,16 @@
+{
+  "entry": "client/dist/index.html",
+  "managedCronJobs": [
+    {
+      "action": "refreshNews",
+      "id": "military-app-news-refresh",
+      "owner": "space:military-app",
+      "schedule": "daily@06:49:00",
+      "timezone": "@user.current"
+    }
+  ],
+  "name": "Battle Book",
+  "platformVersion": 28,
+  "runtime": "typescript",
+  "slug": "military-app"
+}

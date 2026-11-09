@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: battle-book
+    runtime: docker # builds the included Dockerfile (oven/bun)
+    plan: free
+    envVars:
+      # Where the app's SQLite database lives inside the container.
+      # PORT is set by Render itself; the server listens on it.
+      - key: DATABASE_PATH
+        value: /app/data/app.db
+    # ⚠ FREE-TIER WARNING: Render's free web services have an EPHEMERAL disk.
+    # No persistent disk is attached (disk NOT required for this app), so all
+    # app data (profiles, squads, check-ins, stories, tributes) is LOST on
+    # every restart/redeploy/spin-down and the app re-seeds from scratch —
+    # the same trade-off as the Open Season deployment. If the data ever
+    # needs to survive, move to a paid plan and attach a disk mounted at
+    # /app/data (1 GB is plenty), or migrate the database to a hosted
+    # SQLite/Postgres service:
+    # disk:
+    #   name: battle-book-data
+    #   mountPath: /app/data
+    #   sizeGB: 1
