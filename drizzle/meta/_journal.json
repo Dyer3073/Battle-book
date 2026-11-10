@@ -225,6 +225,13 @@
       "when": 1794267000000,
       "tag": "0032_binder_items_profile_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1794268000000,
+      "tag": "0033_add_home_pins_table",
+      "breakpoints": true
     }
   ]
 }

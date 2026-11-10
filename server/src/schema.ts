@@ -1026,3 +1026,23 @@ export const changelogSeen = sqliteTable("changelog_seen", {
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+// Per-profile Home pins (Pin to Home, Nov 10, 2026): one row per
+// pinned card — the same (section, itemKey, title) identity a card's
+// CardTools footer already carries for the Binder, but a SEPARATE
+// store: a pin is a Home shortcut, not a Binder save. Same trust
+// model as binder_items / section_scopes: the owning profile is
+// resolved server-side, no action accepts a profile id, and there
+// is no read path for another profile's pins anywhere. Rows render
+// only on the owning profile's Home, filtered to the views that
+// profile's shell can actually open.
+export const homePins = sqliteTable("home_pins", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  profileId: integer("profile_id").notNull(),
+  section: text("section").notNull(),
+  itemKey: text("item_key").notNull(),
+  title: text("title").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
