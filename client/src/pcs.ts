@@ -195,7 +195,7 @@ export const PCS_GROUPS: PcsGroup[] = [
         ],
       },
       {
-        name: "TLE — Temporary Lodging Expense, CONUS",
+        name: "Temporary Lodging Money — TLE, CONUS",
         kind: "DTMO",
         summary:
           "TLE partially pays for temporary lodging and meals at your old or new duty station inside the U.S. during a CONUS PCS — the hotel-and-food money while you're between homes. Per DTMO: TLE was increased from 14 to 21 days effective November 27, 2024 for moves to a CONUS station, capped at $290 per day, paid as a percentage of the locality per diem depending on who is traveling (65% for one person, 100% for two, +35% for each additional dependent age 12+, +25% under 12). Up to 60 days is possible in a small number of DTMO-approved housing-shortage housing areas. Itemized lodging receipts are required, and you cannot draw TLE and PCS travel per diem for the same day.",
@@ -471,14 +471,41 @@ export const PCS_GROUPS: PcsGroup[] = [
         ],
       },
       {
-        name: "Single Members — Barracks, BAH, and the Move Off-Base",
-        kind: "Single members",
+        name: "Single Members — Barracks, BAH, and the Move Off-Base (including single parents and part-time custody)",
+        kind: "Single members · single parents",
         payRef: true,
         summary:
-          "Single members PCS differently in three ways worth knowing. (1) DLA: generally not payable when you're assigned to single-type government quarters (barracks/dorms) at the new station. (2) BAH: members in single quarters typically draw only partial BAH — or BAH-DIFF if they're in single quarters and authorized BAH solely because they pay child support (DTMO's BAH pages define both). (3) Moving off-base: when your gaining command authorizes you to live off-base (rules vary by grade, branch, and installation occupancy), your BAH switches to the full without-dependent rate for the new station's ZIP and your move becomes a normal household move — TLE can cover the gap while you apartment-hunt.",
-        who: "Unaccompanied members, and any member whose gaining-station housing is single quarters.",
-        flag: "Barracks eligibility and off-base authorization are set by your branch and gaining command, not the JTR alone — confirm with the gaining housing office before signing a lease.",
+          "Single members PCS differently in three ways worth knowing — and for a single parent, or a parent whose child lives with them part of the year (part-time custody), the second one is usually the money question. (1) DLA: generally not payable when you're assigned to single-type government quarters (barracks/dorms) at the new station. (2) BAH: members in single quarters typically draw only partial BAH — or BAH-DIFF if they're in single quarters and authorized BAH solely because they pay child support (DTMO's BAH pages define both). BAH-Diff, exactly as the DoD Financial Management Regulation frames it: a member in single-type quarters is entitled to BAH-Diff if they are paying support to a biological child, adopted child, or stepchild in an amount equal to or greater than the applicable BAH-Diff rate; if the child support payment is less than the BAH-Diff rate, BAH-Diff is not authorized. The BAH-Diff rate is a fixed, non-locality-based rate — the 1997 with/without-dependent BAQ difference, grown by annual pay raises — and DTMO publishes the current grade-based amounts; the regulation cross-refers custody cases (including a child in the custody of another active-duty member) to its custody section rather than to BAH-Diff. (3) Moving off-base: when your gaining command authorizes you to live off-base (rules vary by grade, branch, and installation occupancy), your BAH switches to the full without-dependent rate for the new station's ZIP and your move becomes a normal household move — TLE can cover the gap while you apartment-hunt. A cross-link card in Family & Life Events (“Single parent? Your housing money”) points here from the parent's side.",
+        who: "Unaccompanied members, any member whose gaining-station housing is single quarters, single parents, and parents with part-time custody whose child support is their only basis for a housing allowance.",
+        flag: "Barracks eligibility and off-base authorization are set by your branch and gaining command, not the JTR alone — confirm with the gaining housing office before signing a lease. Custody-duration thresholds are separate published rules (the FMR's custody sections) and are not merged into BAH-Diff here.",
         links: [{ label: "DTMO BAH page (partial BAH and BAH-DIFF are defined in its non-locality rates)", url: BAH_LOOKUP.url }],
+      },
+      {
+        name: "Dual-Military PCS — Two Members, Two Orders: DLA follows the households, not the orders",
+        kind: "Dual-military · JTR ¶050506 / Table 5-11",
+        summary:
+          "When two members married to each other both get PCS orders, DLA follows the households, not the number of orders. The Joint Travel Regulations give member-to-member its own paragraph (¶050506) and rate table (Table 5-11), and state the threshold fact up front: neither Service member is a dependent of the other, and members married to each other may select the greater allowance. One household, moved once: if the members occupied the same dwelling at the old duty station and occupy the same dwelling at the new one, only one DLA is paid — at the without-dependent rate when neither member has a dependent (either member is paid, but not both); when one member has a dependent, either that member's with-dependent DLA or the other member's without-dependent DLA, but not both; when both members have dependents, either member's with-dependent DLA, but not both. Two households at the new station: if the members occupy separate dwellings at the new station, each member is paid a DLA at their own rate — but ¶050506 gates this: DLA for members assigned to the same new station who live in separate dwellings is payable only if it can be conclusively shown it is necessary to establish separate households for or on behalf of each Service member or for the dependent. Staggered moves: if the members maintain separate households — one establishing a permanent household at the new station and the other maintaining one at the old — and they later occupy the same residence at the new station, both are eligible to receive DLA (the table's footnote, citing B-191742 and DOHA Case 96110801). Government quarters limit: a member without dependents assigned to Government quarters at the new station (including a ship) is not authorized DLA except in the family-type-quarters and ¶050504 cases the paragraph names. This entry prints the table's logic, not your couple's answer — the transportation office and servicing finance office apply Table 5-11 to your actual move pattern. (This is the dual-military entry — not the single-members entry above it; the two are different moves.)",
+        who: "Dual-military couples where both members hold PCS orders — bring both sets of orders to the transportation office and finance.",
+        links: [
+          {
+            label: "Joint Travel Regulations, Ch. 5, ¶050506 and Table 5-11 (JTR via DTMO)",
+            url: "https://media.defense.gov/2022/Jan/04/2002917147/-1/1/1/JTR.PDF",
+          },
+        ],
+      },
+      {
+        name: "Dual-Military PCS — Two Members, Two Orders: household goods weight allowances may combine",
+        kind: "Dual-military · JTR Table 5-57",
+        summary:
+          "Each member's PCS orders carry that member's own household goods weight allowance (JTR Table 5-37, by grade and dependency status — concept level in the Household Goods group above). When both members have PCS orders, the JTR publishes that the two allowances can be combined for the couple's move — the one-household move is not limited to one member's allowance. The rule as the JTR states it, in Table 5-57: “two Service members are married to each other and both have PCS orders → they may combine their authorized PCS HHG weight allowances,” with the Government's maximum payment set at the constructed cost of shipping the combined maximum authorized weight allowances for both members between authorized locations. Stated with its location named, as published: Table 5-57 sits in the JTR's mobile-home part, where combining is the mechanism for the combined shipment, and the sentence itself is written about the PCS HHG weight allowances generally — no separate general sentence in the JTR's household-goods chapter restating the combine rule for ordinary shipments was located in the Round 2 research, so this entry does not paraphrase it into a broader rule than the JTR prints. What combining does not change: shipments are counseled and booked per member's orders through the transportation office, and excess weight over the combined allowance is the members' cost, as with any move.",
+        who: "Dual-military couples moving one household on two sets of orders — transportation-office / JPPSO counseling for BOTH sets of orders; bring both. DPS (move.mil) carries the shipment bookings.",
+        flag: "⚠ The combine sentence is verified in JTR Table 5-57 (mobile-home part), with its location named here. Your transportation office applies it to your move — do not plan a shipment on this summary alone.",
+        links: [
+          {
+            label: "Joint Travel Regulations, Ch. 5, Table 5-57 (and Table 5-37) (JTR via DTMO)",
+            url: "https://media.defense.gov/2022/Jan/04/2002917147/-1/1/1/JTR.PDF",
+          },
+        ],
       },
     ],
   },

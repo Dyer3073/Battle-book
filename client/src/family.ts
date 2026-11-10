@@ -284,6 +284,106 @@ FAMILY_GROUPS.push(
         ],
       },
       {
+        name: "Child care priorities — the published order for who gets a CDC spot first",
+        kind: "DoD priority system · MilitaryChildCare.com",
+        summary:
+          "Military child care demand exceeds supply, so the Department ranks every requesting family by sponsor type and spouse status, and military programs must serve the highest-priority families first. MilitaryChildCare.com determines a family's priority from the sponsor's approved sponsor type plus spouse status (single sponsor, or the spouse's status — active duty / Guard-Reserve on active duty, working, student, seeking employment, or not working; full-time work is defined as 30 hours per week or 100 hours per month, or fewer hours combined with post-secondary enrollment; part-time is below that). Within the order, MilitaryChildCare.com uses the family's assigned priority along with the request-for-care date to determine waitlist order. One eligibility fact that matters to separated families, published on the same guidelines page: for legally separated or divorced parents with joint custody, a child is eligible for DoD child care only when the child resides with the eligible sponsor for at least 25% of the time in a month the child receives care; geographically separated couples are not required to meet residency requirements.",
+        who: "Every family requesting military child care — create the household profile and request care at MilitaryChildCare.com; the priority is assigned from the profile's sponsor type and spouse status, so keep both current.",
+        bullets: [
+          { title: "Priority 1A — Child Development Program Staff", text: "All families where the sponsor is a CDP staff member, regardless of spouse status." },
+          { title: "Priority 1B — Single/Dual Military and Military with a Full-Time Working Spouse", text: "(1) Active Duty Combat-Related Wounded Warrior; (2) Single/Dual Active Duty Military/Coast Guard; (3) Single/Dual Guard/Reserve on Active Duty; (4) Active Duty Military/Coast Guard with Full-Time Working Spouse; (5) Guard/Reserve on Active Duty with Full-Time Working Spouse." },
+          { title: "Priority 1C — Military with a Part-Time Working Spouse or Spouse Seeking Employment", text: "(1) Active Duty Military/Coast Guard; (2) Guard/Reserve on Active Duty." },
+          { title: "Priority 1D — Military with a Full-Time Student Spouse", text: "(1) Active Duty Military/Coast Guard; (2) Guard/Reserve on Active Duty." },
+          { title: "Priority 2 — Single/Dual DoD Civilians or DoD Civilian with a Full-Time Working Spouse", text: "(1) Single/Dual DoD or Coast Guard Civilian; (2) DoD or Coast Guard Civilian with Full-Time Working Spouse." },
+          { title: "Priority 3 — Space Available", text: "(1) Active Duty Military/Coast Guard or Guard/Reserve on Active Duty with Non-Working Spouse; (2) DoD or Coast Guard Civilian with Spouse Seeking Employment; (3) DoD or Coast Guard Civilian with Full-Time Student Spouse; (4) Gold Star Spouse; (5) Single/Dual DoD Contractor or DoD Contractor with a Full-Time Working, Seeking Employment, or Full-Time Student spouse; (6) with no order of precedence among them — DoD/Coast Guard Civilian with Part-Time or Non-Working Spouse, DoD Contractor with Part-Time or Non-Working Spouse, Deactivated Guard/Reserve Personnel or Inactive Guard/Reserve in a Training Status, Other Federal Employees, Military Retirees." },
+        ],
+        links: [
+          { label: "Family Eligibility and Priority Guidelines — MilitaryChildCare.com", url: "https://public.militarychildcare.csd.disa.mil/mcc-central/mcchome/family-eligibility-priority-guidelines" },
+          { label: "Military Family Types and DoD Priority (Army MWR copy of the MCC chart)", url: "https://rucker.armymwr.com/application/files/7316/0581/8931/Annex_E_MCC_and_DoD_Priority_List_OPORD_20-067.pdf" },
+        ],
+      },
+      {
+        name: "Single parents and dual-military couples rank at the top — and what “supplanting” means for everyone else",
+        kind: "DoD priority system · supplanting",
+        summary:
+          "The two family shapes this entry exists for are at the top of the system. A single active-duty parent and a dual-military couple are Priority 1B, item 2 — inside the top family band (1B), behind only Child Development Program Staff (1A) and Active Duty Combat-Related Wounded Warriors (1B item 1). Single/dual Guard and Reserve parents on active duty are 1B item 3. Supplanting, as published: “to improve military members' access to child care, DoW policy allows lower priority families enrolled at a facility-based program to be disenrolled to accommodate higher priority families.” The protection runs the other direction too: families who are Priority 1A or 1B, Gold Star Spouses, or families with a child enrolled at the time of the death of a sponsor are not authorized to be supplanted for any reason; the installation CYP director conducts supplanting reviews of enrolled Priority 1C-or-lower families when higher-priority families are waiting. A spouse-status change can move a family's priority in either direction — when documentation shows a lower priority, the family must be notified it may be subject to supplanting. And the seeking-employment spouse status is time-limited as published: if a spouse is seeking employment and the child is enrolled, the spouse must get a job within 180 days or the child could be removed from care.",
+        who: "Single parents and dual-military couples first — the system ranks you first; keep your MilitaryChildCare.com sponsor type and spouse status current, because the priority follows them. Everyone else: a supplanting notice is this policy working as published; your installation Child & Youth Programs office is the route for questions.",
+        links: [
+          { label: "Family Eligibility and Priority Guidelines — MilitaryChildCare.com", url: "https://public.militarychildcare.csd.disa.mil/mcc-central/mcchome/family-eligibility-priority-guidelines" },
+        ],
+      },
+      {
+        name: "MCCYN fee assistance runs on a tighter priority — and buys community care down to installation-comparable fees",
+        kind: "Fee assistance · MCCYN",
+        summary:
+          "MCCYN — Military Child Care in Your Neighborhood — is the fee-assistance route when a family cannot access military-operated care. MilitaryChildCare.com's own guidelines page states up front that the MCCYN and CCYH fee assistance programs “use more restrictive prioritization and eligibility guidelines” than installation care. As the services publish it: MCCYN provides fee assistance for eligible families whose children (birth through 12 years) are enrolled in licensed community-based care when installation care is not accessible — because of distance or waitlists; the assistance buys the family's fee down so they pay reduced fees comparable to those charged at an installation for similar services (Army: fee assistance “compensates for the difference between a community-based provider's rate and an installation's rate for similar services,” calculated against provider rate caps, based on total family income; the Army program is administered by Child Care Aware® of America, is not an entitlement, and is subject to availability of funds). Army eligibility as published: children who are wait-listed and not currently enrolled in on-base care, and MCCYN is limited to single-parent families, families with a working spouse, or a spouse enrolled in school; spouses looking for work are eligible for fee assistance for 60 days. Navy eligibility as published: active duty, Reservists on active duty, and Navy civilians who are stationed at a pre-identified fee-assistance-eligible installation or do not live near a DoD installation with a Child and Youth program; if the sponsor is married, the spouse must be employed, actively seeking employment, or a full-time student. The request still starts at MilitaryChildCare.com — see the MCCYN card above for the request route and its administrator-transition flag.",
+        who: "Families who cannot access installation care — request at MilitaryChildCare.com; Child Care Aware® of America administers Army/Air Force fee assistance; your installation CYP office answers eligibility questions.",
+        links: [
+          { label: "Family Eligibility and Priority Guidelines — MilitaryChildCare.com", url: "https://public.militarychildcare.csd.disa.mil/mcc-central/mcchome/family-eligibility-priority-guidelines" },
+          { label: "Army Child Care Fee Assistance Programs — MyArmyBenefits", url: "https://myarmybenefits.us.army.mil/Benefit-Library/Federal-Benefits/Army-Child-Care-Fee-Assistance-Programs?serv=120" },
+          { label: "Alternative Child Care Programs (MCCYN) — Navy CYP, Naval Base Kitsap", url: "https://kitsap.navylifepnw.com/child-youth/child-care/alternative-child-care-programs" },
+        ],
+      },
+      {
+        name: "Hourly care — the published drop-in layer at CDCs and school-age centers",
+        kind: "Backup care · hourly / drop-in",
+        summary:
+          "Hourly care is the system's published answer to “I need care for a few hours” — short, reservable blocks at installation Child Development Centers and School Age Care programs, separate from a full-time enrollment slot. It exists across the services; its hours, prices, and caps are set per installation and vary (see the flag). Army (official MyArmyBenefits CDC fact sheet): CDCs offer full-day, part-day, and hourly care for children 6 weeks to 5 years; “Centers offer drop-off care on an hourly basis. Reservations may be made in advance. Children are also accepted on a walk-in basis, space permitting.” Army installation pages publish the mechanics locally — e.g., USAG Humphreys CYS: hourly care for CYS-registered children at CDC/SAC facilities, reserved up to 14 days in advance by calling or visiting the facility, charged in 30-minute or one-hour increments, may not exceed 15 hours per week for facility-based programs, with a no-show fee policy (a 2-hour no-show fee if a reservation is not cancelled at least 24 hours ahead); Fort Wainwright publishes hourly care by reservation up to two weeks in advance with limited daily openings, at its own published example price of $5/hour (Humphreys publishes $8/hour — installation examples, not a DoD price). Navy (Navy CYP Parent Handbook): “Occasionally, families need child care for short periods to deal with an emergency, attend a doctor's appointment, or take care of other responsibilities. If programs have hourly care spaces available in CDCs, SAC, or 24/7 Centers, those spaces are offered on a ‘first come, first served’ basis during normal operating hours”; reservations can be made on CYP Online Services or by calling the program up to 30 days in advance, after completing registration. The step families miss: the child must be registered with the installation's CYS/CYP (Parent Central Services / CYP registration + orientation) before hourly care can be used.",
+        who: "Any registered family needing a few hours — a duty conflict, an appointment, a drill day where the installation offers the hours. Register first (Parent Central Services for Army, CYP registration for Navy), then reserve with the CDC/SAC directly or its online system (WebTrac for Army, CYP Online Services for Navy). Your installation's CYP page — reached via My Installation — carries its hours and prices.",
+        flag: "⚠ Hourly-care prices and caps conflict across official installation pages — printed as variance, never as a DoD price: $8/hour (Humphreys; also NSA Bethesda Navy CYP, with a 2-hour minimum and hourly care closed weekends and federal holidays), $5/hour (Fort Wainwright), and an older CNIC hourly fee agreement form's $4/hour; weekly caps publish at 15 hours (Humphreys) and 25 hours (older CNIC form). The mechanics — reserve ahead, registration first, space-available — are the rule; any figure is a named installation's example.",
+        links: [
+          { label: "On Base Child Development Centers (Benefit Fact Sheet) — MyArmyBenefits", url: "https://myarmybenefits.us.army.mil/Benefit-Library/Federal-Benefits/Child-Development-Centers-(CDCs)?serv=121" },
+          { label: "Parent Central Services — USAG Humphreys CYS", url: "https://humphreys.armymwr.com/programs/parent-central-services" },
+          { label: "Hourly Child Care — Fort Wainwright CYS", url: "https://wainwright.armymwr.com/programs/hourly-child-care" },
+        ],
+      },
+      {
+        name: "Family Child Care homes — the flexible-hours layer (evenings, weekends, overnight)",
+        kind: "Backup care · FCC homes",
+        summary:
+          "Family Child Care (FCC) — certified providers caring for small groups in their own homes on or near the installation — is the layer the services publish for non-standard schedules. Unlike a CDC's fixed operating hours, an FCC provider's hours are the provider's own, and services publish FCC explicitly as the flexible option. Kadena Air Base's official FCC page: “FCC is flexible — many providers can respond to the unique needs of military schedules such as weekends, evenings, and intermittent care”; care in one home for children 6 weeks to school age (siblings together), no more than six children in care at once including the provider's own children under eight, and no more than two of the six under age two. The same page's Expanded Family Child Care table publishes the Air Force's mission-care categories at set maximums, including: Deployment Child Care (member or spouse deployed 30 days or more for a contingency operation — max 16 hours per month, pre- and post-deployment), Emergency Medical Care (immediate medical emergency for a family member — max 48 hours or subsidy), Contingency/Emergency Care (real-world contingency or emergency operation — max 16 hours per month, up to 3 months), and Military Spouse Appointment Child Care (max 16 hours per month with appointment documentation). Installation FCC pages elsewhere publish the same flexibility in local terms (MilitaryINSTALLATIONS listings note FCC homes offering “non-traditional childcare hours; therefore, hours may vary depending on care needed”). What FCC is not: a guarantee. A given installation's providers choose which schedules they offer, so weekend/overnight care exists only where a provider offers it — the check is the installation FCC office / MilitaryChildCare.com provider search.",
+        who: "Families whose schedules don't fit CDC hours — evenings, weekends, overnights, rotating shifts. Start at your installation FCC office for provider lists and the Expanded FCC categories, or search FCC options at MilitaryChildCare.com.",
+        links: [
+          { label: "Family Child Care — Kadena Air Base FSS", url: "https://kadenafss.com/family-child-care" },
+          { label: "MilitaryINSTALLATIONS child care listings — Military OneSource", url: "https://installations.militaryonesource.mil/search?program-service=37/view-by=ALL" },
+        ],
+      },
+      {
+        name: "Drill-weekend care — two published programs, neither of them DoD-wide",
+        kind: "Backup care · Guard & Reserve drill weekends",
+        summary:
+          "For the Guard/Reserve drill weekend specifically, two official programs publish care. Neither is a DoD-wide entitlement, and this entry prints them as exactly what they are. (1) Air Force Expanded FCC — Home Community Care: an ANG/AFR member in Inactive Duty Training (IDT) drill-period status (forms AFR40A / ANG150S), performing a regularly scheduled or properly rescheduled IDT, with no one else in the home available to provide care, is eligible for care up to a maximum of 12 hours per day. (2) Weekend Drill Child Care (WDCC) — published on an Army National Guard program flyer as “an officially endorsed Army National Guard initiative, administered by Upwards”: WDCC covers drill-weekend care 6 AM to 6 PM for children 6 weeks to 12 years, matched through state-licensed or registered providers who pass FBI fingerprint and child abuse registry checks and annual state inspections. The flyer sourced for this entry is one state's (Montana) program flyer — no DoD-wide or National Guard Bureau page confirming which states currently run WDCC was found, so this entry names the program and its published hours/ages without asserting availability in any particular state. For everyone else, the published drill-weekend route is the general one: FCC flexible hours (previous entry) and hourly care where an installation offers weekend hours — most CDCs publish Monday–Friday hours, so a drill weekend is precisely the case where the installation CYP page, reached via My Installation, is the check. Guard & Reserve carries a cross-link card to this entry.",
+        who: "Air National Guard / Air Force Reserve members — installation FCC office (Expanded FCC / Home Community Care). Army National Guard — the state WDCC program route on the flyer (careforheroes@upwards.com). All others — your installation CYP page for weekend hours.",
+        flag: "⚠ WDCC's reach is verified only at flyer level (a Montana-hosted Army National Guard program flyer describing an officially endorsed ARNG initiative). Availability in your state is not asserted — confirm through the program contact or your state Guard family programs office.",
+        links: [
+          { label: "Family Child Care (Expanded FCC table) — Kadena Air Base FSS", url: "https://kadenafss.com/family-child-care" },
+          { label: "Weekend Drill Child Care (WDCC) program flyer — Army National Guard initiative, via Montana DLI", url: "https://content.govdelivery.com/attachments/MTDLI/2026/10/28/file_attachments/3834480/WDCC.pdf" },
+        ],
+      },
+      {
+        name: "Deployment respite hours and the in-home pilot — the published backup layer for duty conflicts",
+        kind: "Backup care · respite + CCYH pilot",
+        summary:
+          "Three published programs cover the “duty just ate my child care plan” case beyond hourly/FCC: service respite-care hours tied to deployment, and the Department's in-home fee assistance pilot for nontraditional schedules. Army Respite Care (Fort Campbell CYS, published under the Army's FRAGO 01 update to Execution Order 300-16): families of service members with eligible deployment orders are eligible for up to 16 hours of no-cost, hourly child care per child per month, delivered through CYS Parents Day & Night Out monthly events; the Campbell page states the respite hours cannot be used with FCC providers or Armed Services YMCA care. The figure is published at installation level under an Army execution order — no Army-wide CYS page stating the same figure was verified, so it is attributed to the Army respite program as the Campbell page publishes it. Air Force publishes the same shape inside Expanded FCC: Deployment Child Care at 16 hours per month pre- and post-deployment. Child Care in Your Home (CCYH) — Military OneSource, describing the DoD fee assistance pilot: fee assistance for service members using in-home providers (such as nannies), which “gives families with nontraditional schedules the flexibility to get care from in-home providers… whenever they need it, including rotating shifts and weekends”; children 6 weeks to 5 years are eligible (school-age 6–12 only when younger siblings are offered care); the amount is based on total family income and does not cover the entire cost; families find their own providers and may use “the expanded hourly child care service available through Military OneSource” to search; CCYH is offered only in the listed high-demand/longest-waitlist regions, and families must be on the MilitaryChildCare.com waitlist or requesting care there in those regions. It is a pilot, in named regions — not a universal benefit — and its region list changes by pilot year, so it is not reproduced here.",
+        who: "Deployed and deploying families (installation CYS for Army respite / Parents Day & Night Out schedules; installation FCC office for Air Force deployment care), and families with nontraditional schedules in a CCYH pilot region (MilitaryChildCare.com + the CCYH page for regions and eligibility).",
+        links: [
+          { label: "Parent Central Services (Army Respite program) — Fort Campbell CYS", url: "https://campbell.armymwr.com/programs/cys-s/parent-central-services" },
+          { label: "Family Child Care (Expanded FCC) — Kadena Air Base FSS", url: "https://kadenafss.com/family-child-care" },
+          { label: "Child Care Fee Assistance Pilot Program (Child Care in Your Home) — Military OneSource", url: "https://pre.militaryonesource.mil/parenting/childcare/in-home-child-care-fee-assistance-program/" },
+        ],
+      },
+      {
+        name: "Sick-child care — the finding: no DoD program exists",
+        kind: "Labeled negative finding — read it as the answer",
+        alertBadge: "FINDING — NO PROGRAM EXISTS",
+        summary:
+          "“My kid is sick, I have duty tomorrow” has no published DoD or service sick-child care program behind it. No official page found in the Round 2 research (November 9, 2026) publishes a mildly-ill / sick-child care entitlement, a sick-child CDC room, or a DoD backup-care benefit that covers a sick child. This entry ships as the finding, with the published routes that actually exist around it — it does not invent a program. What official pages do publish: hourly care framed for short-notice needs (the Navy CYP Parent Handbook's hourly spaces for when “families need child care for short periods to deal with an emergency, attend a doctor's appointment, or take care of other responsibilities”); FCC providers whose own schedules may flex; in-home care through the CCYH pilot in its regions; and Military OneSource's expanded child care search service for finding local providers. None of those pages promises care for a child who is ill, and standard CDC/FCC health rules are set by the program, not by this entry. The honest position: there is no sick-child care benefit to claim; the backup routes are hourly care, an FCC provider, in-home care where the pilot reaches, and your Family Care Plan's caregiver list — and the installation CYP office is the check for anything local.",
+        who: "Any parent whose child is ill before a duty day — your Family Care Plan caregivers are your own backup; the installation CYP office is the check for anything installation-specific.",
+        links: [
+          { label: "Family Eligibility and Priority Guidelines — MilitaryChildCare.com (the gateway for the routes above)", url: "https://public.militarychildcare.csd.disa.mil/mcc-central/mcchome/family-eligibility-priority-guidelines" },
+        ],
+      },
+      {
         name: "School Liaison Officers (SLOs)",
         kind: "K-12 point of contact",
         summary:
@@ -307,7 +407,7 @@ FAMILY_GROUPS.push(
     ],
   },
   {
-    title: "EFMP — Exceptional Family Member Program",
+    title: "Family Members with Special Needs (EFMP)",
     entries: [
       {
         name: "EFMP Overview — What Enrollment Does",
@@ -461,6 +561,36 @@ FAMILY_GROUPS.push(
             label: "11th Marine Regiment Religious Ministries (\u201c100% confidentiality\u201d as published)",
             url: "https://www.1stmardiv.marines.mil/units/11thmarineregt.aspx",
           },
+        ],
+      },
+    ],
+  },
+  {
+    title: "Dual-Military Records & Single-Parent Housing Money",
+    entries: [
+      {
+        name: "Children of two sponsors — the couple chooses one parent as each child's DEERS sponsor",
+        kind: "DEERS · dual-military families",
+        summary:
+          "When both parents are service members, each parent has their own DEERS profile — neither is the other's dependent — and the children need a sponsor of record. TRICARE publishes the rule in one sentence: “If you and your spouse are both active duty service members, you'll each have your own DEERS profile. If you and your partner have children, you'll need to choose one parent to be their sponsor in DEERS.” The Defense Health Agency's newborn guidance publishes the same election at the moment it usually happens — “If both parents are service members, choose one to be the child's sponsor in DEERS” — and the consequences follow the sponsor's status: a child whose sponsor is an active duty member is automatically enrolled in a TRICARE plan once registered in DEERS (Prime, Select, or Select Overseas by where the child lives), with 90 days from automatic enrollment to change plans; a child whose sponsor has TRICARE Reserve Select or TRICARE Retired Reserve is not auto-enrolled. Registration itself runs through a Uniformed Services ID card (RAPIDS) office — the sponsor registers family members in person; other record changes route through ID Card Office Online (IDCO), the RAPIDS office, or the DMDC/DEERS Support Office at 1-800-538-9552. One milConnect nuance, so couples don't confuse the two: a beneficiary who has more than one sponsor (DMDC's own example is the joint-service marriage) can use milConnect's Change My Sponsor feature to switch which sponsor's view they see for medical/dental/pharmacy eligibility and enrollment information — that changes the view, not the DEERS sponsor of record.",
+        who: "Dual-military parents — at the child's DEERS registration and whenever the sponsor of record needs to change (RAPIDS office for the record; milConnect/IDCO for viewing).",
+        flag: "⚠ Whether siblings may be split between the two sponsors (one child under one parent, another under the other) is not stated on an official page found in the Round 2 research: TRICARE's marriage guidance says “choose one parent to be their sponsor” (plural children, one choice), while the DHA newborn guidance phrases the election per child. Both published phrasings print here; no per-child splitting rule is asserted — the RAPIDS office is the route for your family's case.",
+        links: [
+          { label: "Getting married? Here's what you need to know about your TRICARE benefit — TRICARE Newsroom", url: "https://newsroom.tricare.mil/News/TRICARE-News/Article/4366251/getting-married-heres-what-you-need-to-know-about-your-tricare-benefit" },
+          { label: "Q&A: Getting TRICARE for Your Newborn Baby — Defense Health Agency (via DVIDS)", url: "https://www.dvidshub.net/news/printable/542198" },
+          { label: "Changing Your Sponsor — milConnect, DMDC", url: "https://milconnect.dmdc.osd.mil/milconnect/help/topics/changing_your_sponsor.htm" },
+        ],
+      },
+      {
+        name: "Single parent? Your housing money — BAH, partial BAH, and BAH-DIFF",
+        kind: "Cross-link · the rule lives in PCS Move Center",
+        summary:
+          "If you serve as a single parent — including when your child lives with you part of the year, or part-time custody means your child is with you only part of the time — your housing money is explained in the PCS Move Center's entry on single members, and it is summarized here so you can find it from a parent's words. The pieces: members in single-type government quarters typically draw only partial BAH — or BAH-DIFF if they're in single quarters and authorized BAH solely because they pay child support. BAH-Diff, exactly as the DoD Financial Management Regulation frames it: a member assigned to single-type Government quarters is entitled to BAH-Diff if they are paying support to a biological child, adopted child, or stepchild in an amount equal to or greater than the applicable BAH-Diff rate; if the child support payment is less than the BAH-Diff rate, BAH-Diff is not authorized. The BAH-Diff rate is a fixed, non-locality-based rate — the difference between the with-dependent and without-dependent Basic Allowance for Quarters (BAQ) rates as of December 31, 1997, increased each year by the average pay raise percentage — which is why BAH-Diff amounts look unrelated to local rents. No dollar figures here: the rate is grade-based and updated annually, and DTMO publishes the current amounts. The full entry — including the move off-base, when your gaining command authorizes it — is in the PCS Move Center (Special Cases), and the child-support side is in Pay & Money's dual-military and BAH entries where they apply.",
+        who: "Single parents in barracks or single quarters, parents with part-time custody, and any member whose only basis for a housing allowance is paying child support — servicing finance office for your own case; DTMO for the current BAH-Diff amounts by grade.",
+        refNote: "Deep link: PCS Move Center → Special Cases → “Single Members — Barracks, BAH, and the Move Off-Base.” Custody-duration rules are separate published rules and are cross-linked there, not merged into BAH-Diff here.",
+        links: [
+          { label: "DTMO — BAH Eligibility FAQs (BAH-DIFF framing)", url: "https://www.travel.dod.mil/Support/ALL-FAQs/Article/2978684/" },
+          { label: "DoD Financial Management Regulation, Vol. 7A, Ch. 26 (May 2025), §5.6 — DoD Comptroller", url: "https://comptroller.defense.gov/Portals/45/documents/fmr/current/07a/07a_26.pdf" },
         ],
       },
     ],

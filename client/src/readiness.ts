@@ -551,4 +551,60 @@ export const READINESS_GROUPS: ReadinessGroup[] = [
       },
     ],
   },
+  /* ---------------------------------------------------------------- */
+  /* Closure Sweep deepener (Nov 9, 2026) — Motorcycle Safety.         */
+  /* Source: Closure LIFE pack Part 6.3 (service safety authorities).  */
+  /* Navy Level-II window and refresher conflicts print BOTH sides     */
+  /* (pack Flag O-6) — likely an instruction revision no page in the   */
+  /* research states; not picked silently.                             */
+  /* ---------------------------------------------------------------- */
+  {
+    title: "Motorcycle Safety",
+    note: "Added by the Closure Sweep from the service safety authorities. The rule everywhere: training comes before riding — a service course, passed, before you operate the motorcycle.",
+    entries: [
+      {
+        name: "Motorcycle Training — Required Before You Ride (the framework)",
+        kind: "DoDI 6055.04 framework",
+        summary:
+          "Governing framework as published: AR 385-10 (Army) / OPNAVINST 5100.12J (Navy) / DAFI 91-207 (Air Force), all under DoDI 6055.04. The curriculum must be MSF, MSF-based, state-approved, or DoD-component-approved, taught by certified rider coaches with classroom + hands-on + evaluation. Every service's version of the rule has the same shape: complete the basic course before operating a motorcycle — the service pages below give each branch's ladder.",
+        who: "Any member who rides or is thinking about it — the endorsement on your license is not the service requirement; the course is.",
+        links: [
+          { label: "Fort Detrick — Motorcycle Safety Foundation Course", url: "https://home.army.mil/detrick/my-fort/all-services/motorcycle-safety-foundation-course" },
+        ],
+      },
+      {
+        name: "Army — Progressive Motorcycle Program",
+        kind: "AR 385-10 / U.S. Army Combat Readiness Center",
+        summary:
+          "Initial: successfully complete the Basic Rider Course (BRC) before operating any 2- or 3-wheeled vehicle requiring a motorcycle endorsement. Intermediate (within 1 year): ERC / MSF BRC-II, or MSRC / MSF ARC (by motorcycle type), or a state/DoD-approved equivalent. Refresher (MRT): a licensed/endorsed Soldier who owns a motorcycle and returns from deployment over 180 days must complete refresher training before riding again (except riding to the training site). Sustainment: within 5 years of intermediate training, inactivity, or acquiring/changing motorcycle; commanders may not waive or defer sustainment. Europe restatement (USAG Rheinland-Pfalz Safety Office): “Servicemembers without Motorcycle Safety Foundation training cannot operate a motorcycle in Germany.”",
+        who: "Soldiers who ride — note the two clocks: intermediate within 1 year, sustainment within 5, and a refresher gate after any deployment over 180 days.",
+        links: [
+          { label: "USAG Rheinland-Pfalz — Safety Office", url: "https://home.army.mil/rheinland-pfalz/about/directorates-support-offices/safety-office" },
+          { label: "Fort Detrick — Motorcycle Safety Foundation Course", url: "https://home.army.mil/detrick/my-fort/all-services/motorcycle-safety-foundation-course" },
+        ],
+      },
+      {
+        name: "Navy — Level I / Level II (window and refresher conflicts printed both sides)",
+        kind: "OPNAVINST 5100.12J / OPNAV M-5100.23",
+        summary:
+          "Level I — BRC (16 hours, MSF-approved): “mandatory for all active duty personnel who plan to purchase or operate a motorcycle regardless of their intent to ride the motorcycle on or off base,” before operating. Level II — follow-on: MSRC (8 hrs; required for sport-bike riders on/off duty), ERC/BRC-2, or ARC. Civilians with a current state license/endorsement are not required to complete the Navy training.",
+        who: "Sailors who ride — Level I is mandatory even if you never ride on base; read the flag before planning Level II or a refresher date.",
+        flag: "CONFLICTS, printed both sides (pack Flag O-6): Level II window — within 60 days of Level I (CNRMA page) vs within 60 days–1 year (CNRSW / NPS summaries of OPNAV M-5100.23). Refresher period — every 3 years (CNRMA, 5100.12J era) vs every 5 years (CNRSW/NPS, M-5100.23 era). Likely an instruction revision, but no page in this research states the supersession — check your installation safety office for the current requirement rather than picking the friendlier number.",
+        links: [
+          { label: "CNRMA — Motorcycle Training", url: "https://cnrma.cnic.navy.mil/Operations-and-Management/Safety/Traffic-Safety/Motorcycle-Training/" },
+          { label: "Naval Postgraduate School — Traffic Safety", url: "https://nps.edu/web/safety/trafficsafety" },
+        ],
+      },
+      {
+        name: "Air Force — MSF Basic Rider Course + Five-Year Training",
+        kind: "DAFI 91-207 / Air Force Safety Center",
+        summary:
+          "The framework is the MSF Basic Rider Course (fundamentals: throttle control, braking, turning, maneuvering); advanced courses add emergency braking and obstacle avoidance. “Motorcycle training is required every five years for military riders.” The AFSEC-published mentorship ride (2026) is an alternative method to complete required refresher training; DAFI 91-207's Rider Mentor Program provides an alternative pathway for mandatory Level II and Level III training.",
+        who: "Air Force and Space Force riders — the five-year training clock and the mentor-program pathway are the two facts to hold.",
+        links: [
+          { label: "AFSEC — Rider Mentor Program", url: "https://www.safety.af.mil/News/Article-Display/Article/4484451/daf-expands-motorcycle-safety-with-rider-mentor-program/" },
+        ],
+      },
+    ],
+  },
 ];

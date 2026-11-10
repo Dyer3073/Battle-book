@@ -552,4 +552,77 @@ export const TRADITION_GROUPS: TraditionGroup[] = [
       },
     ],
   },
+  /* ---------------------------------------------------------------- */
+  /* Closure Sweep deepener (Nov 9, 2026) — Bugle Calls as a system.   */
+  /* Source: Closure LIFE pack Part 6.1. Meanings are standardized;    */
+  /* sounding times are installation-specific and ship as labeled      */
+  /* examples only. Taps is already covered in this section and is     */
+  /* NOT duplicated. The arch-of-sabers entry is the pack's negative   */
+  /* finding (Flag O-7) — a "not published" note, never instructions.  */
+  /* ---------------------------------------------------------------- */
+  {
+    title: "Bugle Calls — The System",
+    note: "Added by the Closure Sweep from official installation pages. The pattern to hold: the meaning of each call is standardized; the time it sounds is set by each installation. Never read one post's schedule as a DoD-wide rule.",
+    entries: [
+      {
+        name: "Bugle Calls as a System",
+        labels: ["DOCUMENTED"],
+        labelNote: "DOCUMENTED (installation publications)",
+        summary:
+          "Bugle calls are the installation's audible schedule — a shared language of short calls, each with a standardized meaning, sounded at times each post sets for itself. Fort Wainwright states there are 25 traditional Army bugle calls; it plays nine daily. Categories as Fort Wainwright prints them: Reveille / Retreat / Tattoo are service calls; Assembly is a formation call; To the Colors is a ceremonial call; To Arms is an alarm call. The eleven calls in the next entry are the daily system most installations share.",
+        links: [
+          { label: "Fort Stewart — Bugle Calls", url: "https://home.army.mil/stewart/my-fort/soldiers/bugle-calls" },
+          { label: "U.S. Army — Fort Wainwright bugle calls", url: "https://www.army.mil/article/87760/stepping_up_and_saluting_smartly_bugle_calls_volume_and_frequency_rising" },
+        ],
+      },
+      {
+        name: "The 11 Standardized Call Meanings",
+        labels: ["DOCUMENTED"],
+        labelNote: "DOCUMENTED (Fort Stewart / Hunter AAF, as other posts print them)",
+        summary:
+          "The meanings below are the standardized ones — the same definitions Fort Stewart/Hunter AAF, Fort Wainwright, and Fort Jackson publish. What is NOT standardized is the clock: see the schedule entry.",
+        bullets: [
+          "First Call — warning that Soldiers should begin assembling for a formation",
+          "Reveille — signals Soldiers to awaken for morning roll call; accompanies raising of the National Flag",
+          "Assembly — signals Soldiers to assemble at a designated place",
+          "Mess Call — signals breakfast, lunch, or dinner",
+          "Recall — signals the present period of PT, duties, or drill is over",
+          "Retreat — signals the end of the official duty day",
+          "To the Color / To the Colors — renders honors to the nation when no band is available (or when honors are rendered more than once); same courtesies as the National Anthem; accompanies lowering of the flag",
+          "Call to Quarters — symbolically signals all Soldiers not authorized to be absent to return to quarters for the night",
+          "Tattoo — signals all lights in squad rooms be extinguished and loud talking/disturbances discontinued within 15 minutes",
+          "Chapel Call — signals religious services are about to begin; may also announce formation of a funeral escort",
+          "To Arms — an alarm call (not a daily call): signals all troops to fall under arms at designated places without delay",
+        ],
+        flag: "Spelling varies by post — “To the Color” vs “To the Colors” (pack Flag O-5); Fort Wainwright prints it immediately after Retreat. Both spellings print here because both are published.",
+        links: [
+          { label: "Fort Stewart — Bugle Calls", url: "https://home.army.mil/stewart/my-fort/soldiers/bugle-calls" },
+          { label: "U.S. Army — Fort Jackson bugle calls explained", url: "https://www.army.mil/article-amp/273186/fort_jackson_bugle_calls_explained" },
+        ],
+      },
+      {
+        name: "Example Schedules — Labeled Examples, Not Standards",
+        labels: ["DOCUMENTED"],
+        labelNote: "DOCUMENTED (each post's own publication)",
+        summary:
+          "Three real schedules, printed to prove the point that times are local. Fort Wainwright — 0630 Reveille; 0900 Assembly; 1300 Assembly; 1700 Retreat + To the Colors; 2100 Tattoo. Fort Benning (weekdays) — 0555 First Call; 0600 Reveille; 0800 Mess Call; 1700 Retreat; 2045 Tattoo. Fort Jackson — Assembly 0700; Mess Call 0715 (also noon and 1730); Assembly 1300; Recall 1650; Retreat/To the Color at day's end; Tattoo 2000; Call to Quarters 2045. Reveille sounds at 0600 on one post and 0630 on another; Tattoo at 2000, 2045, and 2100 across the three. Your installation's page is the only schedule that governs your day. (Taps is covered by its own entry in this section and is not repeated here.)",
+        flag: "Pack Flag O-5: bugle-call clock times are NOT universal. These schedules are examples, labeled as examples — exactly as the pack requires.",
+        links: [
+          { label: "U.S. Army — Fort Benning bugle calls", url: "https://www.army.mil/article-amp/160873/bugle_calls_part_of_army_tradition" },
+          { label: "U.S. Army — Fort Jackson bugle calls explained", url: "https://www.army.mil/article-amp/273186/fort_jackson_bugle_calls_explained" },
+        ],
+      },
+      {
+        name: "Wedding Arch of Sabers — NOT PUBLISHED (Negative Finding)",
+        labels: ["DISPUTED"],
+        labelNote: "NOT SOURCED from any qualifying official publication",
+        summary:
+          "This entry exists to say what was NOT found. Searches of service protocol and official service publications (army.mil, marines.mil, navy.mil, af.mil) found no published wedding arch-of-sabers/swords etiquette: no eligibility rule, no rank rule, no formation procedure. The detailed versions in circulation — bearer counts, arch commands, who may carry — surfaced only on commercial wedding sites and non-official republications, which this app's sourcing rule excludes. Official army.mil “arch of sabers” hits were NCO Induction Ceremonies, not weddings. Accordingly, this app prints no arch-of-sabers procedure, and none should be inferred from this note. If a service protocol, drill-and-ceremonies, or chapel source is obtained directly, the entry can be built then.",
+        flag: "Pack Flag O-7 (Closure LIFE §6.2): do not build this entry beyond the negative finding until a qualifying official source is in hand. The one official-adjacent item found — a U.S. Naval Academy wedding guide hosted on a tourism domain — is not a .mil protocol publication and is not cited as service protocol.",
+        links: [
+          { label: "U.S. Army — NCO Induction Ceremony (what official “arch” hits actually were)", url: "https://www.army.mil/article/114955/nco_induction_ceremony" },
+        ],
+      },
+    ],
+  },
 ];
