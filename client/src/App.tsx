@@ -493,12 +493,15 @@ import {
 BINDER_SECTIONS,
 BinderProvider,
 CardTools,
+PinnedRow,
 binderSectionLabel,
 sourceFromLinks,
 trustLine,
 useBinder,
 type BinderItem,
+type PinItem,
 } from "./binder";
+import { EssentialsLane } from "./essentials";
 
 type Profile = NonNullable<ApiResponse<typeof api, "getProfile">["profile"]>;
 type Story = ApiResponse<typeof api, "getNews">["stories"][number];
@@ -826,6 +829,13 @@ export function App() {
     setView(item.section as View);
     setPendingCard(item.title);
   };
+  // Pin to Home deep link: a pinned card opens its real destination
+  // through the exact same routing as a Binder card (openBinderItem
+  // reads only section / itemKey / title; a pin carries no summary or
+  // source because it is a shortcut, not a save).
+  const openPinnedItem = (pin: PinItem) => {
+    openBinderItem({ id: pin.id, section: pin.section, itemKey: pin.itemKey, title: pin.title, summary: "", source: "" });
+  };
   // This Day in Military History deep links: follow the pack's "App
   // link" column into existing content — a specific card (scrolled to
   // via its CardTools anchor), a section anchor, or a whole view.
@@ -1025,6 +1035,8 @@ export function App() {
                 go={setView}
                 onSearchHit={handleSearchHit}
                 onSwitchProfile={() => setSignedOut(true)}
+                openPinned={openPinnedItem}
+                pinViews={futureViews}
               />
             )}
             {fv === "mos" && (
@@ -1193,7 +1205,7 @@ export function App() {
           <SafeAreaTopScrim backgroundColor="var(--bg)" />
           <main className="mx-auto w-full max-w-3xl px-4 pt-4">
             {sv === "home" && (
-              <SpouseHomeView profile={profile} go={setView} onSwitchProfile={() => setSignedOut(true)} />
+              <SpouseHomeView profile={profile} go={setView} onSwitchProfile={() => setSignedOut(true)} openPinned={openPinnedItem} pinViews={spouseViews} />
             )}
             {sv === "spousehub" && <SpouseHubView profile={profile} go={setView} />}
             {sv === "spouseconnect" && <SpouseConnectView profile={profile} />}
@@ -1411,7 +1423,7 @@ export function App() {
     <div className="min-h-screen bg-[var(--bg)] pb-28">
       <SafeAreaTopScrim backgroundColor="var(--bg)" />
       <main className="mx-auto w-full max-w-3xl px-4 pt-4">
-        {(view === "home" || view === "starthere") && <HomeView profile={profile} go={setView} goTo={goTo} onSearchHit={handleSearchHit} openMos={openMosEntry} openState={openStateEntry} openThisDayLink={openThisDayLink} onSwitchProfile={() => setSignedOut(true)} />}
+        {(view === "home" || view === "starthere") && <HomeView profile={profile} go={setView} goTo={goTo} onSearchHit={handleSearchHit} openMos={openMosEntry} openState={openStateEntry} openThisDayLink={openThisDayLink} onSwitchProfile={() => setSignedOut(true)} openPinned={openPinnedItem} />}
         {view === "paths" && <PathsView goTo={goTo} onPrintPath={(path, completed) => setPrintJob({ kind: "path", path, completed })} />}
         {view === "binder" && (
           <BinderView
@@ -3756,11 +3768,15 @@ function StartHereView({
   go,
   onSearchHit,
   onSwitchProfile,
+  openPinned,
+  pinViews,
 }: {
   profile: Profile;
   go: (v: View) => void;
   onSearchHit: (hit: SearchHit) => void;
   onSwitchProfile: () => void;
+  openPinned: (pin: PinItem) => void;
+  pinViews: readonly string[];
 }) {
   const [editing, setEditing] = useState(false);
   const [converting, setConverting] = useState(false);
@@ -3998,6 +4014,19 @@ function StartHereView({
       </section>
 
       <ThemePanel profile={profile} />
+
+      {/* Pinned row (Pin to Home, Nov 10, 2026): Start Here's grid
+          accommodates the row without forcing — it sits between the
+          profile header and the area doors, filtered to the future
+          shell's view whitelist like every other future surface. */}
+      <PinnedRow allowedViews={pinViews} onOpen={openPinned} />
+
+      {/* Essentials lane (Nov 10, 2026): curated per track in
+          essentials.tsx — Start Here has no For You row, so the
+          lane is the first content row after Pinned, above the
+          area doors. Every card is a future-whitelisted view —
+          no member-only destination appears in the future list. */}
+      <EssentialsLane track="future" go={(v) => go(v as View)} />
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {areas.map((a) => (
@@ -5451,6 +5480,7 @@ function HomeView({
   openState,
   openThisDayLink,
   onSwitchProfile,
+  openPinned,
 }: {
   profile: Profile;
   go: (v: View) => void;
@@ -5460,6 +5490,7 @@ function HomeView({
   openState: (name: string) => void;
   openThisDayLink: (link: ThisDayAppLink) => void;
   onSwitchProfile: () => void;
+  openPinned: (pin: PinItem) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const pendingQ = useQuery({
@@ -5556,7 +5587,7 @@ function HomeView({
     { view: "voting", title: "Voting Center", blurb: "FVAP's process: the FPCA every January and every move (90+ days out, attaching the 45-day MOVE Act protection), the FWAB backup at 30 days, and every state deadline routed to FVAP's own tool. Strictly nonpartisan." },
     { view: "healthhq", title: "Health Care & TRICARE", blurb: "The pure router: milConnect for enrollment/DEERS, GENESIS for records and appointments, your contractor portal (East Humana, West TriWest, Overseas International SOS, TFL WPS) for claims, Express Scripts for pharmacy, and the Nurse Advice Line at 1-800-TRICARE, option 1." },
     { view: "specops", title: "Special Forces & Elite Units", blurb: "The elite forces, branch tile by branch tile, exactly as the official recruiting and command pages publish them: what each unit is, who can apply, the qualifications (conflicts printed as flags — the 37F GT 107-vs-105, the MARSOC PFT 235-vs-225, the SEAL page's own two age lines), and each pipeline's structure by official phase names — RASP, BUD/S, the Marine Raider Course, the ten-step PJ and CCT pipelines, the 22-week AST A School. Delta is existence-only because the Army publishes nothing more; the Space Force card says plainly that no SOF exists; and the only attrition figure in the section is the Coast Guard's own ~73% for AST, attributed." },
-    { view: "alliedsf", title: "Allied Special Forces", blurb: "The allies' special forces, country tile by country tile in Partner Forces order, exactly as each country's own official pages publish them: what each unit is, who can apply, the standards only where published (KSK's two tables, FSK vs MJK kept separate, PFSE 1/2/3, the SF entry PFA, the full UDT/SEAL tables with F-14/F-15 flagged unresolved), and each pipeline by named phases. Deliberate silences print as findings; Poland's GROM and AGAT ship verified from the official pages (the rest flagged), and Türkiye's ÖKK route ships as published in regulation, with its direct-entry correction printed." },
+    { view: "alliedsf", title: "Allied Special Forces", blurb: "The allies' special forces, country tile by country tile in Partner Forces order, exactly as each country's own official pages publish them: what each unit is, who can apply, the standards only where published (KSK's two tables, FSK vs MJK kept separate, PFSE 1/2/3, the SF entry PFA, the full UDT/SEAL tables with F-14/F-15 flagged unresolved), and each pipeline by named phases. Deliberate silences stand as findings; Poland's GROM and AGAT ship verified from the official pages (the rest flagged), and Türkiye's ÖKK route ships as published in regulation, with its direct-entry correction printed." },
     { view: "quals", title: "Qualifications, Schools & Certifications", blurb: "The quals you keep current and the schools you volunteer for: USMC swim's five current levels (MCO 1500.52E) with the cancelled system as history and MCIWS at MOS 0918, the weapons tables per service with no score bands duplicated, the helo dunker / UET device family disambiguated, CBRN/driver/OIC-RSO/language currency quals, then Airborne, Pathfinder (GT ≥110), dive, SERE, mountain, sniper, instructor and maritime schools — qualifications and how to earn each one, flags printed, gated standards NOT PUBLICLY PUBLISHED, and the NOT CONFIRMED register of 45 rumored items." },
     { view: "components", title: "Switching Components", blurb: "Active ⇄ Reserve, both directions: the landscape (AGR/TAR/AR are full-time Reserve-component statuses — affiliation follows component, not duty status), each branch's route (RCCC, DAP, AC2SELRES/AC2TAR, Palace Front vs Palace Chase with the obligation extended — never reduced — and no conversion multiple printed, the Space Force no-reserve-component finding, R2R; then CAD, AGR, the AR Program, RC2AC/RC2TAR, VLPAD/CIP, EAD → integration), what carries over, and the 10-item Before You Sign checklist in full. No quotas, windows, or bonus figures — those live at the official sources linked on every card." },
     { view: "reenlist", title: "Reenlistment & IRR", blurb: "Signing again, branch by branch — the ROW, boatspaces and the SRB no-retroactivity warning, the C-WAY gate, CJR windows, the CO's recommendation — with SRB printed as structure only (no current bonus amounts; flagged standing constants only), RE codes, and the checkable 8-item Before You Sign checklist. Then the IRR: the 8-year MSO, your five obligations, muster and screening, the three recall authorities, and the doors back to drilling or active duty." },
@@ -5690,10 +5721,16 @@ function HomeView({
         ) : null}
       </section>
 
+      {/* Pinned row (Pin to Home, Nov 10, 2026): the profile's own
+          pinned cards, ABOVE For You. The member shell opens every
+          view, so no whitelist filter applies here. With no pins,
+          PinnedRow renders only the one-line hint. */}
+      <PinnedRow allowedViews={null} onOpen={openPinned} />
+
       {/* For You row (ux-reorg.md §B.3): five compact doors driven by
           the profile itself — your job, your next deadline, your
           installation, your squad's check-in, your Binder. */}
-      <section aria-label="For you">
+      <section aria-label="For you" className="mt-5">
         <h2 className="font-display mb-3 text-xl font-bold text-[var(--text)]">For you</h2>
         <div className="flex gap-3 overflow-x-auto pb-1">
           <button
@@ -5776,6 +5813,12 @@ function HomeView({
           </button>
         </div>
       </section>
+
+      {/* Essentials lane (Nov 10, 2026): curated per track in
+          essentials.tsx — below For You, above In the field (which
+          is untouched). Every card opens its real destination via
+          the same `go` routing as the browse cards below. */}
+      <EssentialsLane track="member" go={(v) => go(v as View)} />
 
       {/* In the field (Nov 10, 2026): Field Tools and Fieldcraft
           surfaced on Home at Christian's call — both were previously
@@ -18927,10 +18970,14 @@ function SpouseHomeView({
   profile,
   go,
   onSwitchProfile,
+  openPinned,
+  pinViews,
 }: {
   profile: Profile;
   go: (v: View) => void;
   onSwitchProfile: () => void;
+  openPinned: (pin: PinItem) => void;
+  pinViews: readonly string[];
 }) {
   const [editing, setEditing] = useState(false);
   const openCards: { view: View; title: string; blurb: string }[] = [
@@ -19037,6 +19084,12 @@ function SpouseHomeView({
         <WhatChangedCard profile={profile} go={go} />
       </div>
 
+      {/* Pinned row (Pin to Home, Nov 10, 2026): the spouse profile's
+          own pins, ABOVE For You, filtered to the spouse shell's view
+          whitelist — a pin whose destination the spouse shell cannot
+          open never renders here. */}
+      <PinnedRow allowedViews={pinViews} onOpen={openPinned} />
+
       {/* Spouse For You row (§B.3): the member's branch (H-3), the
           family installation, and the spouse's own front doors. */}
       <section aria-label="For you" className="mt-4">
@@ -19088,6 +19141,12 @@ function SpouseHomeView({
           </button>
         </div>
       </section>
+
+      {/* Essentials lane (Nov 10, 2026): curated per track in
+          essentials.tsx — below the spouse For You row, above the
+          open-cards grid. Every card is a spouse-whitelisted view
+          and opens via the same `go` routing as the grid below. */}
+      <EssentialsLane track="spouse" go={(v) => go(v as View)} />
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {openCards.map((c) => (
