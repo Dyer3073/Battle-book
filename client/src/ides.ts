@@ -1,0 +1,187 @@
+// MEB/PEB (IDES) Guide — transcribed from the Closure Sweep CAREER
+// pack (~/workspace/military-app/closure/closure-career.md, Part 3,
+// researched Nov 9, 2026). PROCESS ONLY — this is not legal or
+// medical advice, and the section says so on its face. Timelines are
+// published GOALS, not promises; where published sources conflict
+// (180 vs 295 days; TDRL 5 vs 3 years), both figures print with
+// attribution, never blended. The PEBLO's role AND its limit print
+// together. Members and spouses in full; future members locked.
+
+import type { PackSection } from "./seven";
+
+export const IDES_SECTION: PackSection = {
+  view: "ides",
+  title: "MEB/PEB (IDES) Guide",
+  headSub:
+    "The Integrated Disability Evaluation System in plain language — the stages in order, your rights at each one, the outcome rules, and where the free help is. Process only: this is not legal or medical advice.",
+  intro:
+    "IDES is the joint DoD–VA process used since 2011: DoD decides fitness for duty while VA rates disabilities and builds the benefits claim during the process, so compensation is ready at separation instead of starting after it. Governed by DoDI 1332.18 and the DoDM 1332.18 manual volumes; medical retention standards sit in DoDI 6130.03, Volume 2; outcomes law is 10 U.S.C. Chapter 61.",
+  standing:
+    "PROCESS ONLY — NOT LEGAL OR MEDICAL ADVICE. Every timeline in this section is a published GOAL, not a promise, printed with its as-of framing. Where published sources conflict, both figures print — the 180-day goal table and the 295-day figure both appear in ID-12, and the TDRL duration conflict prints both sides in ID-11. Nothing here is blended into a single number.",
+  tiles: [
+    {
+      key: "stages",
+      label: "The Stages, In Order",
+      tileSub: "Entries ID-1–ID-5 · what IDES is, referral/MRDP, the VA claim in-process, C&P exams, the MEB and NARSUM",
+      intro: "The front half of the process, in the order it actually runs: referral, claim development, VA exams, and the Medical Evaluation Board.",
+      entries: [
+        {
+          id: "ID-1",
+          name: "What IDES is",
+          summary: "IDES is the joint DoD–VA process used since 2011 in place of the older Legacy DES: DoD decides fitness for duty while VA rates disabilities and builds the benefits claim during the process, so compensation is ready at separation instead of starting after it. Per DoD's DES page (health.mil), the phases are: MEB phase → PEB phase → transition/reintegration. Two different ratings come out of one case: the DoD rating covers only the conditions the PEB finds unfitting; the VA rating covers all service-connected conditions.",
+          who: "Anyone referred — and any spouse trying to understand why two ratings exist and why they differ.",
+          body: [],
+          flags: [],
+          links: [],
+          source: "DoD DES page (health.mil); DoDI 1332.18",
+        },
+        {
+          id: "ID-2",
+          name: "Referral and the MRDP",
+          summary: "The process starts when a provider determines a condition may fail medical retention standards. The formal trigger is the Medical Retention Determination Point (MRDP), which must occur within one year of diagnosis of a condition that doesn't meet retention standards — sooner if the provider determines the member won't recover within that year.",
+          who: "Members whose condition may not meet retention standards — the MRDP is the clock that starts the case.",
+          body: [],
+          flags: [],
+          links: [],
+          source: "DoDI 1332.18 (as published)",
+        },
+        {
+          id: "ID-3",
+          name: "Claim development: the VA MSC files your claim in-process",
+          summary: "At referral, the PEBLO collects the service treatment records and, with the VA Military Services Coordinator (MSC), files the member's VA claim inside the process (VA Form claim + records to VA). The member does not file a separate pre-discharge claim while in IDES.",
+          who: "Referred members — your VA claim is already being built; a second pre-discharge filing is not the route.",
+          body: [],
+          flags: [],
+          links: [],
+          source: "DoD DES page (health.mil); DoDI 1332.18",
+        },
+        {
+          id: "ID-4",
+          name: "VA C&P exams",
+          summary: "VA compensation & pension examinations document each claimed condition. Exam scheduling is the most commonly cited delay point in published summaries — stated here as context, not as a timeline figure.",
+          who: "Members in the MEB phase — the exams are the evidence the ratings are built from; attend them.",
+          body: [],
+          flags: [],
+          links: [],
+          source: "Published IDES summaries (as cited in the research pack)",
+        },
+        {
+          id: "ID-5",
+          name: "The MEB and the NARSUM",
+          summary: "The Medical Evaluation Board documents the conditions and whether they meet retention standards. The MEB does not decide fitness — it builds the medical record of the case, centered on the Narrative Summary (NARSUM) and recorded on DA Form 3947 (Army). If every condition meets retention standards, the case can end in return to duty at this stage.",
+          who: "Members at the MEB stage — read the NARSUM closely; it is the record everything after this is built on.",
+          body: [],
+          flags: [],
+          links: [],
+          source: "DoDI 1332.18 / DoDM 1332.18 (as published)",
+        },
+      ],
+    },
+    {
+      key: "rights",
+      label: "Your Rights & the Board",
+      tileSub: "Entries ID-6–ID-10 · impartial review and rebuttal, the IPEB, elections and the Formal PEB, VARR, the PEBLO's role and limit",
+      intro: "The decision half: what you can challenge, when, and with whose free help — and what the PEBLO is and is not.",
+      entries: [
+        {
+          id: "ID-6",
+          name: "Your MEB-stage rights: impartial review and rebuttal",
+          summary: "Per the Army Office of Soldiers' Counsel information paper (JALS-OSC, Dec 1, 2023): after the DA Form 3947/NARSUM issues, a Soldiers' MEB Counsel (SMEBC) attorney helps the member, free, with an Impartial Medical Review (IMR) request and a written MEB rebuttal, and with the written IPEB appeal and the FPEB election.",
+          who: "Members holding a NARSUM they believe is wrong or incomplete — the IMR and rebuttal windows are yours to use, with free counsel.",
+          body: [],
+          flags: [],
+          links: [],
+          source: "Army JALS-OSC information paper (Dec 1, 2023)",
+        },
+        {
+          id: "ID-7",
+          name: "The IPEB",
+          summary: "The Informal Physical Evaluation Board reviews the case on paper and issues findings on DA Form 199 (Army): fit or unfit, and if unfit, a proposed disposition. For unfitting conditions, the PEB adopts VA's proposed ratings — the DoD percentage that drives the outcome in ID-11 is VA's rating for the unfitting conditions only (see ID-1).",
+          who: "Members whose case reaches the PEB — the DA Form 199 is the finding you concur with or challenge.",
+          body: [],
+          flags: [],
+          links: [],
+          source: "DoDI 1332.18 / DoDM 1332.18 (as published)",
+        },
+        {
+          id: "ID-8",
+          name: "Elections and the Formal PEB",
+          summary: "The member may concur or demand a Formal PEB (FPEB) — a hearing. The right to a full and fair hearing before separation/retirement for disability is statutory (10 U.S.C. §1214). On FPEB election, a Soldiers' PEB Counsel (SPEBC) is assigned (Army; other services field equivalent free counsel).",
+          who: "Members who disagree with the IPEB — the formal hearing is a statutory right, not a favor.",
+          body: [],
+          flags: [],
+          links: [],
+          source: "10 U.S.C. §1214; Army JALS-OSC information paper",
+        },
+        {
+          id: "ID-9",
+          name: "VARR: the one-time rating reconsideration",
+          summary: "Per the OSC information paper: the VA Rating Reconsideration (VARR) is a one-time written request to VA's Disability Rating Activity Site (D-RAS) to reconsider the rating for the PEB-determined unfitting conditions only. It requires new medical evidence or sufficient justification; if VA changes the rating, the service adopts the new rating. It is processed after any formal hearing.",
+          who: "Members whose unfitting-condition rating looks wrong — one shot, unfitting conditions only, new evidence or justification required.",
+          body: [],
+          flags: [],
+          links: [],
+          source: "Army JALS-OSC information paper (Dec 1, 2023)",
+        },
+        {
+          id: "ID-10",
+          name: "The PEBLO's role — and its limit",
+          summary: "The PEBLO assembles the case file, counsels the member on process and elections, and tracks the case. The PEBLO is an administrator/coordinator, not the member's advocate. Advocacy is the job of the free service counsel in ID-14.",
+          who: "Every member in IDES — use the PEBLO for process and status; use counsel for advocacy. Confusing the two is the common mistake this card exists to prevent.",
+          body: [],
+          flags: [],
+          links: [],
+          source: "DoD DES page (health.mil); Army JALS-OSC information paper",
+        },
+      ],
+    },
+    {
+      key: "outcomes",
+      label: "Outcomes & Timelines",
+      tileSub: "Entries ID-11–ID-14 · the 30% rule, PDRL/TDRL, severance, the goal timelines printed both ways, LDES, where to get help",
+      intro: "What comes out of the process, the published goal timelines — both versions, labeled goals-not-promises — and every published help route.",
+      entries: [
+        {
+          id: "ID-11",
+          name: "Outcomes: the 30% rule, PDRL/TDRL, severance (10 U.S.C. Ch. 61)",
+          summary: "As published: Combined rating for unfitting conditions ≥30%, OR ≥20 years of service → disability retirement. Condition(s) stable → Permanent Disability Retired List (PDRL); unstable → Temporary Disability Retired List (TDRL). On TDRL: disability pay computed at a minimum of 50% while on the list; re-examinations at least every 18 months. <30% (and <20 years) → separation with severance pay (§1212): 2 months' basic pay × years of service, with a minimum of 3 years credited (6 years if the disability was incurred in a combat zone), capped at 19 years. Recoupment: severance is generally recouped from VA compensation — unless the disability is combat-related (§1212(d)).",
+          who: "Members reading a DA Form 199 — this is the rule the disposition follows.",
+          body: [],
+          flags: ["TDRL duration — CONFLICT, printed both sides (pack Flag F-11): the statutory maximum under 10 U.S.C. §1210 is 5 years; Army-facing published sources state a final determination is made within 3 years. Both print; they are not blended."],
+          links: [],
+          source: "10 U.S.C. Ch. 61 (§§1210, 1212); DoD DES page (health.mil)",
+        },
+        {
+          id: "ID-12",
+          name: "Timelines AS PUBLISHED (goals, not promises)",
+          summary: "Current published goal set — DoDM 1332.18, Volume 1 (Feb 24, 2023), Table 1, as reproduced in published summaries: DoD's goal is to complete 80% of IDES cases within 180 calendar days from referral to return to duty / separation / retirement (the clock excludes transition leave and deferment time). Stage goals, in calendar days, stated as averages: MEB phase — 72 days total (referral 7 · claim development 7 · VA exam 31 · MEB 20 · +7 only if the member requests an impartial review/rebuttal). PEB phase — 82 days total (informal board 11 · proposed ratings 19, runs alongside MEB/IPEB stages · proposed disposition 5 · elections 6 · final disposition 5 · +24 formal board, +10 appeal, +2 VA rating reconsideration, only for members who use them). Transition — 26 days from approval to separation/retirement date. VA decision letter — goal 30 days after separation (former active-duty members).",
+          who: "Members and spouses planning around a case — plan on the stage goals, and hold them as goals.",
+          body: [],
+          flags: ["CONFLICT — printed, not resolved (pack Flags F-9/F-10): other published summaries, including installation IDES pages, state a 295-day end-to-end IDES goal attributed to DoDI 1332.18. The 180-day table above is the one tied to a dated manual edition (DoDM 1332.18 Vol. 1, Feb 24, 2023); the 295-day figure's edition basis was not confirmed in the research pass. Both figures print: 180 and 295. The manual text itself was not opened first-hand in the research pass — the table rests on two agreeing published summaries citing it."],
+          links: [],
+          source: "DoDM 1332.18, Vol. 1 (Feb 24, 2023), Table 1, via published summaries; installation IDES pages (295-day figure)",
+        },
+        {
+          id: "ID-13",
+          name: "LDES: the legacy alternative (flagged sourcing)",
+          summary: "Published secondary sources describe the Legacy DES (LDES) election: a member may elect LDES within 5 calendar days of initial PEBLO counseling, with exception-to-policy approval; in LDES, VA ratings are not built in-process (the member files with VA after separation).",
+          who: "Members offered the LDES election at counseling — understand that the in-process VA claim is the thing you give up.",
+          body: [],
+          flags: ["Sourcing flag (pack Flag F-12): the 5-calendar-day election window was not confirmed on an official page in the research pass. It ships with this flag visible — confirm the window with your PEBLO and counsel before relying on it."],
+          links: [],
+          source: "Published secondary sources (flagged — see flag)",
+        },
+        {
+          id: "ID-14",
+          name: "Where to get help (all published routes)",
+          summary: "Your PEBLO — process guidance and case status (ID-10; not your advocate). Free service legal counsel — Army Office of Soldiers' Counsel (OSC): SMEBC from the MEB stage, SPEBC on formal-board election (ID-6, ID-8). Other services operate equivalent free DES counsel; verify the current office name per service. VA MSC — the VA claim inside IDES (ID-3). VSOs — free claims representation (also the post-separation VA route). PDBR — the Physical Disability Board of Review re-reviews separations for members separated Sep 11, 2001 – Dec 31, 2009 with ratings of 20% or less; apply on DD Form 294 (authority: DoDI 6040.44).",
+          who: "Every member in the process — the advocacy help is free, published, and yours by design. Use it before elections, not after.",
+          body: [],
+          flags: [],
+          links: [],
+          source: "Army JALS-OSC; DoD DES page (health.mil); DoDI 6040.44 (PDBR)",
+        },
+      ],
+    },
+  ],
+};
