@@ -41,6 +41,17 @@
   --border: #d6d0ba;
   --accent: #4b5320;
   --accent-text: #ffffff;
+  /* Secondary accent (fills only): the second segment of the masthead
+     band and section-header rules. Olive-theme default is a muted
+     olive-tan; branch themes override it with the branch's other
+     signature color (see theming.ts, Nov 9, 2026 rebalance). */
+  --accent2: #b3ab8b;
+  /* Colored-text accent — the "words" surface (accented headings,
+     labels, links, values). In the default olive theme it equals
+     --accent; branch themes override it with the branch's secondary
+     color, in a readable shade where the literal hue fails as text
+     (Christian's theme rule, Nov 9, 2026 — see theming.ts). */
+  --accent-word: #4b5320;
   --amber: #b45309;
   --amber-bg: #fdf3e0;
   --red: #b91c1c;
@@ -63,6 +74,8 @@
     --border: #3c4033;
     --accent: #8a9455;
     --accent-text: #171913;
+    --accent2: #5c6148;
+    --accent-word: #8a9455;
     --amber: #e0a458;
     --amber-bg: #38301f;
     --red: #f0857d;

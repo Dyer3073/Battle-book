@@ -60,7 +60,7 @@ export const PATHS: PathDef[] = [
         title: "File BDD inside the window",
         why: "Benefits Delivery at Discharge runs from 180 to 90 days before you separate.",
         view: "claims",
-        anchor: "Before You Get Out: BDD & the Under-90-Day Path",
+        anchor: "Claim Before You Get Out — BDD",
         cta: "Open BDD in Claims",
       },
       {
@@ -131,7 +131,7 @@ export const PATHS: PathDef[] = [
         title: "Complete EFMP screening if it applies",
         why: "Mandatory enrollment shapes assignment consideration for your family.",
         view: "family",
-        anchor: "EFMP — Exceptional Family Member Program",
+        anchor: "Family Members with Special Needs (EFMP)",
         cta: "Open EFMP",
       },
       {
@@ -271,7 +271,7 @@ export const PATHS: PathDef[] = [
         title: "Use BDD if still eligible",
         why: "Retirees with a known separation date can file 180–90 days out.",
         view: "claims",
-        anchor: "Before You Get Out: BDD & the Under-90-Day Path",
+        anchor: "Claim Before You Get Out — BDD",
         cta: "Open BDD in Claims",
       },
     ],

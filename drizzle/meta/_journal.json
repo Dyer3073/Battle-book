@@ -78,6 +78,153 @@
       "when": 1794187450704,
       "tag": "0011_squad_invites_and_active_profile",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1794227278216,
+      "tag": "0012_add_future_member_track_to_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794229733946,
+      "tag": "0013_feedback_alerts_and_checkin_owners",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1794230141230,
+      "tag": "0014_add_va_claims_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1794230780934,
+      "tag": "0015_add_find_your_people_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1794231416531,
+      "tag": "0016_spouse_track_and_spouse_connect_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1794232315004,
+      "tag": "0017_add_battle_buddy_messages_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1794234304836,
+      "tag": "0018_add_field_kit_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1794235176635,
+      "tag": "0019_field_notes_and_kit_extras",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1794237431142,
+      "tag": "0020_add_emergency_cards_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1794240166125,
+      "tag": "0021_add_installation_to_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1794247711075,
+      "tag": "0022_add_theme_mode_to_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1794252233574,
+      "tag": "0023_add_kill_cards_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1794258518457,
+      "tag": "0024_add_profile_checklists_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1794260000000,
+      "tag": "0025_add_nutrition_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1794261000000,
+      "tag": "0026_add_calculator_states_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1794262000000,
+      "tag": "0027_add_trainer_states_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1794263000000,
+      "tag": "0028_add_entry_flags_to_feedback",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1794264000000,
+      "tag": "0029_add_section_scopes_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1794265000000,
+      "tag": "0030_household_and_fcp_dates",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1794266000000,
+      "tag": "0031_add_changelog_seen_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1794267000000,
+      "tag": "0032_binder_items_profile_scope",
+      "breakpoints": true
     }
   ]
 }

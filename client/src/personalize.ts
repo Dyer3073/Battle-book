@@ -46,7 +46,7 @@ export function easWithinYear(easDate: string | null | undefined): boolean {
  */
 export function relevancePriority(p: ProfileSignals): string[] {
   const picks: string[] = [];
-  if (easWithinYear(p.easDate)) picks.push("paths", "transition", "claims");
+  if (easWithinYear(p.easDate)) picks.push("paths", "transition", "claims", "claimtracker");
 
   const status = (p.status ?? "").toLowerCase();
   const component = (p.component ?? "").toLowerCase();
@@ -55,7 +55,7 @@ export function relevancePriority(p: ProfileSignals): string[] {
   if (text.includes("retir") || text.includes("gray")) {
     picks.push("retirement", "records");
   } else if (text.includes("veteran")) {
-    picks.push("claims", "records", "states", "care");
+    picks.push("claims", "claimtracker", "records", "states", "care");
   } else if (status.includes("future") || component.includes("future")) {
     picks.push("mos", "education", "fitness");
   } else if (text) {

@@ -250,7 +250,7 @@ export function UsMapPicker({ selectedName, homeName, onPick }: UsMapPickerProps
             </span>
           ) : null}
           {selectedName ? (
-            <span className="text-sm font-semibold text-[var(--accent)]">Now viewing: {selectedName}</span>
+            <span className="text-sm font-semibold text-[var(--accent-word)]">Now viewing: {selectedName}</span>
           ) : null}
         </div>
       </div>

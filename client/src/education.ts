@@ -325,3 +325,32 @@ export const EDUCATION_SECTIONS: EducationSection[] = [
     ],
   },
 ];
+
+EDUCATION_SECTIONS.push({
+  title: "Tuition help for Guard & Reserve members",
+  intro: "Federal Tuition Assistance and your state's own tuition program — the two tuition routes that exist specifically for drilling members. Cross-linked from Guard & Reserve.",
+  entries: [
+    {
+      name: "Federal Tuition Assistance (CA — Credentialing Assistance) for Guard & Reserve members",
+      kind: "Tuition assistance · Education services",
+      summary:
+        "Federal Tuition Assistance is the Department's upfront tuition program: the component pays the school directly for tuition and fees, up to published caps — $250 per semester hour and $4,500 per fiscal year — for approved college courses taken while serving. For Army National Guard members the umbrella is the Army National Guard's own education page (nationalguard.com — education and benefits), which frames the benefit set this way: “All Army National Guard Soldiers are eligible for the Montgomery GI Bill and may also be eligible for the following benefits depending on their state. Tuition Assistance, State Tuition Assistance Programs (varies by state), Student Loan Repayment (varies by state), Montgomery GI Bill Kicker.” Army National Guard Federal TA is processed through ArmyIgnitED, the Army's tuition assistance portal. The FTA umbrella facts above are stated intact at the national level; the research base for Army FTA's detailed program rules (course deadlines, grade requirements, tiering by degree level) was incomplete in the Round 2 research, so this entry states the published caps and the portal route and points to the ARNG education page for program rules rather than reconstructing them. Federal TA sits beside — and interacts with — your GI Bill entitlements (the concurrent-use rules are in the GI Bill tiles above) and Credentialing Assistance (CA), the credential program in this tile; the two are different programs with different money.",
+      who: "Guard and Reserve members taking college courses while drilling — Army National Guard: ArmyIgnitED with your state education services office (ESO). Federal TA is processed before courses start; retroactive TA is not the program's design.",
+      links: [
+        { label: "Education & Benefits — Army National Guard (nationalguard.com)", url: "https://www.nationalguard.com/education" },
+        { label: "ArmyIgnitED (TA portal)", url: "https://www.armyignited.army.mil/student/public/welcome" },
+      ],
+    },
+    {
+      name: "State Tuition Assistance — your state's program, routed, not summarized",
+      kind: "Tuition assistance · State programs",
+      summary:
+        "State Tuition Assistance (STA) is funded by individual states to support their own Guard members — it is not a federal benefit, and there is no single federal page that authoritatively describes all state programs: terms, eligibility, and amounts vary by state, and this entry deliberately ships as a routing entry rather than a synthesized summary of 54 programs it cannot verify. The Army National Guard umbrella page publishes the honest framing — State Tuition Assistance Programs “(varies by state)” — and states the one eligibility fact that applies across them: “To be eligible for state benefits, you must serve in that state's guard” — STA follows the state whose Guard you drill in, which may not be the state you live in. The route inside this app: the State Benefits Finder card for the state where you serve (in this app's Find-a-Law / state programs content, kept current per state) — your state's program, its current terms, and its application route are there; your state education services office (ESO) is the human route. What this entry does NOT do: assert any state's current coverage percentage or dollar figure as a rule — state programs change with state budgets, and any percentage you see elsewhere (including program marketing) must be checked against your state's current published terms before you plan on it.",
+      who: "Guard members (state benefits attach to the state you serve in) — start with the State Benefits Finder card for your state of service, then your state ESO.",
+      flag: "⚠ This entry is a pointer by design. No state figure is asserted here; verify your state's current terms in the State Benefits Finder card and with your state ESO.",
+      links: [
+        { label: "Education & Benefits — Army National Guard (state benefits vary by state)", url: "https://www.nationalguard.com/education" },
+      ],
+    },
+  ],
+});

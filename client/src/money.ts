@@ -107,6 +107,63 @@ export const MONEY_GROUPS: MoneyGroup[] = [
         ],
       },
       {
+        name: "Dual-military BAH — two members, two entitlements (neither spouse is the other's dependent)",
+        kind: "Housing · member married to member",
+        summary:
+          "When two service members are married to each other, each member's housing allowance is their own. Under 37 U.S.C. § 421, as the DoD Financial Management Regulation states it, a spouse who is on active duty in a uniformed service and entitled to basic pay cannot be counted as the other member's dependent for housing allowance purposes — so each member is authorized BAH or OHA in their own right, at their own grade and their own permanent duty station, subject to the with/without-dependent allocation in the next two entries. One published exception: when one member enters a non-pay status, the other member may claim that member as a dependent and draw BAH or OHA at the with-dependent rate for the duration of the non-pay status (unless the dependent is confined in a penal or correctional institution); a member may also claim as a dependent a member spouse on inactive duty for training (Reserve drills). No rates here — DTMO's BAH lookup is the rate route, as in the BAH entry above.",
+        who: "Dual-military couples — the rule everything else in this entry set hangs on. Your servicing finance office applies it to your records.",
+        links: [
+          {
+            label: "DoD Financial Management Regulation, Vol. 7A, Ch. 26 (May 2025), §4.5 — member married to member",
+            url: "https://comptroller.defense.gov/Portals/45/documents/fmr/current/07a/07a_26.pdf",
+          },
+          {
+            label: "DTMO BAH Rate Lookup",
+            url: "https://www.travel.dod.mil/Allowances/Basic-Allowance-for-Housing/BAH-Rate-Lookup/",
+          },
+        ],
+      },
+      {
+        name: "Dual-military BAH with no other dependents — both members draw the without-dependent rate",
+        kind: "Housing · member married to member",
+        summary:
+          "A member-to-member couple with no other dependents does not get a with-dependent rate for being married. The regulation: “When both Service members have no dependents, each is treated as a Service member without a dependent for BAH or OHA. This applies whether the Service members are living together or separately if Government quarters are not provided.” Government quarters change it: when members married to each other jointly occupy family-type quarters, neither member is authorized BAH or OHA, even if no dependent resides in the quarters (unless a dependent is prevented by a military order from occupying quarters).",
+        who: "Dual-military couples with no children or other dependents — check both members' LESs after marriage; a with-dependent rate on either one is the error this entry exists to catch.",
+        links: [
+          {
+            label: "DoD Financial Management Regulation, Vol. 7A, Ch. 26 (May 2025), §4.5.2 — DoD Comptroller",
+            url: "https://comptroller.defense.gov/Portals/45/documents/fmr/current/07a/07a_26.pdf",
+          },
+        ],
+      },
+      {
+        name: "Dual-military BAH with children — one with-dependent rate, and the couple elects who draws it",
+        kind: "Housing · member married to member",
+        summary:
+          "Children (and any other dependents the couple has collectively) support exactly one with-dependent housing allowance between the two members; the other member draws the without-dependent rate. The regulation: “Generally, only one Service member may receive BAH or OHA at the with-dependent rate (including BAH-Diff) if they collectively have one or more dependents… including all children, parent(s), and wards.” For a shared child, the members must choose which one receives the with-dependent rate — if they cannot agree, the senior Service member receives it. They may later elect to transfer the authorization from one member to the other for any reason; changes are effective as of the election date and may not be applied retroactively. Children from prior relationships are pooled the same way: when the children living with the couple are from one or both members' prior relationships, only one member may claim a with-dependent allowance based on the child(ren) collectively, as parent or stepparent — the same if the couple also has shared children. Separate households: when both members maintain separate households at or near their duty stations, each is individually authorized BAH or OHA but still only one may receive the with-dependent rate — except that if the members no longer share a common residence due to military orders, their authorizations are determined separately, and each member may receive a with-dependent rate if a dependent child resides with that member. DTMO's FAQ states the headline the same way: one member receives the “with dependent” rate and the other the “without dependent” rate, and both members may not receive a housing allowance based on the same dependent.",
+        who: "Dual-military couples with children — the election is made with both members' servicing finance offices, which each need the full details of the member spouse (full name, Social Security number, duty station, branch of Service) so each member's command is informed of the other's actions. If one member elects to stop receiving the with-dependent allowance, the other may then claim the dependent(s).",
+        links: [
+          {
+            label: "DoD Financial Management Regulation, Vol. 7A, Ch. 26 (May 2025), §4.5.2.3 — DoD Comptroller",
+            url: "https://comptroller.defense.gov/Portals/45/documents/fmr/current/07a/07a_26.pdf",
+          },
+          { label: "DTMO — BAH Eligibility FAQs", url: "https://www.travel.dod.mil/Support/ALL-FAQs/Article/2978684/" },
+        ],
+      },
+      {
+        name: "Dual-military housing overseas — the same rules run OHA, and BAH-Diff sits inside the one with-dependent allowance",
+        kind: "Housing · member married to member · OHA",
+        summary:
+          "Nothing about the member-to-member allocation changes overseas: the regulation's member-married-to-member section is written for “BAH or OHA” in every operative paragraph, so the own-right principle, the both-without-dependent default, and the one-with-dependent election apply to OHA at an overseas duty station the same way. BAH-Diff is not a second bite: the regulation counts it inside the single with-dependent allowance (“including BAH-Diff”). The rest of the housing chapter — family separation housing, unaccompanied-tour rules, BAH rate protection — also applies to a member married to another member. The member-to-member rules for divorce or legal separation are a separate published block in the same chapter (primary-physical-custody parent authorized unless both agree otherwise; joint custody pays each parent for the periods the child is actually in that parent's physical custody; a child in a third party's custody supports one allowance — the senior member's if the members cannot agree) and live with this app's divorce/custody BAH content, cross-referenced here rather than duplicated.",
+        who: "Dual-military couples at an overseas station (housing office for OHA processing), and any dual couple working a custody or separation change — servicing finance office first.",
+        links: [
+          {
+            label: "DoD Financial Management Regulation, Vol. 7A, Ch. 26 (May 2025), §§4.5, 5.6 — DoD Comptroller",
+            url: "https://comptroller.defense.gov/Portals/45/documents/fmr/current/07a/07a_26.pdf",
+          },
+        ],
+      },
+      {
         name: "BAS — Basic Allowance for Subsistence (food)",
         kind: "Food · tax-free",
         summary:

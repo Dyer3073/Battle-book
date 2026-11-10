@@ -15,6 +15,21 @@ export type MemberDates = {
   easDate: string;
   itfDate: string;
   idCardExpiry: string;
+  /** F-9 (Round 2): the member's own Family Care Plan review date,
+   * when they've set one — it always controls over any suggestion. */
+  fcpReviewDate?: string;
+  /** F-9: when the plan was last validated. With a published annual
+   * clock (Navy / Marine Corps / Air Force) the board SUGGESTS a
+   * review date one year out; for Army / Coast Guard (and any other
+   * branch) no published clock was verified in the Round 2 research
+   * pack, so no default is suggested — the card says so. */
+  fcpLastValidated?: string;
+  /** The profile's branch — only used to decide whether a published
+   * FCP clock exists to suggest from. */
+  branch?: string;
+  /** F-9: a partner's return / deployment date — a free member-
+   * entered date with no rules attached. */
+  partnerReturnDate?: string;
 };
 
 export type DeadlineStateTone = "official" | "amber" | "red" | "plain";
@@ -29,6 +44,9 @@ export type DeadlineCardData = {
   view: string;
   anchor?: string;
   cta: string;
+  /** ISO date (YYYY-MM-DD) the card counts down to, when it has one —
+   * drives the For You "Next deadline" soonest pick. */
+  dueDate?: string;
 };
 
 function parseDay(s: string): Date | null {
@@ -96,6 +114,7 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         state: "PASSED",
         stateTone: "plain",
         detail: `Your separation date (${fmt(eas)}) has passed — TAP was due by ${fmt(tapBy)}.`,
+        dueDate: dates.easDate,
         view: "transition",
         anchor: "Six months from EAS — start here",
         cta: "Open Transition",
@@ -108,6 +127,7 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         state: "START NOW",
         stateTone: "amber",
         detail: `The start-by date (${fmt(tapBy)}) has passed and separation is ${dayWord(daysBetween(today, eas))} away — begin TAP now if you haven't.`,
+        dueDate: dates.easDate,
         view: "transition",
         anchor: "Six months from EAS — start here",
         cta: "Open Transition",
@@ -120,6 +140,7 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         state: "START BY",
         stateTone: "official",
         detail: `Start by ${fmt(tapBy)} — ${dayWord(daysBetween(today, tapBy))} from now, a full year before your ${fmt(eas)} separation.`,
+        dueDate: `${tapBy.getFullYear()}-${String(tapBy.getMonth() + 1).padStart(2, "0")}-${String(tapBy.getDate()).padStart(2, "0")}`,
         view: "transition",
         anchor: "Six months from EAS — start here",
         cta: "Open Transition",
@@ -136,6 +157,7 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         state: "CLOSED",
         stateTone: "plain",
         detail: `The window closed at your separation date, ${fmt(eas)}.`,
+        dueDate: dates.easDate,
         view: "transition",
         anchor: "Get placed before you get out",
         cta: "Open Transition",
@@ -148,6 +170,7 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         state: "OPEN NOW",
         stateTone: "official",
         detail: `You are in the final 180 days — ${dayWord(daysBetween(today, eas))} of service remain. 180 days is a ceiling, not an entitlement; branch caps apply.`,
+        dueDate: dates.easDate,
         view: "transition",
         anchor: "Get placed before you get out",
         cta: "Open Transition",
@@ -160,6 +183,7 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         state: "NOT YET OPEN",
         stateTone: "amber",
         detail: `Opens ${fmt(sbOpen)} — ${dayWord(daysBetween(today, sbOpen))} from now. Use the time to line up a program.`,
+        dueDate: `${sbOpen.getFullYear()}-${String(sbOpen.getMonth() + 1).padStart(2, "0")}-${String(sbOpen.getDate()).padStart(2, "0")}`,
         view: "transition",
         anchor: "Get placed before you get out",
         cta: "Open Transition",
@@ -178,8 +202,9 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         stateTone: "red",
         detail: `The window closed ${fmt(bddClose)}. Inside 90 days, VA runs it as a standard claim instead — the Claims section walks that path.`,
         view: "claims",
-        anchor: "Before You Get Out: BDD & the Under-90-Day Path",
+        anchor: "Claim Before You Get Out — BDD",
         cta: "Open BDD in Claims",
+        dueDate: `${bddClose.getFullYear()}-${String(bddClose.getMonth() + 1).padStart(2, "0")}-${String(bddClose.getDate()).padStart(2, "0")}`,
       });
     } else if (today >= bddOpen) {
       cards.push({
@@ -190,8 +215,9 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         stateTone: "official",
         detail: `Closes ${fmt(bddClose)} — ${dayWord(daysBetween(today, bddClose))} left to file with a known separation date and be available for exams.`,
         view: "claims",
-        anchor: "Before You Get Out: BDD & the Under-90-Day Path",
+        anchor: "Claim Before You Get Out — BDD",
         cta: "Open BDD in Claims",
+        dueDate: `${bddClose.getFullYear()}-${String(bddClose.getMonth() + 1).padStart(2, "0")}-${String(bddClose.getDate()).padStart(2, "0")}`,
       });
     } else {
       cards.push({
@@ -202,8 +228,9 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         stateTone: "amber",
         detail: `Opens ${fmt(bddOpen)} — ${dayWord(daysBetween(today, bddOpen))} from now — and closes ${fmt(bddClose)}.`,
         view: "claims",
-        anchor: "Before You Get Out: BDD & the Under-90-Day Path",
+        anchor: "Claim Before You Get Out — BDD",
         cta: "Open BDD in Claims",
+        dueDate: `${bddClose.getFullYear()}-${String(bddClose.getMonth() + 1).padStart(2, "0")}-${String(bddClose.getDate()).padStart(2, "0")}`,
       });
     }
 
@@ -218,8 +245,9 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         stateTone: "plain",
         detail: `The final-90-days window ended at your separation date, ${fmt(eas)}.`,
         view: "claims",
-        anchor: "Before You Get Out: BDD & the Under-90-Day Path",
+        anchor: "Claim Before You Get Out — BDD",
         cta: "Open Claims",
+        dueDate: dates.easDate,
       });
     } else if (today >= shaOpen) {
       cards.push({
@@ -230,8 +258,9 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         stateTone: "official",
         detail: `You are in the final 90 days — ${dayWord(daysBetween(today, eas))} remain. Part A is part of the BDD package.`,
         view: "claims",
-        anchor: "Before You Get Out: BDD & the Under-90-Day Path",
+        anchor: "Claim Before You Get Out — BDD",
         cta: "Open Claims",
+        dueDate: dates.easDate,
       });
     } else {
       cards.push({
@@ -242,8 +271,9 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         stateTone: "amber",
         detail: `The window opens ${fmt(shaOpen)} — the final 90 days before your ${fmt(eas)} separation.`,
         view: "claims",
-        anchor: "Before You Get Out: BDD & the Under-90-Day Path",
+        anchor: "Claim Before You Get Out — BDD",
         cta: "Open Claims",
+        dueDate: dates.easDate,
       });
     }
   }
@@ -262,6 +292,7 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         view: "claims",
         anchor: "How a Claim Moves",
         cta: "Open Claims",
+        dueDate: `${expires.getFullYear()}-${String(expires.getMonth() + 1).padStart(2, "0")}-${String(expires.getDate()).padStart(2, "0")}`,
       });
     } else {
       cards.push({
@@ -274,6 +305,7 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         view: "claims",
         anchor: "How a Claim Moves",
         cta: "Open Claims",
+        dueDate: `${expires.getFullYear()}-${String(expires.getMonth() + 1).padStart(2, "0")}-${String(expires.getDate()).padStart(2, "0")}`,
       });
     }
   }
@@ -291,6 +323,7 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         view: "find",
         anchor: "ID & Admin",
         cta: "Open ID & Admin",
+        dueDate: dates.idCardExpiry,
       });
     } else {
       cards.push({
@@ -303,10 +336,117 @@ export function computeDeadlineCards(dates: MemberDates): DeadlineCardData[] {
         view: "find",
         anchor: "ID & Admin",
         cta: "Open ID & Admin",
+        dueDate: dates.idCardExpiry,
       });
     }
   }
 
+  // Family Care Plan review (F-9, Round 2). The member's own review
+  // date always controls. Without one, a SUGGESTED date is computed
+  // only from a last-validated date and only for the branches whose
+  // published annual clock the Round 2 research pack verified —
+  // Navy (reviewed annually, MyNavyHR), Marine Corps (renew or
+  // update annually; the pack flags its source as dated), Air Force
+  // (reviewed and certified annually; the pack flags the instruction
+  // numbering). Army and Coast Guard get NO default: no published
+  // revalidation clock was verified for them, and the card says so
+  // instead of inventing one.
+  const FCP_ANNUAL_BRANCHES = ["Navy", "Marine Corps", "Air Force"];
+  const branchName = (dates.branch ?? "").replace(/^U\.S\.\s*/i, "").trim();
+  const fcpReview = parseDay(dates.fcpReviewDate ?? "");
+  const fcpLast = parseDay(dates.fcpLastValidated ?? "");
+  if (fcpReview) {
+    const overdue = today > fcpReview;
+    cards.push({
+      key: "fcp",
+      title: "Family Care Plan review",
+      rule: "Your Family Care Plan review date — the date you (or your command) set.",
+      state: overdue ? "REVIEW DUE" : "SET",
+      stateTone: overdue ? "red" : "official",
+      detail: overdue
+        ? `Your review date (${fmt(fcpReview)}) has passed — revalidate the plan with your command's FCP coordinator and update this date.`
+        : `Review due ${fmt(fcpReview)} — ${dayWord(daysBetween(today, fcpReview))} from now. Your own date controls; nothing here overrides your command's clock.`,
+      view: "deployment",
+      anchor: "The DoD rule — DoDI 1342.19",
+      cta: "Open Family Care Plans",
+      dueDate: dates.fcpReviewDate,
+    });
+  } else if (fcpLast) {
+    if (FCP_ANNUAL_BRANCHES.includes(branchName)) {
+      const suggested = addYears(fcpLast, 1);
+      const flagNote =
+        branchName === "Marine Corps"
+          ? " The pack flags its Marine Corps source as dated (2014, under the prior order) — confirm the current cycle with your command."
+          : branchName === "Air Force"
+            ? " The pack flags the Air Force instruction's numbering as since renumbered — confirm the current instruction with your command."
+            : "";
+      cards.push({
+        key: "fcp",
+        title: "Family Care Plan review",
+        rule: `${branchName} publishes an annual Family Care Plan review cycle.`,
+        state: today > suggested ? "SUGGESTED DATE PASSED" : "SUGGESTED",
+        stateTone: today > suggested ? "amber" : "official",
+        detail: `Suggested review date ${fmt(suggested)} — one year from your last validation (${fmt(fcpLast)}), from ${branchName}'s published annual cycle. This is a suggestion, not your command's date: set your own review date above to replace it.${flagNote}`,
+        view: "deployment",
+        anchor: "The DoD rule — DoDI 1342.19",
+        cta: "Open Family Care Plans",
+        dueDate: `${suggested.getFullYear()}-${String(suggested.getMonth() + 1).padStart(2, "0")}-${String(suggested.getDate()).padStart(2, "0")}`,
+      });
+    } else {
+      cards.push({
+        key: "fcp",
+        title: "Family Care Plan review",
+        rule: "No published revalidation clock was verified for your branch.",
+        state: "NO PUBLISHED CLOCK",
+        stateTone: "plain",
+        detail: `You last validated your plan on ${fmt(fcpLast)}. No suggested review date is shown: the Round 2 research verified no published ${branchName || "Army / Coast Guard"} Family Care Plan revalidation clock, so none is invented here. Ask your command's FCP coordinator for your review date and enter it above as your FCP review date.`,
+        view: "deployment",
+        anchor: "The DoD rule — DoDI 1342.19",
+        cta: "Open Family Care Plans",
+      });
+    }
+  }
+
+  // Partner's return / deployment date (F-9): a free member-entered
+  // date. No rules, no windows — the countdown machinery only.
+  const partnerReturn = parseDay(dates.partnerReturnDate ?? "");
+  if (partnerReturn) {
+    const passed = today > partnerReturn;
+    cards.push({
+      key: "partner",
+      title: "Partner's return / deployment date",
+      rule: "A date you entered for your partner — no rules attached.",
+      state: passed ? "PASSED" : "COUNTDOWN",
+      stateTone: passed ? "plain" : "official",
+      detail: passed
+        ? `The date you entered (${fmt(partnerReturn)}) has passed — update or clear it in your dates.`
+        : `${fmt(partnerReturn)} — ${dayWord(daysBetween(today, partnerReturn))} from now. This date is yours alone; the app attaches no entitlement or deadline to it.`,
+      view: "deployment",
+      anchor: "The DoD rule — DoDI 1342.19",
+      cta: "Open Family Care Plans",
+      dueDate: dates.partnerReturnDate,
+    });
+  }
+
   cards.push(FVAP_CARD);
   return cards;
+}
+
+/**
+ * The For You row's "Next deadline" pick: the dated card whose due
+ * date is soonest — upcoming dates first (earliest wins); when every
+ * dated card is past, the most recently passed one. Cards with no
+ * due date (the year-round FVAP card, the no-published-clock FCP
+ * card) never win. Returns undefined when no card is dated.
+ */
+export function soonestDeadlineCard(cards: DeadlineCardData[]): DeadlineCardData | undefined {
+  const dated = cards.filter((c) => c.dueDate);
+  if (dated.length === 0) return undefined;
+  const todayIso = (() => {
+    const d = todayStart();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+  const upcoming = dated.filter((c) => (c.dueDate ?? "") >= todayIso).sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
+  if (upcoming.length > 0) return upcoming[0];
+  return [...dated].sort((a, b) => (b.dueDate ?? "").localeCompare(a.dueDate ?? ""))[0];
 }

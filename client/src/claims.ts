@@ -142,7 +142,7 @@ export const CLAIMS_GROUPS: ClaimsGroup[] = [
     ],
   },
   {
-    title: "Before You Get Out: BDD & the Under-90-Day Path",
+    title: "Claim Before You Get Out — BDD",
     entries: [
       {
         name: "Benefits Delivery at Discharge — BDD",
