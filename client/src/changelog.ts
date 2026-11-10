@@ -58,6 +58,46 @@ const ALL: ShellTrack[] = ["member", "spouse", "future"];
 
 /** Newest first. Within a date, later builds sit above earlier ones. */
 export const CHANGELOG: ChangeEntry[] = [
+  // ── Nov 10, 2026 — Allied Special Forces Country Search ──────────
+  {
+    id: "wc-allied-country-search",
+    date: "2026-11-10", dateLabel: "Nov 10, 2026", at: D10 + 12000,
+    tag: "IMPROVED",
+    title: "Allied Special Forces — search by country",
+    line: "Global search now finds every Allied Special Forces country by name — including the spellings people actually type, like “turkey” for Türkiye, “korea” for South Korea, and “holland” for the Netherlands — and each result opens the section on that country's entries. Before, searching “turkiye” found nothing at all, even though the country was in the book the whole time.",
+    view: "alliedsf", openIn: MF,
+  },
+
+  // ── Nov 10, 2026 — Life-Event Search ─────────────────────────────
+  {
+    id: "wc-life-event-search",
+    date: "2026-11-10", dateLabel: "Nov 10, 2026", at: D10 + 11000,
+    tag: "NEW",
+    title: "Life-event search — say it like you'd say it",
+    line: "Search now understands whole situations: type “we just had a baby”, “my pay is messed up”, “we're PCSing”, or “my dad just died” and a short “Sounds like…” bundle of the right sections appears above your results — the full results still show below, nothing is filtered or hidden, and every door in the bundle opens a section already in the book.",
+    view: "home", openIn: ALL,
+  },
+
+  // ── Nov 10, 2026 — Essentials Lane ───────────────────────────────
+  {
+    id: "wc-essentials-lane",
+    date: "2026-11-10", dateLabel: "Nov 10, 2026", at: D10 + 10000,
+    tag: "NEW",
+    title: "Essentials — start here, on every Home",
+    line: "Every Home now carries an Essentials lane: the handful of sections a person in your track needs first — safety, pay, benefits, health, and getting settled — in order, as shortcuts to the sections already in the book. Members, spouses, and future members each get their own list, and nothing in the lane is new content: every card opens the real section it names.",
+    view: "home", openIn: ALL,
+  },
+
+  // ── Nov 10, 2026 — Pin to Home ───────────────────────────────────
+  {
+    id: "wc-pin-to-home",
+    date: "2026-11-10", dateLabel: "Nov 10, 2026", at: D10 + 9000,
+    tag: "NEW",
+    title: "Pin to Home — your cards, one tap from Home",
+    line: "Every card now carries a 📌 Pin to Home control next to Save to Binder: pin the cards you reach for most and they sit in a Pinned row at the very top of your Home, above For You — tap one to jump straight back to it, unpin it from the row or from the card itself. Pins are private to your profile, like your Binder, and they're shortcuts, not saves: pinning never puts a card in your Binder.",
+    view: "home", openIn: ALL,
+  },
+
   // ── Nov 10, 2026 — Home Placement: Field Tools & Fieldcraft ─────
   {
     id: "wc-home-field",

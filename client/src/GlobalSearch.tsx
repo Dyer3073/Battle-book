@@ -12,9 +12,20 @@
 // badge, so the member learns it exists and why their browse view
 // didn't show it. The zero-result state offers closest matches and
 // the synonym layer's suggested doors — never a dead end.
+//
+// Life-event search (Nov 10, 2026): when the query reads like a
+// situation, a curated bundle header ("Sounds like: … — start here",
+// lifeEvents.ts) renders ABOVE whatever result presentation follows.
+// It is a doorway layer on top of search, never a change to it: the
+// results below (or the zero-result panel) render exactly as before,
+// bundle doors are filtered by the same allowedSections scope as the
+// result groups, and ignoring or dismissing the bundle costs
+// nothing — it is keyed to the query that raised it, so editing the
+// query brings a fresh bundle.
 
 import { useMemo, useState } from "react";
 import { closestMatches, runGlobalSearch, synonymDoorsFor, type SearchHit } from "./searchIndex";
+import { lifeEventFor } from "./lifeEvents";
 import { branchShort, normalizeBranch } from "./branchTag";
 import { effectiveBranch, partnerBranchOf, useFilteredViews, useScopeProfile } from "./scope";
 
@@ -99,6 +110,17 @@ export function GlobalSearch({
         : [],
     [searching, total, query, allowedSections],
   );
+  // Life-event bundle: computed for every searching state (results
+  // or zero-result alike) and scoped by the same allowedSections the
+  // groups above obey — inside lifeEventFor, a bundle whose doors
+  // are all outside the scope does not exist, exactly as a group
+  // outside the scope does not render.
+  const bundle = useMemo(
+    () => (searching ? lifeEventFor(query, allowedSections) : null),
+    [searching, query, allowedSections],
+  );
+  const [dismissedBundleFor, setDismissedBundleFor] = useState<string | null>(null);
+  const showBundle = bundle !== null && dismissedBundleFor !== query;
 
   /** null = no badge; "partner" = Partner's branch badge; "other" =
    * the existing Other branch badge. The profile's own (effective)
@@ -127,6 +149,57 @@ export function GlobalSearch({
         placeholder="Try a job code, a form, a program…"
         autoComplete="off"
       />
+
+      {searching && showBundle && bundle ? (
+        <div
+          className="mt-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-4"
+          role="note"
+          aria-label={`This might help: ${bundle.heading}`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold tracking-widest text-[var(--accent-word)]">THIS MIGHT HELP</p>
+              <p className="font-display mt-1 text-lg font-bold leading-tight text-[var(--text)]">
+                Sounds like: {bundle.heading} — start here
+              </p>
+              <p className="mt-1 text-sm text-[var(--dim)]">
+                A few places in the book that fit this moment. Your full results are still below — nothing is
+                filtered out.
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Dismiss this suggestion"
+              onClick={() => setDismissedBundleFor(query)}
+              className="shrink-0 rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-sm font-bold text-[var(--dim)]"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="mt-3 space-y-2">
+            {bundle.doors.map((d) => (
+              <button
+                key={`${d.view}-${d.label}`}
+                type="button"
+                aria-label={`Open ${d.label}`}
+                onClick={() =>
+                  onNavigate({
+                    section: d.section,
+                    view: d.view,
+                    title: d.label,
+                    summary: "",
+                    ...(d.anchor ? { anchor: d.anchor } : {}),
+                  })
+                }
+                className="block w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3 text-left"
+              >
+                <span className="font-display block text-base font-bold text-[var(--text)]">{d.label}</span>
+                <span className="mt-0.5 block text-sm text-[var(--dim)]">{d.blurb}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {searching && total > 0 ? (
         <div className="mt-3 space-y-4">
