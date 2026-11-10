@@ -2,6 +2,15 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SafeAreaTopScrim } from "@hatch/space-sdk/client";
 import { api, type ApiResponse } from "./api";
+import { OfflineQueuedError } from "./offlineCore";
+import {
+  CHANGELOG,
+  LATEST_CHANGE_AT,
+  changelogByDate,
+  unseenChangeCount,
+  useChangelogSeen,
+  type ShellTrack,
+} from "./changelog";
 import battleBookIcon from "./assets/battle-book-icon.webp";
 import battleBookLogo from "./assets/battle-book-logo.webp";
 import { ALL_MOS_ENTRIES, BRANCHES, BRANCH_TESTS, GUIDES, PACK_ITEMS, type MosEntry } from "./data";
@@ -10,236 +19,517 @@ import { INSIGNIA_GUIDE_LABEL, UNIFORM_NOTES, WARRANT_EXTRA_NOTES, insigniaFor, 
 import { InsigniaArt } from "./InsigniaArt";
 import { DECK_TOPICS, type DeckTopic } from "./deckTopics";
 import { PATHS, anchorSlug, type PathDef } from "./paths";
-import { computeDeadlineCards } from "./deadlines";
+import { HubBackButton, HubSearch, HubTileGrid } from "./HubTiles";
+import FitnessCalcView from "./FitnessCalcView";
+import { ExerciseLibraryView, StretchingView, WarmupView, type FitKind } from "./FitnessDepth";
+import { NutritionView, type NutFocus } from "./NutritionView";
+import { PLAN_LINKS, exerciseById } from "./exercises";
+import { SERVICE_THEMES, branchKeyOf } from "./theming";
+import { BinderCover, JobLayerBlock, MastheadEmblem, ThemePanel } from "./ThemeBits";
+import { computeDeadlineCards, soonestDeadlineCard } from "./deadlines";
 import {
-  BENEFITS_STANDING_NOTE,
-  BRANCH_BENEFITS,
-  BRANCH_STANDING_NOTE,
-  STATE_BENEFIT,
-  UNIVERSAL_BENEFITS,
-  type BenefitItem,
+BENEFITS_STANDING_NOTE,
+BRANCH_BENEFITS,
+BRANCH_STANDING_NOTE,
+STATE_BENEFIT,
+UNIVERSAL_BENEFITS,
+type BenefitItem,
 } from "./benefits";
 import {
-  DEAL_PLATFORMS,
-  FINDER_CATEGORIES,
-  FINDER_FRAMING,
-  FINDER_SOURCES,
-  ONBASE_GROUPS,
-  STANDING_PROGRAMS,
-  eventbritePlaceUrl,
-  type FinderCategory,
-  type FinderSource,
-  type OnBaseEntry,
+DEAL_PLATFORMS,
+FINDER_CATEGORIES,
+FINDER_FRAMING,
+FINDER_SOURCES,
+ONBASE_GROUPS,
+STANDING_PROGRAMS,
+eventbritePlaceUrl,
+type FinderCategory,
+type FinderSource,
+type OnBaseEntry,
 } from "./deals";
 import {
-  EAS_PANEL_TITLE,
-  EAS_STEPS,
-  TRANSITION_GROUPS,
-  TRANSITION_STANDING_NOTE,
-  type TransitionEntry,
+EAS_PANEL_TITLE,
+EAS_STEPS,
+TRANSITION_GROUPS,
+TRANSITION_STANDING_NOTE,
+type TransitionEntry,
 } from "./transition";
 import { EDUCATION_SECTIONS, EDUCATION_STANDING_NOTE, type EducationEntry } from "./education";
 import {
-  MONEY_GROUPS,
-  MONEY_STANDING_NOTE,
-  type LesBlock,
-  type MoneyEntry,
-  type MoneyGroup,
+MONEY_GROUPS,
+MONEY_STANDING_NOTE,
+type LesBlock,
+type MoneyEntry,
+type MoneyGroup,
 } from "./money";
 import {
-  PCS_FLAG_NOTE,
-  PCS_GROUPS,
-  PCS_STANDING_NOTE,
-  type PcsEntry,
+PCS_FLAG_NOTE,
+PCS_GROUPS,
+PCS_STANDING_NOTE,
+type PcsEntry,
 } from "./pcs";
 import {
-  FAMILY_GROUPS,
-  FAMILY_STANDING_NOTE,
-  type FamilyEntry,
-  type FamilyLink,
+FAMILY_GROUPS,
+FAMILY_STANDING_NOTE,
+type FamilyEntry,
+type FamilyLink,
 } from "./family";
 import {
-  CLAIMS_FLAGS_NOTE,
-  CLAIMS_GROUPS,
-  CLAIMS_STANDING_NOTE,
-  type ClaimsEntry,
-  type ClaimsLink,
+CLAIMS_FLAGS_NOTE,
+CLAIMS_GROUPS,
+CLAIMS_STANDING_NOTE,
+type ClaimsEntry,
+type ClaimsLink,
 } from "./claims";
 import {
-  READINESS_GROUPS,
-  READINESS_STANDING_NOTE,
-  type ReadinessEntry,
-  type ReadinessLink,
+READINESS_GROUPS,
+READINESS_STANDING_NOTE,
+type ReadinessEntry,
+type ReadinessLink,
 } from "./readiness";
 import {
-  RETIREMENT_GROUPS,
-  RETIREMENT_STANDING_NOTE,
-  type RetirementEntry,
-  type RetirementLink,
+RETIREMENT_GROUPS,
+RETIREMENT_STANDING_NOTE,
+type RetirementEntry,
+type RetirementLink,
 } from "./retirement";
 import {
-  RECORDS_GROUPS,
-  RECORDS_STANDING_NOTE,
-  type RecordsEntry,
-  type RecordsLink,
+RECORDS_GROUPS,
+RECORDS_STANDING_NOTE,
+type RecordsEntry,
+type RecordsLink,
 } from "./records";
 import {
-  CARE_GROUPS,
-  CARE_STANDING_NOTE,
-  type CareEntry,
-  type CareLink,
+CARE_GROUPS,
+CARE_STANDING_NOTE,
+type CareEntry,
+type CareLink,
 } from "./care";
 import {
-  NASDVA,
-  STATE_ENTRIES,
-  STATES_STANDING_NOTE,
-  type StateEntry,
+NASDVA,
+STATE_ENTRIES,
+STATES_STANDING_NOTE,
+type StateEntry,
 } from "./states";
 import {
-  FIND_GROUPS,
-  FIND_STANDING_NOTE,
-  FIND_TOTAL,
-  type FindEntry,
-  type FindLink,
+FIND_GROUPS,
+FIND_STANDING_NOTE,
+FIND_TOTAL,
+type FindEntry,
+type FindLink,
 } from "./find";
 import {
-  CHANGE_JOB_GROUPS,
-  CHANGE_JOB_STANDING_NOTE,
-  type ChangeJobEntry,
-  type ChangeJobLink,
+CHANGE_JOB_GROUPS,
+CHANGE_JOB_STANDING_NOTE,
+type ChangeJobEntry,
+type ChangeJobLink,
 } from "./changejob";
 import {
-  SWITCH_GROUPS,
-  SWITCH_STANDING_NOTE,
-  type SwitchEntry,
-  type SwitchLink,
+SWITCH_GROUPS,
+SWITCH_STANDING_NOTE,
+type SwitchEntry,
+type SwitchLink,
 } from "./switchbranches";
 import {
-  COMBAT_SOURCES,
-  MACP,
-  MCMAP_BELTS,
-  MCMAP_COUNTS,
-  MCMAP_FRAMING,
-  OTHER_BRANCH_PROGRAMS,
-  SAFETY_FRAMING,
-  type CombatBelt,
+COMBAT_SOURCES,
+MACP,
+MCMAP_BELTS,
+MCMAP_COUNTS,
+MCMAP_FRAMING,
+OTHER_BRANCH_PROGRAMS,
+SAFETY_FRAMING,
+type CombatBelt,
 } from "./combatives";
 import { TechniqueDiagram } from "./CombatDiagrams";
 import {
-  DECORATED_CAVEAT,
-  DECORATED_PROFILES,
-  DISPLAY_CHOICES,
-  DOCUMENTED_STORIES,
-  MOH_CAVEAT,
-  MOH_PROFILES,
-  MOH_ROUTES,
-  MOH_WOMAN_NOTE,
-  STORY_ACK,
-  STORY_BRANCHES,
-  STORY_CATEGORIES,
-  STORY_ERAS,
-  STORY_RULES,
-  VHP_LABEL,
-  type DecoratedProfile,
-  type DocumentedStory,
-  type MohProfile,
-  type MohRoute,
-  type StoryLink,
+DECORATED_CAVEAT,
+DECORATED_PROFILES,
+DISPLAY_CHOICES,
+DOCUMENTED_STORIES,
+MOH_CAVEAT,
+MOH_PROFILES,
+MOH_ROUTES,
+MOH_WOMAN_NOTE,
+STORY_ACK,
+STORY_BRANCHES,
+STORY_CATEGORIES,
+STORY_ERAS,
+STORY_RULES,
+VHP_LABEL,
+type DecoratedProfile,
+type DocumentedStory,
+type MohProfile,
+type MohRoute,
+type StoryLink,
 } from "./warstories";
 import {
-  HONOR_BRANCHES,
-  HONOR_ERAS,
-  TRIBUTE_ACK,
-  TRIBUTE_RULES,
-  fallsOnToday,
-  formatTributeDate,
-  tributeYear,
+HONOR_BRANCHES,
+HONOR_ERAS,
+TRIBUTE_ACK,
+TRIBUTE_RULES,
+fallsOnToday,
+formatTributeDate,
+tributeYear,
 } from "./wallofhonor";
 import {
-  BRANCH_ROUTES,
-  BRANCH_ROUTES_NOTE,
-  MONTH_NAMES,
-  THIS_DAY_ENTRIES,
-  THIS_DAY_GAPS_NOTE,
-  entriesByMonth,
-  entriesForDate,
-  formatMonthDay,
-  isMemorialDay,
-  nearestEntry,
-  occurrenceInYear,
-  relativeDays,
-  type BranchRoute,
-  type ThisDayAppLink,
-  type ThisDayEntry,
+BRANCH_ROUTES,
+BRANCH_ROUTES_NOTE,
+MONTH_NAMES,
+THIS_DAY_ENTRIES,
+THIS_DAY_GAPS_NOTE,
+entriesByMonth,
+entriesForDate,
+formatMonthDay,
+isMemorialDay,
+nearestEntry,
+occurrenceInYear,
+relativeDays,
+type BranchRoute,
+type ThisDayAppLink,
+type ThisDayEntry,
 } from "./thisday";
 import {
-  MENTOR_ACK,
-  MENTOR_CARE_NOTE,
-  MENTOR_DISPLAY_CHOICES,
-  MENTOR_RULES,
-  MENTOR_TOPICS,
-  type MentorTopic,
+MENTOR_ACK,
+MENTOR_CARE_NOTE,
+MENTOR_DISPLAY_CHOICES,
+MENTOR_RULES,
+MENTOR_TOPICS,
+type MentorTopic,
 } from "./mentors";
 import {
-  TRADITION_GROUPS,
-  TRADITIONS_LABELS_NOTE,
-  TRADITIONS_STANDING_RULE,
-  type TraditionItem,
-  type TraditionLabel,
+PEOPLE_CONNECT_LABEL,
+PEOPLE_CONNECT_WITH,
+PEOPLE_GENDER_LABEL,
+PEOPLE_GENDERS,
+PEOPLE_MEET_SMART,
+PEOPLE_SERVICE_STATUSES,
+PEOPLE_STANDING_LINE,
+PEOPLE_UP_FOR,
+type PeopleUpFor,
+} from "./people";
+import {
+SPOUSE_HUB_GROUPS,
+SPOUSE_HUB_STANDING_NOTE,
+SURVIVING_SPOUSE_HUB_GROUP,
+type SpouseEntry,
+type SpouseGroup,
+} from "./spousehub";
+import {
+SPOUSE_FAMILY_STATUSES,
+SPOUSE_LIFE_STAGES,
+SURVIVING_SPOUSE_FAMILY_STATUS,
+SPOUSE_MEET_SMART,
+SPOUSE_STANDING_LINE,
+SPOUSE_UP_FOR,
+type SpouseLifeStage,
+type SpouseUpFor,
+} from "./spouse";
+import {
+TRADITION_GROUPS,
+TRADITIONS_LABELS_NOTE,
+TRADITIONS_STANDING_RULE,
+type TraditionItem,
+type TraditionLabel,
 } from "./traditions";
 import {
-  ADDRESSING_RULE,
-  EXAMPLE_ADDRESSES,
-  HOLIDAY_ROWS,
-  HOLIDAY_TABLE_NOTE,
-  MAIL_GROUPS,
-  MAIL_STANDING_NOTE,
-  type MailEntry,
+ADDRESSING_RULE,
+EXAMPLE_ADDRESSES,
+HOLIDAY_ROWS,
+HOLIDAY_TABLE_NOTE,
+MAIL_GROUPS,
+MAIL_STANDING_NOTE,
+type MailEntry,
 } from "./mailcall";
 import {
-  TIMELINE_FORM_OPSEC,
-  TIMELINE_PRIVACY_LINES,
-  TIMELINE_STARTERS,
-  TIMELINE_TYPES,
-  formatTimelineDate,
-  precisionOf,
-  sortTimeline,
-  timelineSummary,
-  timelineTypeLabel,
-  type TimelineEntry,
-  type TimelineEntryType,
-  type TimelinePrecision,
+TIMELINE_FORM_OPSEC,
+TIMELINE_PRIVACY_LINES,
+TIMELINE_STARTERS,
+TIMELINE_TYPES,
+formatTimelineDate,
+precisionOf,
+sortTimeline,
+timelineSummary,
+timelineTypeLabel,
+type TimelineEntry,
+type TimelineEntryType,
+type TimelinePrecision,
 } from "./timeline";
+import {
+CLAIM_EVIDENCE,
+CLAIM_STAGES,
+CLAIM_TRACKER_HONESTY,
+CLAIM_TRACKER_PRIVACY,
+CLAIM_TRACKER_VSO_LINE,
+CLAIM_TYPES,
+VA_CLAIM_STATUS_URL,
+claimStageDef,
+claimStageIndex,
+claimStageLabel,
+claimTypeLabel,
+fmtClaimDate,
+itfCountdown,
+type ClaimEvidenceKey,
+type ClaimStage,
+type ClaimType,
+type TrackedClaim,
+} from "./claimtracker";
 import { UsMapPicker, profileHomeState } from "./usMap";
+import {
+DeploymentView,
+HomeLoanView,
+LesView,
+ReserveView,
+RibbonsView,
+RightsView,
+} from "./NewSections";
+import {
+ClearanceView,
+HealthHqView,
+KidsView,
+TaxesView,
+TravelHqView,
+VotingView,
+} from "./SecondWave";
+import {
+BOOTCAMP_ENTRIES,
+ENTRY_FITNESS_ENTRIES,
+GET_READY_DISCLAIMER,
+JOINING_BRANCHES,
+JOINING_STANDING_NOTE,
+OFFICER_ENTRIES,
+type BootcampEntry,
+type JoiningSource,
+type OfficerEntry,
+} from "./joining";
 import { GlobalSearch } from "./GlobalSearch";
+import { PartnersView } from "./PartnersView";
+import { SongsView } from "./SongsView";
+import { SpecOpsView } from "./SpecOpsView";
+import { AlliedView } from "./AlliedView";
+import { RecruitersView } from "./RecruitersView";
+import { ComponentsView } from "./ComponentsView";
+import { ReenlistView } from "./ReenlistView";
+import { CalculatorsView } from "./CalculatorsView";
+import { CommissioningView } from "./CommissioningView";
+import { PackSectionView } from "./SevenSections";
+import { COOL_SECTION } from "./cool";
+import { ASSIGNMENTS_SECTION } from "./assignments";
+import { EVALS_SECTION } from "./evals";
+import { FEDJOBS_SECTION } from "./fedjobs";
+import { TSP_SECTION } from "./tsp";
+import { PARENTS_SECTION } from "./parents";
+import { ROTC_SECTION } from "./rotc";
+import { CHANNELS_SECTION } from "./channels";
+import { RELIEF_SECTION } from "./relief";
+import { CHAPLAINS_FUTURE_SECTION, CHAPLAINS_SECTION } from "./chaplains";
+import { HONORS_SECTION } from "./honors";
+import { OCONUS_SECTION } from "./oconus";
+import { BOARD_SECTION } from "./boardprep";
+import { WRITING_SECTION } from "./writing";
+import { IDES_SECTION } from "./ides";
+import { CLEPJST_SECTION } from "./clepjst";
+import { HOUSING_SECTION } from "./housing";
+import { CARBUYING_SECTION } from "./carbuying";
+import { OPSEC_SECTION } from "./opsec";
+import { GIVEBACK_SECTION } from "./giveback";
+import { GO_CARD_TITLES, GO_SECTION, type GeneralOrderService } from "./generalorders";
+import { CAREGIVER_SECTION, SPOUSEWORK_SECTION } from "./gapSpouseCare";
+import { BARRACKS_SECTION, CREDIT_SECTION, GERMANY_SECTION, RETIREE_SECTION } from "./gapGermanyLife";
+import { HubPhraseCards } from "./ClosureViews";
+import { PayChartsView } from "./FinalSix";
+import { RankSheetPanel } from "./RankSheet";
+import { sheetFor } from "./rankdetail";
+import { QualsView } from "./QualsView";
+import {
+BUDDY_SPOUSE_SECTIONS,
+retrieveForBuddy,
+} from "./buddy";
+import {
+UNIFORM_COUNT,
+UNIFORM_GROUPS,
+UNIFORMS_NOT_COVERED,
+UNIFORMS_STANDING_NOTE,
+type UniformEntry,
+} from "./uniforms";
+import { UniformDiagram } from "./UniformDiagram";
+import {
+BEFORE_YOU_SHIP,
+GEAR_GUIDE_GROUPS,
+GEAR_GUIDES_FRAMING,
+GEAR_PRICE_DISCIPLINE,
+GEAR_ROUTER_FRAMING,
+GEAR_STANDING_NOTE,
+GEAR_STORES,
+type GearGuide,
+type GearStore,
+} from "./gear";
+import {
+MEDICAL_ENROLLMENT_NOTE,
+MEDICAL_GROUPS,
+MEDICAL_STANDING_NOTE,
+type MedicalEntry,
+} from "./medical";
+import {
+ALL_LINGO_ENTRIES,
+LINGO_GROUPS,
+LINGO_INTRO,
+PHONETIC_DIGITS,
+PHONETIC_DIGITS_NOTE,
+PHONETIC_LETTERS,
+PHONETIC_LINKS,
+PHONETIC_SOURCE_LABEL,
+PHONETIC_SOURCE_NOTE,
+PHONETIC_WHY,
+type LingoEntry,
+type LingoGroup,
+type PhoneticRow,
+} from "./lingo";
+import {
+AFRC_ENTRY,
+BLM_CARD,
+CAMPENDIUM_CARD,
+FAMCAMPS,
+GUIDE_BASE_TRAILS,
+GUIDE_DISPERSED,
+GUIDE_LNT,
+GUIDE_OCONUS,
+MILITARY_INSTALLATIONS_LINK,
+NPS_CARD,
+ODR_ENTRY,
+ROUTE_ONLY_PLATFORMS,
+STATE_PARKS_CARD,
+TRAILS_INTRO,
+UNOFFICIAL_DIRECTORY,
+USFS_CARD,
+VERIFIED_SEARCH_PLATFORMS,
+resolveState,
+type RoutePlatform,
+type SearchPlatform,
+type TrailLink,
+} from "./trails";
+import {
+DIRECTORY_HOME_URL,
+DIRECTORY_VIEW_ALL_URL,
+IDCO_LOCATOR,
+IDCO_PORTAL,
+INSTALLATIONS,
+MAPS_HOME_URL,
+MAPS_ROUTE_NOTE,
+MORE_ON_BASE_GROUPS,
+OFF_BASE_CATEGORIES,
+ON_BASE_CATEGORIES,
+TOPIC_DICT,
+branchDirectoryFor,
+findInstallation,
+harvestedTopics,
+inDepthUrl,
+overviewUrl,
+topicUrl,
+type InstallationEntry,
+type LocatorLink,
+type OnBaseCategory,
+type TopicDef,
+} from "./installation";
+import {
+  APP_HARVEST,
+  BASIS_LEGEND,
+  HARVEST_TOPICS,
+  HUBS,
+  INSTALL_RULE,
+  MYPAY_WARNING,
+  UNIVERSAL_APPS,
+  harvestCoverage,
+  hubAriaLabel,
+  hubForSlug,
+  type HarvestTopicId,
+  type Hub,
+  type UniversalApp,
+} from "./installationApps";
+import {
+ALL_WEAPON_SYSTEMS,
+CYCLES,
+CYCLES_INTRO,
+CYCLE_NAMED_ONLY,
+CYCLE_NOT_PUBLISHED,
+MANUAL_STATUS,
+MANUAL_STATUS_INTRO,
+NO_FACT_FILE_LINE,
+OPERATOR_BASICS,
+OPERATOR_GATE_NOTE,
+QUAL_BRANCHES,
+QUAL_FLAGS,
+QUAL_INTRO,
+SAFETY_INTRO,
+SAFETY_SETS,
+WEAPONS_INTRO,
+WEAPONS_SCOPE_NOTE,
+WEAPON_GROUPS,
+ZEROING_DONT_BLEND,
+ZEROING_FRAMING,
+ZEROING_OTHER_SERVICES,
+ZEROING_SERVICES,
+type CycleEntry,
+type OperatorBasics,
+type QualBranch,
+type SafetySet,
+type WBlock,
+type WeaponSystem,
+type ZeroingService,
+} from "./weapons";
 import type { SearchHit } from "./searchIndex";
 import { daysUntilEas, easWithinYear, relevancePriority } from "./personalize";
+import { FILTERABLE_VIEWS, HonestyLine, ScopeProvider, ScopeResetButton, ScopeToggle, ShowEverythingFooter, branchNamedIn, branchShort, branchesNamedIn, householdBranches, useScopeProfile, useSectionScope, visibleForBranches, visibleForProfile } from "./scope";
+import { normalizeBranch } from "./branchTag";
+import { FieldToolsView } from "./FieldTools";
+import { First30View } from "./First30View";
+import { EmergencyDeckView } from "./EmergencyDeckView";
+import { FirstYearView } from "./FirstYearView";
+import { TrainersView } from "./TrainersView";
+import type { TrainerId } from "./trainers";
+import { DeckPrintBody } from "./DeckPrint";
+import { FieldCardsSections, KillCardPrintBody, SketchCardPrintBody } from "./FieldCards";
+import { buildWatchbillRows, formatWatchTime, type KillCardData, type SketchCardData, type Watchbill } from "./fieldkit";
 import {
-  BINDER_SECTIONS,
-  BinderProvider,
-  CardTools,
-  binderSectionLabel,
-  sourceFromLinks,
-  trustLine,
-  useBinder,
-  type BinderItem,
+BINDER_SECTIONS,
+BinderProvider,
+CardTools,
+binderSectionLabel,
+sourceFromLinks,
+trustLine,
+useBinder,
+type BinderItem,
 } from "./binder";
 
 type Profile = NonNullable<ApiResponse<typeof api, "getProfile">["profile"]>;
 type Story = ApiResponse<typeof api, "getNews">["stories"][number];
 type Contribution = ApiResponse<typeof api, "listContributions">["contributions"][number];
 type PlanResult = ApiResponse<typeof api, "generatePlan">;
-type View = "home" | "mos" | "ranks" | "benefits" | "deals" | "transition" | "pay" | "pcs" | "family" | "claims" | "readiness" | "retirement" | "records" | "states" | "care" | "find" | "changejob" | "switchbranches" | "education" | "combat" | "fieldcraft" | "warstories" | "wallofhonor" | "thisday" | "mentors" | "traditions" | "mailcall" | "timeline" | "fitness" | "news" | "checkin" | "review" | "paths" | "deadlines" | "binder" | "more";
+type View = "home" | "starthere" | "bootcamp" | "officer" | "getready" | "mos" | "ranks" | "uniforms" | "benefits" | "deals" | "gear" | "lingo" | "weapons" | "trails" | "installation" | "emergency" | "medical" | "transition" | "pay" | "pcs" | "family" | "claims" | "claimtracker" | "readiness" | "retirement" | "records" | "states" | "care" | "find" | "changejob" | "switchbranches" | "education" | "combat" | "fieldcraft" | "fieldtools" | "warstories" | "wallofhonor" | "thisday" | "mentors" | "people" | "spousehub" | "spouseconnect" | "traditions" | "mailcall" | "timeline" | "fitness" | "news" | "checkin" | "review" | "paths" | "deadlines" | "binder" | "feedback" | "alerts" | "buddy" | "more" | "reserve" | "rights" | "les" | "homeloan" | "ribbons" | "deployment" | "partners" | "clearance" | "kids" | "travelhq" | "taxes" | "voting" | "healthhq" | "nutrition" | "songs" | "specops" | "alliedsf" | "components" | "quals" | "reenlist" | "recruiters" | "commissioning" | "cool" | "assignments" | "evals" | "fedjobs" | "tsp" | "parents" | "rotc" | "channels" | "relief" | "paycharts" | "chaplains" | "honors" | "oconus" | "calculators" | "first30" | "trainers" | "emergencydeck" | "firstyear" | "boardprep" | "writing" | "ides" | "clepjst" | "housing" | "carbuying" | "opsec" | "giveback" | "spousework" | "caregiver" | "germany" | "credit" | "barracks" | "generalorders" | "retireewear" | "whatchanged";
 type MemberStory = ApiResponse<typeof api, "listWarStories">["stories"][number];
 type MemberTribute = ApiResponse<typeof api, "listTributes">["tributes"][number];
 type MemberMentor = ApiResponse<typeof api, "listMentors">["mentors"][number];
 type MemberMentorRequest = ApiResponse<typeof api, "listMentorRequests">["requests"][number];
+type MemberPerson = ApiResponse<typeof api, "listPeopleListings">["listings"][number];
+type MemberPeopleRequest = ApiResponse<typeof api, "listPeopleRequests">["requests"][number];
+type MemberSpouse = ApiResponse<typeof api, "listSpouseListings">["listings"][number];
+type MemberSpouseRequest = ApiResponse<typeof api, "listSpouseRequests">["requests"][number];
+type MemberFeedback = ApiResponse<typeof api, "listFeedback">["feedback"][number];
+type MemberAlert = ApiResponse<typeof api, "getAlerts">["alerts"][number];
 
-/** What the print sheet is currently rendering, if anything. */
+/** What the print sheet is currently rendering, if anything. The
+ * binder job deliberately carries NO items: the sheet resolves the
+ * signed-in profile's Binder live at render time (PrintSheet reads
+ * the same profile-scoped binder query My Binder renders), so a
+ * printout can never be a stale copy — a card saved or removed since
+ * the sheet was opened is in or out of the sheet accordingly. */
 type PrintJob =
-  | { kind: "binder"; items: BinderItem[] }
+  | { kind: "binder" }
   | { kind: "path"; path: PathDef; completed: string[] }
-  | { kind: "timeline"; entries: TimelineEntry[]; memberName: string };
+  | { kind: "timeline"; entries: TimelineEntry[]; memberName: string }
+  | { kind: "fieldcard"; card: SketchCardData }
+  | { kind: "killcard"; card: KillCardData }
+  | { kind: "deck" }
+  | { kind: "watchbill"; watchbill: Watchbill };
 
 const STATUS_LABEL: Record<string, string> = {
   good: "Good",
@@ -271,7 +561,27 @@ function SectionHead({ title, sub }: { title: string; sub?: string }) {
   return (
     <div className="mb-3">
       <h2 className="font-display text-2xl font-bold text-[var(--text)]">{title}</h2>
-      {sub ? <p className="mt-1 text-sm text-[var(--dim)]">{sub}</p> : null}
+      {/* Two-segment theme rule: primary accent + secondary accent, so
+          both of the branch's signature colors head every section page
+          (Nov 9, 2026 theme rebalance — see theming.ts). */}
+      <div aria-hidden="true" className="mt-2 flex h-1 overflow-hidden rounded-full">
+        <span className="flex-[2] bg-[var(--accent)]" />
+        <span className="flex-1 bg-[var(--accent2)]" />
+      </div>
+      {sub ? <p className="mt-1.5 text-sm text-[var(--dim)]">{sub}</p> : null}
+    </div>
+  );
+}
+
+/** Two-segment band across the top of a Home profile card — the
+ * masthead band: primary accent two-thirds, secondary accent
+ * one-third, so both signature colors show on Home in either color
+ * scheme. In the olive theme it renders the olive pair. */
+function MastheadBand() {
+  return (
+    <div aria-hidden="true" className="-mx-5 -mt-5 mb-4 flex h-3 overflow-hidden rounded-t-[calc(var(--radius)-2px)]">
+      <span className="flex-[2] bg-[var(--accent)]" />
+      <span className="flex-1 bg-[var(--accent2)]" />
     </div>
   );
 }
@@ -294,6 +604,12 @@ export function App() {
   // create-a-new-profile mode instead of editing the existing one.
   const [signedOut, setSignedOut] = useState(false);
   const [creatingNewProfile, setCreatingNewProfile] = useState(false);
+  // The Joining front door: a new profile can start on the future-member
+  // track, which skips the simulated ID.me step entirely.
+  const [creatingFuture, setCreatingFuture] = useState(false);
+  // The Spouse door: a new profile can start on the spouse track, which
+  // also skips the simulated ID.me step entirely.
+  const [creatingSpouse, setCreatingSpouse] = useState(false);
   // Squad invite deep link: a join link carries the code in the URL
   // hash (#join/CODE). Opening one lands on Check-In's Join a Squad
   // with the code prefilled.
@@ -308,6 +624,15 @@ export function App() {
   // Deep-link support for Guided Paths / Deadlines steps: navigate to a
   // view, then scroll to the group whose aria-label slug matches.
   const [pendingAnchor, setPendingAnchor] = useState<string | null>(null);
+  // Personalization H-2 one-visit override: when a search hit belongs
+  // to another branch and its section is filterable, that section
+  // renders in All-branches for this visit only (the stored SHOWING
+  // preference is never touched). Cleared as soon as the member
+  // navigates to a different view.
+  const [scopeOverrideView, setScopeOverrideView] = useState<string | null>(null);
+  useEffect(() => {
+    if (scopeOverrideView && view !== (scopeOverrideView as View)) setScopeOverrideView(null);
+  }, [view, scopeOverrideView]);
   const goTo = (v: View, anchor?: string) => {
     setView(v);
     setPendingAnchor(anchor ?? null);
@@ -320,6 +645,14 @@ export function App() {
     setMosFocus({ id, n: Date.now() });
     setView("mos");
   };
+  // Partner Forces deep link: Global Search country hits and My
+  // Binder country cards open the section straight onto that
+  // country's profile. Same nonce pattern as the Library hand-off.
+  const [partnerFocus, setPartnerFocus] = useState<{ id: string; n: number } | null>(null);
+  const openPartnerCountry = (id: string) => {
+    setPartnerFocus({ id, n: Date.now() });
+    setView("partners");
+  };
   // State Benefits Finder deep link: the Home "Your state" card opens the
   // finder straight onto the member's home-state card. Same nonce pattern
   // as the Library hand-off above.
@@ -328,9 +661,116 @@ export function App() {
     setStateFocus({ name, n: Date.now() });
     setView("states");
   };
+  // Knots deep link: Global Search knot hits and My Binder knot cards
+  // open Field Tools straight onto the Knots tool at that knot's card
+  // (or the Not-Sourced Register). Same nonce pattern as above.
+  const [knotFocus, setKnotFocus] = useState<{ id: string; n: number } | null>(null);
+  const openKnot = (id: string) => {
+    setKnotFocus({ id, n: Date.now() });
+    setView("fieldtools");
+  };
+  // Hand & Arm Signals deep link: Global Search signal hits and My
+  // Binder signal cards open Field Tools straight onto the Signals
+  // tool at that signal's card (or the annex / register). Same nonce
+  // pattern as above.
+  const [signalFocus, setSignalFocus] = useState<{ id: string; n: number } | null>(null);
+  const openSignal = (id: string) => {
+    setSignalFocus({ id, n: Date.now() });
+    setView("fieldtools");
+  };
+  // Closure Sweep field deep link: Global Search field hits and My
+  // Binder land-nav / first-aid / drill cards open Field Tools
+  // straight onto the matching reference tool at that entry. Same
+  // nonce pattern as above.
+  const [closureFocus, setClosureFocus] = useState<{ id: string; n: number } | null>(null);
+  const openClosure = (id: string) => {
+    setClosureFocus({ id, n: Date.now() });
+    setView("fieldtools");
+  };
+  // Fitness depth deep link: Global Search exercise/drill/stretch hits
+  // and My Binder cards open the Fitness view straight onto that card
+  // in its tile (Exercise Library / Warm-Up & Cool-Down / Stretching).
+  // Same nonce pattern as above.
+  const [fitFocus, setFitFocus] = useState<{ kind: FitKind; id: string; n: number } | null>(null);
+  const openFitCard = (kind: FitKind, id: string) => {
+    setFitFocus({ kind, id, n: Date.now() });
+    setView("fitness");
+  };
+  // Nutrition deep link: Global Search nutrition hits and My Binder
+  // nutrition cards open the Nutrition tile inside Fitness (member /
+  // future shells) or the spouse shell's Nutrition view straight onto
+  // the education entry or food card. Same nonce pattern as above.
+  const [nutFocus, setNutFocus] = useState<NutFocus>(null);
+  const openNutrition = (kind: "edu" | "food", id: string) => {
+    setNutFocus({ kind, id, n: Date.now() });
+    if (profile?.track === "spouse") setView("nutrition");
+    else setView("fitness");
+  };
+  // Rank detail sheet deep link: Global Search rank hits and My
+  // Binder rank cards open the Rank Charts straight onto that rank's
+  // detail sheet. The key is the sheet key (branch|category|grade|
+  // abbr) from rankdetail.ts. Same nonce pattern as above.
+  const [rankFocus, setRankFocus] = useState<{ key: string; n: number } | null>(null);
+  const openRankSheet = (key: string) => {
+    setRankFocus({ key, n: Date.now() });
+    setView("ranks");
+  };
+  // Practice Trainers deep link: the Trainers hub search hits and the
+  // "Drill this" buttons in Rank Charts / Knots / Signals open the
+  // Trainers view straight onto that trainer's setup. Same nonce
+  // pattern as above.
+  const [trainerFocus, setTrainerFocus] = useState<{ id: TrainerId; n: number } | null>(null);
+  const openTrainer = (id: TrainerId) => {
+    setTrainerFocus({ id, n: Date.now() });
+    setView("trainers");
+  };
+  // General Orders Trainer missed-item review: land on that service's
+  // verbatim reference card in the General Orders section.
+  const openGeneralOrderCard = (service: GeneralOrderService) => {
+    setView("generalorders");
+    setPendingCard(GO_CARD_TITLES[service]);
+  };
   const handleSearchHit = (hit: SearchHit) => {
+    const prof = profileQ.data?.profile ?? null;
+    if (prof && prof.track !== "future" && prof.branch && hit.branch && FILTERABLE_VIEWS[hit.view as View]) {
+      const mine = normalizeBranch(prof.branch);
+      const hitBranches = Array.isArray(hit.branch) ? hit.branch : [hit.branch];
+      if (!hitBranches.some((b) => normalizeBranch(b) === mine)) setScopeOverrideView(hit.view);
+    }
     if (hit.mosId) {
       openMosEntry(hit.mosId);
+      return;
+    }
+    if (hit.partnerId) {
+      openPartnerCountry(hit.partnerId);
+      return;
+    }
+    if (hit.knotId) {
+      openKnot(hit.knotId);
+      return;
+    }
+    if (hit.signalId) {
+      openSignal(hit.signalId);
+      return;
+    }
+    if (hit.fitId && hit.fitKind) {
+      openFitCard(hit.fitKind, hit.fitId);
+      return;
+    }
+    if (hit.nutId && hit.nutKind) {
+      openNutrition(hit.nutKind, hit.nutId);
+      return;
+    }
+    if (hit.rankKey) {
+      openRankSheet(hit.rankKey);
+      return;
+    }
+    if (hit.trainerId) {
+      openTrainer(hit.trainerId);
+      return;
+    }
+    if (hit.closureId) {
+      openClosure(hit.closureId);
       return;
     }
     goTo(hit.view as View, hit.anchor);
@@ -341,6 +781,46 @@ export function App() {
   const openBinderItem = (item: BinderItem) => {
     if (item.section === "mos") {
       openMosEntry(item.itemKey);
+      return;
+    }
+    if (item.section === "partners" && item.itemKey !== "nato-codes" && !item.itemKey.startsWith("protocol-")) {
+      openPartnerCountry(item.itemKey);
+      return;
+    }
+    if (item.section === "fieldtools" && item.itemKey.startsWith("knot-")) {
+      openKnot(item.itemKey.slice("knot-".length));
+      return;
+    }
+    if (item.section === "signals" && item.itemKey.startsWith("signal-")) {
+      openSignal(item.itemKey.slice("signal-".length));
+      return;
+    }
+    if (item.section === "landnav" || item.section === "firstaid" || item.section === "drill") {
+      openClosure(item.itemKey);
+      return;
+    }
+    if (item.section === "fitnesslib") {
+      openFitCard("exercise", item.itemKey);
+      return;
+    }
+    if (item.section === "warmup") {
+      openFitCard("warmup", item.itemKey);
+      return;
+    }
+    if (item.section === "stretching") {
+      openFitCard("stretch", item.itemKey);
+      return;
+    }
+    if (item.section === "nutrition" && item.itemKey.startsWith("edu-")) {
+      openNutrition("edu", item.itemKey.slice("edu-".length));
+      return;
+    }
+    if (item.section === "nutrition" && item.itemKey.startsWith("food-")) {
+      openNutrition("food", item.itemKey.slice("food-".length));
+      return;
+    }
+    if (item.section === "ranks") {
+      openRankSheet(item.itemKey);
       return;
     }
     setView(item.section as View);
@@ -373,6 +853,50 @@ export function App() {
     }, 140);
     return () => window.clearTimeout(t);
   }, [view, pendingCard]);
+  // Branch theming (accents only): the active profile's branch drives
+  // the --accent / --accent-text CSS variables when its themeMode is
+  // "branch"; "olive" (or no branch) removes the overrides and the
+  // default olive theme from theme.css applies. Body text, background,
+  // and layout are never touched. The accent is a different PUBLISHED
+  // color from the same palette per ground (the pack's contrast rule),
+  // picked for the viewer's color scheme — never a lightened tint.
+  // --accent2 is the branch's other signature color, fills only (the
+  // masthead band + section-header rule segments): the Nov 9, 2026
+  // rebalance, after the per-ground primary alone left the second
+  // signature color invisible on normal screens (USMC scarlet).
+  // --accent-word is that same secondary color in its TEXT role
+  // (Christian's theme rule, Nov 9, 2026): the main color leads the
+  // structural surface, the secondary carries the colored words —
+  // in the nearest readable shade wherever the literal hue would be
+  // unreadable as text (see theming.ts wordDark / wordLight).
+  const [darkGround, setDarkGround] = useState<boolean>(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e: MediaQueryListEvent) => setDarkGround(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  const themeProfile = profileQ.data?.profile ?? null;
+  useEffect(() => {
+    const root = document.documentElement;
+    const key =
+      themeProfile && themeProfile.themeMode === "branch" ? branchKeyOf(themeProfile.branch) : null;
+    if (!key) {
+      root.style.removeProperty("--accent");
+      root.style.removeProperty("--accent-text");
+      root.style.removeProperty("--accent2");
+      root.style.removeProperty("--accent-word");
+      return;
+    }
+    const t = SERVICE_THEMES[key];
+    root.style.setProperty("--accent", darkGround ? t.accentDark : t.accentLight);
+    root.style.setProperty("--accent-text", darkGround ? t.accentDarkText : t.accentLightText);
+    root.style.setProperty("--accent2", darkGround ? t.accent2Dark : t.accent2Light);
+    root.style.setProperty("--accent-word", darkGround ? t.wordDark : t.wordLight);
+  }, [themeProfile, darkGround]);
+
   // Print sheet (My Binder / one Guided Path) replaces the app shell
   // while open; the browser's own print flow prints just the sheet.
   const [printJob, setPrintJob] = useState<PrintJob | null>(null);
@@ -414,8 +938,11 @@ export function App() {
     return (
       <Onboarding
         createNew
+        initialTrack={creatingFuture ? "future" : creatingSpouse ? "spouse" : undefined}
         onDone={() => {
           setCreatingNewProfile(false);
+          setCreatingFuture(false);
+          setCreatingSpouse(false);
           setSignedOut(false);
           setGatePassed(true);
           setView("home");
@@ -434,12 +961,428 @@ export function App() {
             setGatePassed(true);
           })();
         }}
-        onNewProfile={() => setCreatingNewProfile(true)}
+        onNewProfile={() => {
+          setCreatingFuture(false);
+          setCreatingSpouse(false);
+          setCreatingNewProfile(true);
+        }}
+        onFutureProfile={() => {
+          setCreatingFuture(true);
+          setCreatingSpouse(false);
+          setCreatingNewProfile(true);
+        }}
+        onSpouseProfile={() => {
+          setCreatingFuture(false);
+          setCreatingSpouse(true);
+          setCreatingNewProfile(true);
+        }}
       />
     );
   }
   if (!onboarded) {
     return <Onboarding onDone={() => setView("home")} />;
+  }
+
+  /* --------------------- Future-member (Joining) shell --------------------- */
+  // A future-member profile never sees the member shell: it lands on
+  // Start Here, its bottom bar swaps the Check-In slot for Start Here,
+  // and only its own views render — any member-only view key falls back
+  // to Start Here, so member features exist here only as locked cards.
+  if (profile.track === "future") {
+    const futureBarNav: { key: View; label: string; icon: NavIconName }[] = [
+      { key: "starthere", label: "Start Here", icon: "home" },
+      { key: "mos", label: "Jobs", icon: "book" },
+      { key: "bootcamp", label: "Boot Camp", icon: "tent" },
+      { key: "officer", label: "Officer", icon: "cap" },
+      { key: "getready", label: "Get Ready", icon: "pulse" },
+      { key: "more", label: "More", icon: "grid" },
+    ];
+    const futureViews: View[] = ["starthere", "home", "whatchanged", "mos", "bootcamp", "officer", "getready", "benefits", "gear", "lingo", "weapons", "trails", "emergency", "reserve", "rights", "partners", "songs", "specops", "alliedsf", "quals", "recruiters", "commissioning", "parents", "rotc", "paycharts", "chaplains", "fitness", "binder", "buddy", "more"];
+    const fv: View = futureViews.includes(view) ? view : "starthere";
+    const futureActive = (key: View): boolean => {
+      if (key === "starthere") return fv === "starthere" || fv === "home" || fv === "gear";
+      if (key === "more") return fv === "more" || fv === "binder" || fv === "benefits" || fv === "buddy" || fv === "lingo" || fv === "weapons" || fv === "trails" || fv === "emergency" || fv === "reserve" || fv === "rights" || fv === "partners" || fv === "songs" || fv === "specops" || fv === "alliedsf" || fv === "quals" || fv === "recruiters" || fv === "commissioning" || fv === "parents" || fv === "rotc" || fv === "paycharts" || fv === "chaplains" || fv === "fitness" || fv === "whatchanged";
+      return fv === key;
+    };
+
+    if (printJob) {
+      return (
+        <BinderProvider>
+          <PrintSheet job={printJob} onClose={() => setPrintJob(null)} />
+        </BinderProvider>
+      );
+    }
+
+    return (
+      <BinderProvider>
+        <ScopeProvider profile={profile} overrideView={scopeOverrideView}>
+        <div className="min-h-screen bg-[var(--bg)] pb-28">
+          <SafeAreaTopScrim backgroundColor="var(--bg)" />
+          <main className="mx-auto w-full max-w-3xl px-4 pt-4">
+            {(fv === "starthere" || fv === "home") && (
+              <StartHereView
+                profile={profile}
+                go={setView}
+                onSearchHit={handleSearchHit}
+                onSwitchProfile={() => setSignedOut(true)}
+              />
+            )}
+            {fv === "mos" && (
+              <MosView
+                profile={profile}
+                goReview={() => setView("starthere")}
+                goPartners={() => setView("partners")}
+                focusId={mosFocus?.id ?? null}
+                focusNonce={mosFocus?.n ?? 0}
+                onFocusHandled={() => setMosFocus(null)}
+              />
+            )}
+            {fv === "bootcamp" && <BootcampView />}
+            {fv === "officer" && <OfficerView />}
+            {fv === "getready" && <GetReadyView profile={profile} />}
+            {fv === "benefits" && <BenefitsView profile={profile} focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {fv === "gear" && <FutureGearView />}
+            {fv === "lingo" && <LingoView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {fv === "weapons" && <WeaponsView track="future" focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {fv === "trails" && <TrailsView go={setView} dealsOpen={false} focusCard={pendingCard} />}
+            {fv === "reserve" && <ReserveView />}
+            {fv === "rights" && <RightsView />}
+            {fv === "partners" && (
+              <PartnersView
+                focusId={partnerFocus?.id ?? null}
+                focusNonce={partnerFocus?.n ?? 0}
+                onFocusHandled={() => setPartnerFocus(null)}
+                focusAnchor={pendingAnchor}
+                focusCard={pendingCard}
+              />
+            )}
+            {fv === "songs" && (
+              <SongsView focusAnchor={pendingAnchor} focusCard={pendingCard} goPartners={() => setView("partners")} />
+            )}
+            {fv === "specops" && (
+              <SpecOpsView focusAnchor={pendingAnchor} focusCard={pendingCard} openMos={openMosEntry} />
+            )}
+            {fv === "alliedsf" && (
+              <AlliedView focusAnchor={pendingAnchor} focusCard={pendingCard} />
+            )}
+            {fv === "quals" && (
+              <QualsView focusAnchor={pendingAnchor} focusCard={pendingCard} go={setView} availableViews={["weapons", "specops", "mos", "uniforms", "ribbons"]} />
+            )}
+            {fv === "recruiters" && (
+              <RecruitersView focusAnchor={pendingAnchor} focusCard={pendingCard} />
+            )}
+            {fv === "commissioning" && (
+              <CommissioningView
+                focusAnchor={pendingAnchor}
+                focusCard={pendingCard}
+                go={setView}
+                availableViews={futureViews}
+                track="future"
+              />
+            )}
+            {fv === "parents" && (
+              <PackSectionView section={PARENTS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="future" />
+            )}
+            {fv === "rotc" && (
+              <PackSectionView section={ROTC_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="future" />
+            )}
+            {fv === "paycharts" && (
+              <PayChartsView focusAnchor={pendingAnchor} focusCard={pendingCard} track="future" />
+            )}
+            {fv === "chaplains" && (
+              <PackSectionView section={CHAPLAINS_FUTURE_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="future" />
+            )}
+            {fv === "fitness" && (
+              <div>
+                <SectionHead title="Fitness Calculators" sub="Fitness prep is open to future members — score the branch tests you're training for. Every entry names its governing document and date; unofficial calculators, your official score is the one your service records." />
+                <FitnessCalcView focusAnchor={pendingAnchor ?? undefined} focusCard={pendingCard ?? undefined} goSpecOps={() => setView("specops")} />
+                <section aria-label="Nutrition" className="mt-6">
+                  <h3 className="font-display text-xl font-bold text-[var(--text)]">Nutrition</h3>
+                  <div className="mt-2">
+                    <NutritionView mode="education" focus={nutFocus} onFocusHandled={() => setNutFocus(null)} />
+                  </div>
+                </section>
+              </div>
+            )}
+            {fv === "emergency" && <EmergencyCardView profile={profile} />}
+            {fv === "binder" && (
+              <BinderView
+                profile={profile}
+                openItem={openBinderItem}
+                onPrint={() => setPrintJob({ kind: "binder" })}
+              />
+            )}
+            {fv === "buddy" && <BuddyView profile={profile} onSearchHit={handleSearchHit} />}
+            {fv === "more" && <FutureMoreView profile={profile} go={setView} onSearchHit={handleSearchHit} />}
+            {fv === "whatchanged" && <ChangelogView profile={profile} track="future" go={setView} />}
+          </main>
+          <nav aria-label="Main sections" className="fixed inset-x-0 bottom-0 border-t border-[var(--border)] bg-[var(--surface)] pb-safe">
+            <div className="mx-auto grid max-w-3xl grid-cols-6">
+              {futureBarNav.map((n) => {
+                const active = futureActive(n.key);
+                return (
+                  <button
+                    key={n.key}
+                    type="button"
+                    aria-label={n.label}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setView(n.key)}
+                    className={`flex min-h-16 flex-col items-center justify-center gap-1 px-1 py-2 ${active ? "text-[var(--accent-word)]" : "text-[var(--dim)]"}`}
+                  >
+                    <NavIcon name={n.icon} />
+                    <span className={`text-xs leading-none ${active ? "font-bold" : "font-semibold"}`}>{n.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        </div>
+        </ScopeProvider>
+      </BinderProvider>
+    );
+  }
+
+  /* ------------------------- Spouse shell ------------------------- */
+  // A spouse-track profile never sees the member shell: it lands on the
+  // spouse home, its bottom bar is exactly six items (Home, Spouse Hub,
+  // Connect, Benefits, Mail Call, More), and only spouse-open views
+  // render — the Hub, Spouse Connect, Mail Call, Benefits, Deals, and
+  // the information sections the Hub cross-links into (Family & Life
+  // Events, PCS Move Center, Care & Crisis, State Benefits Finder).
+  // Any member-only view key falls back to the spouse home, so member
+  // areas exist here only as locked cards.
+  if (profile.track === "spouse") {
+    const spouseBarNav: { key: View; label: string; icon: NavIconName }[] = [
+      { key: "home", label: "Home", icon: "home" },
+      { key: "spousehub", label: "Spouse Hub", icon: "heart" },
+      { key: "spouseconnect", label: "Connect", icon: "users" },
+      { key: "benefits", label: "Benefits", icon: "shield" },
+      { key: "mailcall", label: "Mail Call", icon: "mail" },
+      { key: "more", label: "More", icon: "grid" },
+    ];
+    // A surviving spouse's Hub leads with cross-links into Retirement,
+    // the Education Planner, and the Wall of Honor — those three views
+    // open inside the spouse shell for surviving spouses only, so the
+    // cross-links land somewhere real. Every other spouse keeps the
+    // standard shell.
+    const isSurvivingSpouse = profile.familyStatus === SURVIVING_SPOUSE_FAMILY_STATUS;
+    const spouseViews: View[] = [
+      "home", "spousehub", "spouseconnect", "benefits", "deals", "mailcall",
+      "family", "pcs", "care", "states", "binder", "buddy", "lingo", "trails", "installation", "emergency", "rights", "deployment", "homeloan", "partners", "songs", "kids", "travelhq", "taxes", "voting", "healthhq", "components", "reenlist", "first30", "commissioning", "cool", "assignments", "fedjobs", "tsp", "channels", "relief", "paycharts", "chaplains", "honors", "oconus", "nutrition", "calculators", "emergencydeck", "firstyear", "ides", "clepjst", "housing", "carbuying", "opsec", "giveback", "spousework", "caregiver", "germany", "credit", "generalorders", "retireewear", "whatchanged", "more",
+      ...(isSurvivingSpouse ? (["retirement", "education", "wallofhonor"] as View[]) : []),
+    ];
+    const sv: View = spouseViews.includes(view) ? view : "home";
+    const spouseActive = (key: View): boolean => {
+      if (key === "home") return sv === "home";
+      if (key === "more") return sv === "more" || sv === "deals" || sv === "family" || sv === "pcs" || sv === "care" || sv === "states" || sv === "binder" || sv === "buddy" || sv === "lingo" || sv === "trails" || sv === "installation" || sv === "emergency" || sv === "rights" || sv === "deployment" || sv === "homeloan" || sv === "partners" || sv === "songs" || sv === "kids" || sv === "travelhq" || sv === "taxes" || sv === "voting" || sv === "healthhq" || sv === "components" || sv === "reenlist" || sv === "first30" || sv === "emergencydeck" || sv === "firstyear" || sv === "commissioning" || sv === "cool" || sv === "assignments" || sv === "fedjobs" || sv === "tsp" || sv === "channels" || sv === "relief" || sv === "paycharts" || sv === "chaplains" || sv === "honors" || sv === "oconus" || sv === "nutrition" || sv === "calculators" || sv === "ides" || sv === "clepjst" || sv === "housing" || sv === "carbuying" || sv === "opsec" || sv === "giveback" || sv === "spousework" || sv === "caregiver" || sv === "germany" || sv === "credit" || sv === "generalorders" || sv === "retireewear" || sv === "whatchanged" || sv === "retirement" || sv === "education" || sv === "wallofhonor";
+      return sv === key;
+    };
+
+    if (printJob) {
+      return (
+        <BinderProvider>
+          <PrintSheet job={printJob} onClose={() => setPrintJob(null)} />
+        </BinderProvider>
+      );
+    }
+
+    return (
+      <BinderProvider>
+        <ScopeProvider profile={profile} overrideView={scopeOverrideView}>
+        <div className="min-h-screen bg-[var(--bg)] pb-28">
+          <SafeAreaTopScrim backgroundColor="var(--bg)" />
+          <main className="mx-auto w-full max-w-3xl px-4 pt-4">
+            {sv === "home" && (
+              <SpouseHomeView profile={profile} go={setView} onSwitchProfile={() => setSignedOut(true)} />
+            )}
+            {sv === "spousehub" && <SpouseHubView profile={profile} go={setView} />}
+            {sv === "spouseconnect" && <SpouseConnectView profile={profile} />}
+            {sv === "benefits" && <BenefitsView profile={profile} focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "lingo" && <LingoView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "trails" && <TrailsView go={setView} dealsOpen focusCard={pendingCard} />}
+            {sv === "rights" && <RightsView />}
+            {sv === "partners" && (
+              <PartnersView
+                focusId={partnerFocus?.id ?? null}
+                focusNonce={partnerFocus?.n ?? 0}
+                onFocusHandled={() => setPartnerFocus(null)}
+                focusAnchor={pendingAnchor}
+                focusCard={pendingCard}
+              />
+            )}
+            {sv === "songs" && (
+              <SongsView focusAnchor={pendingAnchor} focusCard={pendingCard} goPartners={() => setView("partners")} />
+            )}
+            {sv === "deployment" && <DeploymentView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "kids" && <KidsView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "travelhq" && <TravelHqView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "taxes" && <TaxesView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "voting" && <VotingView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "healthhq" && <HealthHqView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "components" && (
+              <ComponentsView
+                focusAnchor={pendingAnchor}
+                focusCard={pendingCard}
+                go={setView}
+                availableViews={["rights", "healthhq", ...(isSurvivingSpouse ? ["retirement", "education"] : [])]}
+              />
+            )}
+            {sv === "reenlist" && (
+              <ReenlistView
+                focusAnchor={pendingAnchor}
+                focusCard={pendingCard}
+                go={setView}
+                availableViews={["benefits", "taxes", "travelhq", "rights", ...(isSurvivingSpouse ? ["retirement"] : [])]}
+              />
+            )}
+            {sv === "first30" && <First30View spouse go={(v) => setView(v as View)} />}
+            {sv === "emergencydeck" && <EmergencyDeckView spouse go={(v) => setView(v as View)} onPrintDeck={() => setPrintJob({ kind: "deck" })} />}
+            {sv === "firstyear" && <FirstYearView spouse go={(v) => setView(v as View)} profileId={profile.id} />}
+            {sv === "calculators" && (
+              <CalculatorsView
+                focusAnchor={pendingAnchor}
+                focusCard={pendingCard}
+                go={setView}
+                availableViews={["tsp", "pcs", ...(isSurvivingSpouse ? ["retirement"] : [])]}
+                lockedTiles={isSurvivingSpouse ? ["va"] : ["retirement", "va"]}
+                profileId={profile.id}
+              />
+            )}
+            {sv === "commissioning" && (
+              <CommissioningView
+                focusAnchor={pendingAnchor}
+                focusCard={pendingCard}
+                go={setView}
+                availableViews={["components", ...(isSurvivingSpouse ? ["education"] : [])]}
+                track="spouse"
+              />
+            )}
+            {sv === "cool" && (
+              <PackSectionView section={COOL_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "assignments" && (
+              <PackSectionView section={ASSIGNMENTS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "fedjobs" && (
+              <PackSectionView section={FEDJOBS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "tsp" && (
+              <PackSectionView section={TSP_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "channels" && (
+              <PackSectionView section={CHANNELS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "relief" && (
+              <PackSectionView section={RELIEF_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "paycharts" && (
+              <PayChartsView focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "chaplains" && (
+              <PackSectionView section={CHAPLAINS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "honors" && (
+              <PackSectionView section={HONORS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "oconus" && (
+              <PackSectionView section={OCONUS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "ides" && (
+              <PackSectionView section={IDES_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "clepjst" && (
+              <PackSectionView section={CLEPJST_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "housing" && (
+              <PackSectionView section={HOUSING_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "carbuying" && (
+              <PackSectionView section={CARBUYING_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "opsec" && (
+              <PackSectionView section={OPSEC_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "giveback" && (
+              <PackSectionView section={GIVEBACK_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "spousework" && (
+              <PackSectionView section={SPOUSEWORK_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "caregiver" && (
+              <PackSectionView section={CAREGIVER_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "germany" && (
+              <PackSectionView section={GERMANY_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "credit" && (
+              <PackSectionView section={CREDIT_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "generalorders" && (
+              <PackSectionView section={GO_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "retireewear" && (
+              <PackSectionView section={RETIREE_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="spouse" />
+            )}
+            {sv === "homeloan" && <HomeLoanView />}
+            {sv === "installation" && <InstallationView profile={profile} go={setView} />}
+            {sv === "emergency" && <EmergencyCardView profile={profile} />}
+            {sv === "deals" && <DealsView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "mailcall" && <MailCallView />}
+            {sv === "family" && <FamilyView go={setView}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "pcs" && <PcsView go={setView}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "care" && <CareView go={setView}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "states" && (
+              <StatesView
+                profile={profile}
+                focusName={stateFocus?.name ?? null}
+                focusNonce={stateFocus?.n ?? 0}
+                onFocusHandled={() => setStateFocus(null)}
+              />
+            )}
+            {sv === "binder" && (
+              <BinderView
+                profile={profile}
+                openItem={openBinderItem}
+                onPrint={() => setPrintJob({ kind: "binder" })}
+              />
+            )}
+            {sv === "buddy" && <BuddyView profile={profile} onSearchHit={handleSearchHit} />}
+            {sv === "retirement" && <RetirementView go={setView}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "education" && <EducationView go={setView}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+            {sv === "wallofhonor" && <WallOfHonorView profile={profile} />}
+            {sv === "nutrition" && (
+              <div>
+                <SectionHead title="Nutrition" sub="Fueling education, your own private calorie tracker, meal plans built on the 2025–2030 pattern, and the USDA food database. Your tracker data is private to your profile — it never appears on any shared surface." />
+                <NutritionView focus={nutFocus} onFocusHandled={() => setNutFocus(null)} />
+              </div>
+            )}
+            {sv === "more" && <SpouseMoreView profile={profile} go={setView} />}
+            {sv === "whatchanged" && <ChangelogView profile={profile} track="spouse" go={setView} />}
+          </main>
+          <nav aria-label="Main sections" className="fixed inset-x-0 bottom-0 border-t border-[var(--border)] bg-[var(--surface)] pb-safe">
+            <div className="mx-auto grid max-w-3xl grid-cols-6">
+              {spouseBarNav.map((n) => {
+                const active = spouseActive(n.key);
+                return (
+                  <button
+                    key={n.key}
+                    type="button"
+                    aria-label={n.label}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setView(n.key)}
+                    className={`flex min-h-16 flex-col items-center justify-center gap-1 px-1 py-2 ${active ? "text-[var(--accent-word)]" : "text-[var(--dim)]"}`}
+                  >
+                    <NavIcon name={n.icon} />
+                    <span className={`text-xs leading-none ${active ? "font-bold" : "font-semibold"}`}>{n.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        </div>
+        </ScopeProvider>
+      </BinderProvider>
+    );
   }
 
   // Bottom bar: exactly six destinations. Everything else lives in the
@@ -452,7 +1395,7 @@ export function App() {
     { key: "checkin", label: "Check-In", icon: "check" },
     { key: "more", label: "More", icon: "grid" },
   ];
-  const moreActive = view === "more" || MORE_SECTIONS.some((s) => s.key === view);
+  const moreActive = view === "more" || view === "buddy" || view === "bootcamp" || view === "officer" || view === "getready" || MORE_SECTIONS.some((s) => s.key === view);
 
   if (printJob) {
     return (
@@ -464,15 +1407,17 @@ export function App() {
 
   return (
     <BinderProvider>
+    <ScopeProvider profile={profile} overrideView={scopeOverrideView}>
     <div className="min-h-screen bg-[var(--bg)] pb-28">
       <SafeAreaTopScrim backgroundColor="var(--bg)" />
       <main className="mx-auto w-full max-w-3xl px-4 pt-4">
-        {view === "home" && <HomeView profile={profile} go={setView} goTo={goTo} onSearchHit={handleSearchHit} openMos={openMosEntry} openState={openStateEntry} openThisDayLink={openThisDayLink} onSwitchProfile={() => setSignedOut(true)} />}
+        {(view === "home" || view === "starthere") && <HomeView profile={profile} go={setView} goTo={goTo} onSearchHit={handleSearchHit} openMos={openMosEntry} openState={openStateEntry} openThisDayLink={openThisDayLink} onSwitchProfile={() => setSignedOut(true)} />}
         {view === "paths" && <PathsView goTo={goTo} onPrintPath={(path, completed) => setPrintJob({ kind: "path", path, completed })} />}
         {view === "binder" && (
           <BinderView
+            profile={profile}
             openItem={openBinderItem}
-            onPrint={(items) => setPrintJob({ kind: "binder", items })}
+            onPrint={() => setPrintJob({ kind: "binder" })}
           />
         )}
         {view === "deadlines" && <DeadlinesView profile={profile} goTo={goTo} />}
@@ -480,22 +1425,190 @@ export function App() {
           <MosView
             profile={profile}
             goReview={() => setView("review")}
+            goPartners={() => setView("partners")}
             focusId={mosFocus?.id ?? null}
             focusNonce={mosFocus?.n ?? 0}
             onFocusHandled={() => setMosFocus(null)}
           />
         )}
-        {view === "ranks" && <RankChartsView />}
-        {view === "benefits" && <BenefitsView profile={profile} />}
-        {view === "deals" && <DealsView />}
-        {view === "transition" && <TransitionView go={setView} />}
-        {view === "pay" && <MoneyView go={setView} />}
-        {view === "pcs" && <PcsView go={setView} />}
-        {view === "family" && <FamilyView go={setView} />}
-        {view === "claims" && <ClaimsView go={setView} />}
-        {view === "readiness" && <ReadinessView go={setView} />}
-        {view === "retirement" && <RetirementView go={setView} />}
-        {view === "records" && <RecordsView go={setView} />}
+        {view === "ranks" && (
+          <RankChartsView rankFocus={rankFocus} onRankFocusHandled={() => setRankFocus(null)} onDrill={() => openTrainer("rank")} />
+        )}
+        {view === "trainers" && (
+          <TrainersView
+            profileId={profile.id}
+            profileBranch={profile.branch}
+            focusTrainer={trainerFocus}
+            onFocusHandled={() => setTrainerFocus(null)}
+            onOpenRank={openRankSheet}
+            onOpenKnot={openKnot}
+            onOpenSignal={openSignal}
+            onOpenGeneralOrder={openGeneralOrderCard}
+          />
+        )}
+        {view === "partners" && (
+          <PartnersView
+            focusId={partnerFocus?.id ?? null}
+            focusNonce={partnerFocus?.n ?? 0}
+            onFocusHandled={() => setPartnerFocus(null)}
+            focusAnchor={pendingAnchor}
+            focusCard={pendingCard}
+          />
+        )}
+        {view === "songs" && (
+          <SongsView focusAnchor={pendingAnchor} focusCard={pendingCard} goPartners={() => setView("partners")} />
+        )}
+        {view === "uniforms" && <UniformsView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "benefits" && <BenefitsView profile={profile} focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "bootcamp" && <BootcampView />}
+        {view === "officer" && <OfficerView />}
+        {view === "getready" && <GetReadyView profile={profile} />}
+        {view === "deals" && <DealsView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "gear" && <GearView />}
+        {view === "lingo" && <LingoView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "weapons" && <WeaponsView track="member" focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "trails" && <TrailsView go={setView} dealsOpen focusCard={pendingCard} />}
+        {view === "reserve" && <ReserveView />}
+        {view === "rights" && <RightsView />}
+        {view === "les" && <LesView focusAnchor={pendingAnchor} />}
+        {view === "homeloan" && <HomeLoanView />}
+        {view === "ribbons" && <RibbonsView profileBranch={profile.branch} focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "deployment" && <DeploymentView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "clearance" && <ClearanceView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "kids" && <KidsView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "travelhq" && <TravelHqView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "taxes" && <TaxesView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "voting" && <VotingView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "healthhq" && <HealthHqView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "specops" && <SpecOpsView focusAnchor={pendingAnchor} focusCard={pendingCard} openMos={openMosEntry} />}
+        {view === "alliedsf" && <AlliedView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "quals" && (
+          <QualsView focusAnchor={pendingAnchor} focusCard={pendingCard} go={setView} />
+        )}
+        {view === "components" && (
+          <ComponentsView focusAnchor={pendingAnchor} focusCard={pendingCard} go={setView} />
+        )}
+        {view === "reenlist" && (
+          <ReenlistView focusAnchor={pendingAnchor} focusCard={pendingCard} go={setView} />
+        )}
+        {view === "calculators" && (
+          <CalculatorsView focusAnchor={pendingAnchor} focusCard={pendingCard} go={setView} profileId={profile.id} />
+        )}
+        {view === "commissioning" && (
+          <CommissioningView focusAnchor={pendingAnchor} focusCard={pendingCard} go={setView} />
+        )}
+        {view === "recruiters" && <RecruiterDoorPointer />}
+        {view === "cool" && (
+          <PackSectionView section={COOL_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "boardprep" && (
+          <PackSectionView section={BOARD_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "writing" && (
+          <PackSectionView section={WRITING_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "ides" && (
+          <PackSectionView section={IDES_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "clepjst" && (
+          <PackSectionView section={CLEPJST_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "housing" && (
+          <PackSectionView section={HOUSING_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "carbuying" && (
+          <PackSectionView section={CARBUYING_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "opsec" && (
+          <PackSectionView section={OPSEC_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "giveback" && (
+          <PackSectionView section={GIVEBACK_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "spousework" && (
+          <PackSectionView section={SPOUSEWORK_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "caregiver" && (
+          <PackSectionView section={CAREGIVER_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "germany" && (
+          <PackSectionView section={GERMANY_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "credit" && (
+          <PackSectionView section={CREDIT_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "barracks" && (
+          <PackSectionView section={BARRACKS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "generalorders" && (
+          <div>
+            <button
+              type="button"
+              aria-label="Drill the General Orders in Practice Trainers"
+              onClick={() => openTrainer("generalorders")}
+              className="mb-4 flex w-full items-center gap-3 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4 text-left"
+            >
+              <span>
+                <span className="font-display block text-lg font-bold leading-tight text-[var(--text)]">Drill this — General Orders Trainer</span>
+                <span className="mt-0.5 block text-sm leading-snug text-[var(--dim)]">
+                  Flashcards and quiz over these same 25 verbatim orders, in Practice Trainers. Missed orders come back later in the session; your streaks and bests save to your profile only.
+                </span>
+              </span>
+            </button>
+            <PackSectionView section={GO_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+          </div>
+        )}
+        {view === "retireewear" && (
+          <PackSectionView section={RETIREE_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "assignments" && (
+          <PackSectionView section={ASSIGNMENTS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "evals" && (
+          <PackSectionView section={EVALS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "fedjobs" && (
+          <PackSectionView section={FEDJOBS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "tsp" && (
+          <PackSectionView section={TSP_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "parents" && (
+          <PackSectionView section={PARENTS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "rotc" && (
+          <PackSectionView section={ROTC_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "channels" && (
+          <PackSectionView section={CHANNELS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "relief" && (
+          <PackSectionView section={RELIEF_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "paycharts" && (
+          <PayChartsView focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "chaplains" && (
+          <PackSectionView section={CHAPLAINS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "honors" && (
+          <PackSectionView section={HONORS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "oconus" && (
+          <PackSectionView section={OCONUS_SECTION} focusAnchor={pendingAnchor} focusCard={pendingCard} track="member" />
+        )}
+        {view === "installation" && <InstallationView profile={profile} go={setView} />}
+        {view === "emergency" && <EmergencyCardView profile={profile} />}
+        {view === "medical" && <MedicalView />}
+        {view === "transition" && <TransitionView go={setView}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "pay" && <MoneyView go={setView} goTo={goTo}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "pcs" && <PcsView go={setView} goTo={goTo}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "family" && <FamilyView go={setView}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "claims" && <ClaimsView go={setView} goTo={goTo}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "claimtracker" && <ClaimTrackerView goTo={goTo} />}
+        {view === "readiness" && <ReadinessView go={setView}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "retirement" && <RetirementView go={setView} goTo={goTo}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "records" && <RecordsView go={setView}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
         {view === "states" && (
           <StatesView
             profile={profile}
@@ -504,17 +1617,40 @@ export function App() {
             onFocusHandled={() => setStateFocus(null)}
           />
         )}
-        {view === "care" && <CareView go={setView} />}
-        {view === "find" && <FindView />}
+        {view === "care" && <CareView go={setView}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
+        {view === "find" && <FindView focusAnchor={pendingAnchor} focusCard={pendingCard} />}
         {view === "changejob" && <ChangeJobView go={setView} />}
         {view === "switchbranches" && <SwitchBranchesView />}
-        {view === "education" && <EducationView go={setView} />}
+        {view === "education" && <EducationView go={setView}  focusAnchor={pendingAnchor} focusCard={pendingCard} />}
         {view === "combat" && <CombatView />}
-        {view === "fieldcraft" && <FieldcraftView />}
+        {view === "first30" && <First30View go={(v) => setView(v as View)} />}
+        {view === "emergencydeck" && <EmergencyDeckView go={(v) => setView(v as View)} onPrintDeck={() => setPrintJob({ kind: "deck" })} />}
+        {view === "firstyear" && <FirstYearView go={(v) => setView(v as View)} profileId={profile.id} />}
+        {view === "fieldtools" && (
+          <FieldToolsView
+            onPrintWatchbill={(watchbill) => setPrintJob({ kind: "watchbill", watchbill })}
+            onPrintDeck={() => setPrintJob({ kind: "deck" })}
+            knotFocus={knotFocus}
+            signalFocus={signalFocus}
+            closureFocus={closureFocus}
+            onDrillKnots={() => openTrainer("knots")}
+            onDrillSignals={() => openTrainer("signals")}
+          />
+        )}
+        {view === "fieldcraft" && (
+          <FieldcraftView
+            go={setView}
+            onPrintCard={(card) => setPrintJob({ kind: "fieldcard", card })}
+            onPrintKillCard={(card) => setPrintJob({ kind: "killcard", card })}
+          />
+        )}
         {view === "warstories" && <WarStoriesView profile={profile} goReview={() => setView("review")} />}
         {view === "wallofhonor" && <WallOfHonorView profile={profile} goReview={() => setView("review")} />}
         {view === "thisday" && <ThisDayView openAppLink={openThisDayLink} />}
         {view === "mentors" && <MentorsView profile={profile} go={setView} goReview={() => setView("review")} />}
+        {view === "people" && <PeopleView profile={profile} go={setView} goReview={() => setView("review")} />}
+        {view === "spousehub" && <SpouseHubView profile={profile} go={setView} />}
+        {view === "spouseconnect" && <SpouseConnectView profile={profile} />}
         {view === "traditions" && <TraditionsView />}
         {view === "mailcall" && <MailCallView />}
         {view === "timeline" && (
@@ -528,11 +1664,15 @@ export function App() {
             }
           />
         )}
-        {view === "fitness" && <FitnessView profile={profile} />}
+        {view === "fitness" && <FitnessView profile={profile} focusAnchor={pendingAnchor} focusCard={pendingCard} goSpecOps={() => setView("specops")} fitFocus={fitFocus} onFitFocusHandled={() => setFitFocus(null)} nutFocus={nutFocus} onNutFocusHandled={() => setNutFocus(null)} />}
         {view === "news" && <NewsView profile={profile} />}
         {view === "checkin" && <CheckinView profile={profile} joinSeed={joinSeed} />}
         {view === "review" && <ReviewView goBack={() => setView("mos")} />}
+        {view === "feedback" && <FeedbackView />}
+        {view === "buddy" && <BuddyView profile={profile} onSearchHit={handleSearchHit} />}
+        {view === "alerts" && <AlertsView go={setView} goTo={goTo} />}
         {view === "more" && <MoreView profile={profile} go={setView} onSearchHit={handleSearchHit} />}
+        {view === "whatchanged" && <ChangelogView profile={profile} track="member" go={setView} />}
       </main>
       <nav aria-label="Main sections" className="fixed inset-x-0 bottom-0 border-t border-[var(--border)] bg-[var(--surface)] pb-safe">
         <div className="mx-auto grid max-w-3xl grid-cols-6">
@@ -545,7 +1685,7 @@ export function App() {
                 aria-label={n.label}
                 aria-current={active ? "page" : undefined}
                 onClick={() => setView(n.key)}
-                className={`flex min-h-16 flex-col items-center justify-center gap-1 px-1 py-2 ${active ? "text-[var(--accent)]" : "text-[var(--dim)]"}`}
+                className={`flex min-h-16 flex-col items-center justify-center gap-1 px-1 py-2 ${active ? "text-[var(--accent-word)]" : "text-[var(--dim)]"}`}
               >
                 <NavIcon name={n.icon} />
                 <span className={`text-xs leading-none ${active ? "font-bold" : "font-semibold"}`}>{n.label}</span>
@@ -555,6 +1695,7 @@ export function App() {
         </div>
       </nav>
     </div>
+    </ScopeProvider>
     </BinderProvider>
   );
 }
@@ -594,7 +1735,13 @@ type NavIconName =
   | "users"
   | "mail"
   | "tent"
-  | "clock";
+  | "clock"
+  | "pack"
+  | "shirt"
+  | "medical"
+  | "chat"
+  | "target"
+  | "bell";
 
 const NAV_ICON_PATHS: Record<NavIconName, ReactNode> = {
   home: (
@@ -767,16 +1914,51 @@ const NAV_ICON_PATHS: Record<NavIconName, ReactNode> = {
       <path d="m12 12-4.5 9h9L12 12z" />
     </>
   ),
+  pack: (
+    <>
+      <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+      <path d="M8 21v-5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v5" />
+      <path d="M8 10h8" />
+    </>
+  ),
   clock: (
     <>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3.5 2" />
     </>
   ),
+  shirt: (
+    <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />
+  ),
+  medical: (
+    <>
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+      <path d="M12 11v5" />
+      <path d="M9.5 13.5h5" />
+    </>
+  ),
   mail: (
     <>
       <rect x="2" y="4" width="20" height="16" rx="2" />
       <path d="m3 6 9 7 9-7" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </>
+  ),
+  chat: (
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  ),
+  target: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4.5" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
     </>
   ),
   route: (
@@ -836,36 +2018,121 @@ function NavIcon({ name, size = 24 }: { name: NavIconName; size?: number }) {
 /* ------------------------------- More hub -------------------------------- */
 
 const MORE_SECTIONS: { key: View; name: string; blurb: string; icon: NavIconName }[] = [
-  { key: "binder", name: "My Binder", blurb: "Every card you've starred across the app, grouped by section, all in one place", icon: "binder" },
+  { key: "binder", name: "My Binder", blurb: "Every card you've saved across the app, grouped by section, all in one place", icon: "binder" },
+  { key: "whatchanged", name: "What Changed", blurb: "What's new in the book — and what got corrected — since your last visit. Corrections are listed in the open, marked CORRECTED, so you can see what you read that later got fixed", icon: "news" },
   { key: "paths", name: "Guided Paths", blurb: "Named journeys — Getting Out, PCS Orders, Deploying, New Baby, Retiring, Filing a Claim, Going to School — as step-by-step checklists chained from the sections", icon: "route" },
   { key: "deadlines", name: "Deadlines & Countdowns", blurb: "Your countdowns from your own dates: TAP, SkillBridge, the BDD window, intent-to-file expiry, ID card, and the January FPCA", icon: "calendar" },
   { key: "ranks", name: "Ranks", blurb: "Rank charts and insignia for all six branches", icon: "chevrons" },
+  { key: "trainers", name: "Practice Trainers", blurb: "Flashcards and quizzes drilled from the Book's own cards: Rank Insignia (148 ranks, branch filter, Air Force warrants by text description only — no invented drawings), Knots (59 knots + whipping, family filter), Hand & Arm Signals (185 signals, family + service filters — USMC forms present as the USMC publishes them, never blended; conflict flags show in the reveal), and General Orders (25 orders — Army 3, Marine Corps 11, Navy 11 — verbatim, service filter). Missed cards resurface in the same session; streaks and personal bests save per profile, per trainer, per mode", icon: "target" },
+  { key: "partners", name: "Partner Forces", blurb: "Read the shoulder in front of you: the NATO grade codes (STANAG 2116 / APersP-01 — OF-1…OF-10, OR-1…OR-9, with the U.S. correspondence, the officer offset — O-1 and O-2 both = OF-1 — and the caveat that the full APersP-01 annex is NSO-distributed with no public mirror), then 17 partner profiles at exactly the level each country's own official English pages support: Germany and Norway complete with published NATO codes, Canada complete but code-free because Canada publishes none, Australia on its own PACMAN equivalency codes, Japan from MOD's English table, the UK's rank names with insignia deliberately not drawn (official sources are image-only), France from French official sources, and 8 gap-flagged profiles with every gap printed — plus courtesy & protocol from AR 600-25. Open to members, spouses, and future members", icon: "flag" },
+  { key: "songs", name: "Songs, Anthem & Pledge + Flags", blurb: "The ceremonial layer, printed exactly as the services and governments publish it: the six service songs in full (the Marines' Hymn with its full history, “Anchors Aweigh” labeled the Navy's UNOFFICIAL song by the USNA Band itself, the Air Force Song in its current 2020 text, “Semper Supra” with its © Department of the Air Force credit, “Semper Paratus” with the 1922 text primary and the 1943 “current verse” conflict printed as a conflict), the Star-Spangled Banner's first verse with the § 301(b) etiquette and the Pledge verbatim from 4 U.S.C. § 4, the 17 allies' anthems opening in their native languages — an English side only where the government itself publishes one (Korea.net for South Korea; Canada and New Zealand in their two official versions; Spain's Marcha Real wordless, with zero lyric text) — and 24 flags with their official descriptions, TIOH streamer counts at summary level, and symbolism printed only where a government officially states it. Open to members, spouses, and future members", icon: "flag" },
+  { key: "uniforms", name: "Uniforms", blurb: "Every standard uniform for all six branches — labeled diagrams, wear-order assembly checklists, and the governing regulation", icon: "shirt" },
   { key: "benefits", name: "Benefits", blurb: "VA & DoD benefits, branch programs, and state help", icon: "shield" },
   { key: "deals", name: "Deals & Discounts", blurb: "Military deal platforms and on-base life", icon: "tag" },
+  { key: "gear", name: "Gear Search", blurb: "One search box routed to 12 gear stores — verified search links where confirmed, homepages where not — plus 10 buying guides: boots, rucks, uniforms, cold/wet weather, sleep, eye pro, tools, watches, and before you ship", icon: "pack" },
+  { key: "lingo", name: "Lingo", blurb: "The family-facing dictionary: the phonetic alphabet as the FAA and NATO publish it — digit pronunciations included — plus 172 plain-English entries in 7 groups, slang labeled SLANG, open to members, future members, and spouses alike", icon: "chat" },
+  { key: "weapons", name: "Weapons & Qualification", blurb: "All 28 weapon systems at official fact-file level (13 carry no specs — no official fact file exists, and the entry says so), zeroing and fundamentals from the two public manuals (TC 3-22.9 and MCRP 3-01A), every branch's annual qualification as published — withheld figures marked, never filled — the four published safety-rule sets verbatim, operator basics only where the manual is public (M203, Mk 19 2001, M9), and cycles of operations for the 7 publicly sourced systems, M240B first", icon: "target" },
+  { key: "trails", name: "Trails & Camping", blurb: "The family/leisure finder, open to members, spouses, and future members alike: type a place — base, city, state, or country — and it builds the real platforms' own search links (Recreation.gov, The Dyrt, Hiking Project verified live; NPS and Campendium state pages for state inputs; AllTrails, Hipcamp, iOverlander, park4night and the rest routed honestly as “search on their site” — no fabricated links, and no trail or campground data stored in the app). Plus military camping: FamCamps with DoD's own eligibility framing and the check-ahead rule, ODR gear rentals, the UNOFFICIAL militarycampgrounds.us directory labeled as such, and four guides — dispersed camping with BLM's and the Forest Service's rules printed as the separate positions they are, trails on/near bases with the range-safety framing, camping outside the US, and Leave No Trace's seven principles", icon: "tent" },
+  { key: "installation", name: "My Installation", blurb: "Your installation, routed properly: set it once from the MilitaryINSTALLATIONS directory's own list (409 installations worldwide, CONUS and OCONUS, slugs exactly as the directory prints them — Fort Hood, not Cavazos) and the page assembles your on-base guide — food, exchange, commissary, pool, fitness, MWR/ITT, lodging, medical, child care, housing, legal, chaplain, library — where every service link is one harvested from that installation's own directory overview page, never constructed, plus the national locators (DeCA, AAFES, MilitaryChildCare.com, AFLA, TRICARE's MTF finder, HOMES.mil, ID cards) and an off-base guide for the ~50 miles around it. No hours, phone numbers, or building numbers live in the app — those stay on the installation's own pages, where they're kept current", icon: "pin" },
+  { key: "emergency", name: "My Emergency Card", blurb: "Your private quick card: up to three emergency contacts with one-tap call buttons, your unit, self-reported blood type, allergies, and medications — filled in by you, visible only to you, never shared", icon: "cross" },
+  { key: "medical", name: "Medical Training & Certs", blurb: "The training and certifications themselves: TCCC's four tiers and their layered currency, BLS/ACLS/PALS through the Military Training Network, EMT/NREMT and the medic pipelines, Stop the Bleed, per-branch medical training, and CPR/AED for families — about the training, never a procedures manual", icon: "medical" },
   { key: "transition", name: "Transition & Jobs", blurb: "Translate your MOS and get placed before you get out", icon: "briefcase" },
   { key: "education", name: "Education Planner", blurb: "Transcripts, free exams, and degree planning", icon: "cap" },
   { key: "pay", name: "Pay & Money", blurb: "Pay tables, allowances, LES decoder, and money help", icon: "wallet" },
   { key: "pcs", name: "PCS Move Center", blurb: "Move timeline, forgotten entitlements, household goods, housing, and claims", icon: "truck" },
   { key: "family", name: "Family & Life Events", blurb: "Life-event checklists, spouse careers, childcare, EFMP, and family support", icon: "heart" },
-  { key: "claims", name: "VA Claims & VSO Guide", blurb: "How a claim moves, BDD, evidence, review lanes, and free accredited VSO help", icon: "clipboard" },
-  { key: "readiness", name: "Readiness & Life Skills", blurb: "Pre-deployment readiness, special duties, uniform references, first home station, money traps, and voting", icon: "compass" },
+  { key: "claims", name: "VA Claims & Free Help", blurb: "How a claim moves, BDD, evidence, review lanes, and free accredited VSO help", icon: "clipboard" },
+  { key: "claimtracker", name: "VA Claim Tracker", blurb: "Your private organizer for your own claims — stage, key dates, the intent-to-file one-year countdown, and an evidence checklist. Yours only, never shared, and not VA's status", icon: "clipboard" },
+  { key: "readiness", name: "Duties, Uniforms & Everyday Know-How", blurb: "Pre-deployment readiness, special duties, uniform references, first home station, money traps, and voting", icon: "compass" },
   { key: "retirement", name: "Retirement Hub", blurb: "BRS vs. legacy High-3, the official calculators, SBP, CRDP vs. CRSC, and the retirement timeline", icon: "sunset" },
-  { key: "records", name: "Records & DD214 Center", blurb: "Get, replace, and correct your service records — eVetRecs, milConnect, the 62-year rule, DD 149/293 boards, and medals", icon: "folder" },
+  { key: "records", name: "Your Records & DD214", blurb: "Get, replace, and correct your service records — eVetRecs, milConnect, the 62-year rule, DD 149/293 boards, and medals", icon: "folder" },
   { key: "states", name: "State Benefits Finder", blurb: "Every state + DC: the official veterans agency and its headline benefits — property tax, tuition, veterans homes", icon: "pin" },
   { key: "care", name: "Care & Crisis", blurb: "Veterans Crisis Line pinned on top, Vet Centers, VA health care enrollment, housing help, and burial honors", icon: "cross" },
-  { key: "find", name: "Find Anything", blurb: "27 official locators in 8 categories — installations, VA, ID & DEERS, commissary, Space-A, TRICARE, and the route notes where no national locator exists", icon: "search" },
+  { key: "emergencydeck", name: "When It Goes Wrong", blurb: "The first-24-hours emergency deck — 8 action cards in the pack's exact shape (DO FIRST numbered → CALL → THEN → WATCH OUT), every number verified on the program owner's own page: Red Cross Hero Care 1-877-272-7337 (the Red Cross verifies; the commander decides leave), CAC loss via cac.mil / DSO 1-800-538-9552, OCONUS accidents for Germany / Türkiye / Okinawa only (never generalized), arrest abroad on the State Department's published script (1-888-407-4747 / +1-202-501-4444), death in the family at link level to Honors & Burial / Care, lost passport (DS-64 / NPIC), identity theft via IdentityTheft.gov with the active-duty alert, and the TRICARE Overseas regional call centers. Never filtered from any track that can see Care & Crisis — members and spouses in full; future members see a locked card. The 8 cards also print as pocket panels in the Smart-Card Deck, generated from the same data", icon: "bell" },
+  { key: "find", name: "Find an Office, Number, or Service", blurb: "27 official locators in 8 categories — installations, VA, ID & DEERS, commissary, Space-A, TRICARE, and the route notes where no national locator exists", icon: "search" },
   { key: "changejob", name: "Change Your Job", blurb: "Switch MOS, rating, or AFSC inside your own branch — LatMove, reclassification, conversion, retraining, and change in rating, each under its real program name", icon: "swap" },
   { key: "switchbranches", name: "Switch Branches", blurb: "Move to a different branch — the DD Form 368 transfer path vs. separating and rejoining as prior service, the reality checks, and each gaining branch's official door", icon: "branches" },
   { key: "warstories", name: "War Stories", blurb: "Documented stories from official sources, Medal of Honor profiles, the most decorated — unranked — and member stories, reviewed before they publish", icon: "flag" },
   { key: "wallofhonor", name: "Wall of Honor", blurb: "A quiet wall of member tributes to the fallen — add a name, light a candle, and remember them on their day", icon: "flame" },
   { key: "thisday", name: "This Day in Military History", blurb: "A 90-entry sourced calendar — battles, firsts, Medal of Honor actions, milestones, and branch birthdays — matched to today's date, with the branch history commands' entry points for days with no entry", icon: "calendar" },
   { key: "mentors", name: "Find a Mentor", blurb: "Members who've been where you are, by branch, job, and topic — listings reviewed before they publish, requests and connections kept inside the app", icon: "users" },
+  { key: "people", name: "Find Your People", blurb: "An opt-in directory of past and current service members up for mentorship, workouts and rucks, hunting and fishing, work talk, or just someone to talk to — reviewed listings, your gender and connect-with choices enforced, state plus an optional city you control, and mutual accept before a private connection opens in Check-In", icon: "users" },
+  { key: "spousehub", name: "Spouse Hub", blurb: "The spouse side of Battle Book, spouse-first: new-spouse orientation and your unit's family structure under their current names (SFRG, UPFRP Readiness Coordinator, Commander's Key Support Program), spouse employment and license reimbursement printed per service, money and legal for spouses, deployment support, and spouse scholarships — with a door into Spouse Connect, the spouses-only directory", icon: "heart" },
   { key: "traditions", name: "Traditions & Lore", blurb: "The culture layer — flag folds, Taps, the Tomb, branch birthdays and songs, coins, call signs, and the cries — every card labeled DOCUMENTED, TRADITION, LEGEND, or DISPUTED, with the corrections printed, not smoothed", icon: "flag" },
   { key: "mailcall", name: "Mail Call", blurb: "Care packages and military mail, from USPS/MPSA, Military OneSource, the USO, and the Red Cross only — how APO/FPO/DPO addressing works (never write the foreign city or country), the free USPS Military Care Kit, the 2026 holiday send-by dates under their ANNUAL banner, what's prohibited, what to send, and the verified letter routes", icon: "mail" },
   { key: "timeline", name: "My Service Timeline", blurb: "Your private career keepsake — the day you joined, boot camp, units, deployments, promotions, and the day it ended — oldest first, printable, and never shown to anyone else", icon: "clock" },
-  { key: "combat", name: "Close Combat", blurb: "MCMAP, MACP, and service combatives catalogs", icon: "swords" },
+  { key: "combat", name: "Hand-to-Hand Programs", blurb: "MCMAP, MACP, and service combatives catalogs", icon: "swords" },
+  { key: "fieldtools", name: "Field Tools", blurb: "The on-device field kit: compass, red lens light, pace counter, Zulu clock and converters, light data, MGRS grid reference, a comms card, the Knots library — 59 military knots with step diagrams — and Hand & Arm Signals, all 185 published signals with original diagrams — all computed on your phone", icon: "compass" },
   { key: "fieldcraft", name: "Fieldcraft", blurb: "Packing lists, rucking, and field skills", icon: "tent" },
+  { key: "alerts", name: "Alerts", blurb: "What needs you, computed from your own app data: a squadmate's \"Need to talk\" or missed check-ins, your BDD / intent-to-file / ID card windows, mentor requests, and review-queue items — with an unread count on the Home bell", icon: "bell" },
+  { key: "feedback", name: "Send Feedback", blurb: "Tell the owner what's working, what's broken, what's missing, or what needs correcting — and read the Feedback Inbox (owner-only in production; visible in this prototype so feedback can be read in the same copy testers use)", icon: "mail" },
+  { key: "reserve", name: "Guard & Reserve", blurb: "Drill pay mechanics with the DFAS 2026 examples flagged as examples, TRICARE Reserve Select premiums (CY2026, with CY2027 forward figures flagged), points and the good year (130 inactive-point cap, ÷360 math), DD Form 214-1 as the DD214's supplement, mobilization authorities (§12304a disaster vs. §12304b preplanned, statute-verified), and the IDT travel conflict printed as a conflict — JTR $750 round-trip vs. the $500 on Coast Guard and Navy Reserve pages. Space Force has no reserve component — its part-time route is flagged as implementing", icon: "shield" },
+  { key: "rights", name: "Know Your Rights", blurb: "SCRA, USERRA, and the Military Lending Act from the agencies that run them: the 6% cap with interest FORGIVEN (and the 180-day written-notice rule), USERRA return deadlines by service length and the escalation ladder (employer → ESGR → DOL VETS Form 1010 → DOJ/OSC), and the MLA's 36% MAPR. No sample letters — drafting routes to legal assistance, and the SCRA eviction rent ceiling is flagged, not printed, because no official page confirmed it", icon: "clipboard" },
+  { key: "les", name: "Your Pay Stub, Explained", blurb: "All 78 numbered LES fields plus the four current Form W-4 fields and all 64 entitlement, deduction, and allotment line codes, decoded from DFAS's May 14, 2026 guide — tappable: tap any field in the statement layout or search the list. SGLI at $0.05/$1,000 since July 1, 2025 (older $0.06 guides flagged stale), AFRH $0.50 actual vs. the $1 statutory cap, and two plain statements: no DFAS remarks-code table exists, and no numbered field carries EFT remarks", icon: "wallet" },
+  { key: "homeloan", name: "VA Home Loan Center", blurb: "The COE, entitlement explained plain (basic $36,000/$144,000, bonus/second-tier, restoration), the funding fee exactly as VA publishes it (chart effective April 7, 2023 — 2.15%/3.30% under 5% down, IRRRL 0.50%, all five exemption categories verbatim including active-duty Purple Heart), the second-tier worked example recomputed on the FHFA 2026 baseline ($832,750 → $108,187.50 remaining → $432,750 max no-down), the loan rules, and VA's own warnings. No lenders, no rates, no affordability advice", icon: "home" },
+  { key: "ribbons", name: "Awards & Ribbon Rack", blurb: "Pick your awards and the rack lines up in your branch's official precedence — Army 86, USMC 61, Navy 65 (article text wins over the graphic chart), Air Force 91, Space Force follows DAF, Coast Guard personal decorations by name only (numbering unverified in the manual's extraction). The finder carries 52 confirmed entries from TIOH and the manuals plus index-only entries stamped DESCRIPTION NOT CONFIRMED; the USMC Inherent Resolve position stays unslotted; vendors are labeled commercial with their verified search patterns — and one parked look-alike domain is deliberately never linked", icon: "flag" },
+  { key: "deployment", name: "Family Care Plan & Deployment Readiness", blurb: "DoDI 1342.19 plus your service's own rule: Army DA 5304 counseling → DA 5305 on the 30/60-day clock, USMC MCO 1740.13D (broader than DoD — ALL members with dependents validate, system of record MCTFS/MOL), Navy OPNAVINST 1740.4E, DAFI 36-2908/Form 357 — and the Coast Guard's negative finding printed as found: no standalone CG FCP instruction or form verified. Plus the 32-item pre-deployment checklist, checkable and Binder-savable, with the DFAS Family Separation Allowance conflict printed ($300 current page vs. $250 older FAQ — verify on your LES)", icon: "tent" },
+  { key: "clearance", name: "Security Clearances", blurb: "The rules and the timeline from the agency itself — DCSA only: the levels (Confidential, Secret, Top Secret) and their investigations, the end-to-end process, the 13 SEAD 4 adjudicative guidelines by name, and the self-reporting duty that never switches off — ALL foreign travel incl. Canada/Mexico day trips, deviations within 5 business days, and the TS-tier specifics (120-day delinquency, $10,000 unusual influx, foreign accounts/property). Omitting required information is itself disqualifying. No processing-time figures anywhere — DCSA's applicant pages publish none and none were imported. Members only", icon: "shield" },
+  { key: "kids", name: "Kids & Schools", blurb: "Three names solve almost every military school problem: your School Liaison, your State Commissioner, and the Commission itself. MIC3 provision by provision from mic3.net (militarychild.org is the MCEC nonprofit, not the Commission), the 30-day immunization window, the records timing variance flagged as flagged, the senior-year sending-school diploma rule, IEP & 504 continuity, DoDEA / NDSP / DVHS, Impact Aid, homeschooling, and youth programs. Coast Guard has NO school liaison corps — the pack's finding, printed, with the CG Work-Life route. Military Kids Connect is named but deliberately linkless", icon: "heart" },
+  { key: "travelhq", name: "Travel, Space-A & Lodging", blurb: "Space-A per DoDI 4515.13 Table 3 in full — including the deployed-dependent split (365+ days → bottom of Cat III; 30–364 days → Cat IV) and Cat VI's CONUS geography. Signup is IN FLUX and printed as flux: the new Self-Signup Tool (live Mar 26, 2026) runs alongside the old form and email routes, AMC warns your signup email MAY NOT arrive, duplicates reset your queue position. Patriot Express, DoD lodging and the four AFRC resorts (Edelweiss's narrower eligibility as documented), the booking channels, airport benefits, and the USO's Jan 1, 2025 admissions policy. Zero prices anywhere", icon: "compass" },
+  { key: "taxes", name: "Tax & Residency", blurb: "MilTax free filing (veterans up to 365 days post-separation, federal + up to 5 state returns), the IRS combat-zone formula in full — service period + 180 days + the days left when you entered, the element OneSource's page omits, flagged — the officer combat-pay cap at $10,983/mo labeled as the 2025 figure, and the MSRRA three-way election from the enrolled text of 50 U.S.C. § 4001(a)(3): member's residence, spouse's residence, or permanent duty station, for taxation — with the voting-residence nuance flag printed", icon: "wallet" },
+  { key: "voting", name: "Voting Center", blurb: "FVAP-only and strictly nonpartisan: a new FPCA every January and every move, 90+ days before the election, which attaches the 45-day MOVE Act transmission protection; the FWAB backup when the ballot hasn't arrived 30 days out, and the send-both rule; FVAP's mailing lead times labeled planning guidance (35 sea / 30 overseas / 11 stateside); and the discontinued FVAP fax service (Aug 1, 2025) printed plainly. Zero state deadlines cataloged — every state question routes to FVAP's official state tool", icon: "clipboard" },
+  { key: "healthhq", name: "Health Care & TRICARE", blurb: "A pure router — no costs, no medical content, no coverage advice: milConnect is enrollment/DEERS, MHS GENESIS is records/appointments, your regional contractor portal is claims and referrals (East Humana Military, West TriWest — Health Net ran the PRIOR contract and appears nowhere as current — Overseas International SOS, TFL WPS), Express Scripts is pharmacy, and the Nurse Advice Line (1-800-TRICARE, option 1) is the 24/7 human fallback. The GENESIS/myAuth cutover's three conflicting official dates (Sep 16 / Sep 23 / Sep 25, 2026) printed as a conflict: follow the portal's own login screen", icon: "medical" },
+  { key: "specops", name: "Special Forces & Elite Units", blurb: "Every branch's elite forces as their own official recruiting and command pages present them — one tile per branch, each with its own search: Army SF (Robin Sage, the 52–92-week SFQC range), the 75th Ranger Regiment (RASP, with Ranger School kept explicitly separate), 160th SOAR (no qualification table published — stated, not filled), CA and PSYOP (the 37F GT 107-vs-105 conflict printed flagged), Delta at existence level only; Marine Raiders (the four-phase MRC — Guile Strike, Derna Bridge — with every F-5 variance flagged) and Recon 0321; Navy SEALs (Minimum + Elevated PST only — navy.com publishes no competitive table), SWCC (the 13:00 is the swim), EOD and the summary Divers/AIRR entries; the Air Force IFT (it was the PAST) and the ten-step PJ/CCT pipelines printed per page, Airborne 5-vs-3 weeks flagged, never harmonized; one honest Space Force card — no SOF exists; and the Coast Guard's DSF, with AST the full entry and the section's only attrition figure, attributed to USCG recruiting material. Members and future members; spouses see a locked card", icon: "target" },
+  { key: "alliedsf", name: "Allied Special Forces", blurb: "The special operations forces of the same 17 allied countries as Partner Forces, in Partner Forces order — one tile per country, each with its own search: Germany KSK with BOTH role tables separate (operator and the lower recon table) and KSM at visit-criteria level; Norway FSK and MJK as two DIFFERENT batteries, never merged (F-1); Canada JTF 2 / CSOR / CJIRU with PFSE 1 / 3 / 2 verbatim and the CANFORGEN 100/26 call labeled DATED by design; the UK honestly silent for Regular SAS/SBS with the Reserve contrast printed; Denmark dated-only; France with zero published numbers, printed as the finding; Australia as ONE combined SF Operator entry; Korea with the full UDT/SEAL tables and flags F-14/F-15 unresolved, plus the SWC NCO 268기 announcement verified in full; Poland — GROM and AGAT verified from the official pages (AGAT's swim standard corrected to under 2 minutes), Formoza and JWK/NIL still flagged; Türkiye's ÖKK selection route published in regulation, with the direct-entry correction printed. Members and future members; spouses see a locked card", icon: "target" },
+  { key: "quals", name: "Qualifications, Schools & Certifications", blurb: "Swim quals (USMC five levels current under MCO 1500.52E — Basic/Novice/Competent/Proficient/Advanced, with the cancelled 1500.52D system as labeled history; MCIWS/WSI is MOS 0918), what weapons “tables” mean per service (Army IWTS I–VI — only Table VI rates; USMC ARQ/CPP; CG scores NOT PUBLICLY PUBLISHED, FOUO), the egress family disambiguated (SWET / METS = the helo dunker / MAET / SVET / MUET / HEAT & MET; USMC UET 4-year currency gated on a current swim qual), CBRN churn dated and flagged, driver quals on the OF 346 spine, OIC/RSO, DLPT/FLPB — plus the schools: Airborne and Pathfinder (GT ≥110), Air Assault, Ranger (ARTB governs the Airborne-prerequisite conflict) and Sapper, the dive schools (Engineer Diver is Fort Leonard Wood + Panama City, NOT Eglin; CDQC 6 vs 7 weeks and ND PST gated, flagged), Scout Swimmer and rescue swimmers, EOD structure, SERE per service (JPRA is the DoD OPR), Bridgeport (BMMC — no “BPMC”), sniper at existence/prerequisites/length only, instructor certifications, maritime quals (the NEW 2025 Advanced Coxswain insignia), the Space Force verified negatives, and the 45-item NOT CONFIRMED register — rumors labeled rumors. Members and future members; spouses see a locked card", icon: "target" },
+  { key: "components", name: "Switching Components", blurb: "Active ⇄ Reserve in both directions, all six branches, from the services' own pages: the landscape first (AGR / TAR / AR are full-time RESERVE-component statuses, not active-component accessions; ART is a dual-status civilian route; affiliation follows component, not duty status), then Active → Reserve branch by branch — Army RCCC (up to 180 days out, no break), Marine Corps DAP (SMCR/IMA at EAS, year-round, enlisted, career-planner door), Navy AC2SELRES / AC2TAR per MILPERSMAN 1306-1501 with the NAVADMIN 303/23 required-SELRES wrinkle, Air Force Palace Front (at DOS) vs Palace Chase (early release — obligation EXTENDED, not reduced; the conversion is unresolved and no multiple is printed anywhere), the Space Force finding (no reserve component exists — single-component PMA), Coast Guard R2R Panel + enlisted route via PSC-RPM-2 — then Reserve → Active: Army CAD (MILPER cycles, CAC-gated detail flagged) + AGR, USMC AR Program + PSEP augmentation, Navy RC2AC / RC2TAR per MILPERSMAN 1306-1502 (live quotas live on MyNavyHR, none reproduced) + TAR naming + CANREC, Air Force VLPAD + CIP and AGR vs ART, Coast Guard EAD → integration + ROASP. What carries over (grade honestly hedged, retirement continuity, health care both ways) and the full 10-item Before You Sign checklist. Zero quotas, vacancy lists, window dates, or bonus figures anywhere. Members and spouses in full; future members see a locked card", icon: "swap" },
+  { key: "reenlist", name: "Reenlistment & IRR", blurb: "Signing again — and what you still owe after you stop. Part 1 branch by branch: the Army ROW and Reenlistment Options (plus QTI, structure only — no STEP dollar figures), the Marine Corps cohort/boatspace system with the SRB no-retroactivity warning and the 48-month / under-36-month thresholds, the Navy's C-WAY gate and its conditional extension instrument, the DAF CJR windows and the A/B/C/E/F zone table (no Zone D exists), the Coast Guard's CO-recommendation rule and its dated FY26 no-SRB fact (ALCOAST 386/25). SRB across the services as structures only — no current bonus amounts anywhere; the only figures printed are flagged standing constants (Continuation Pay ranges, the 48-month extension caps). RE codes at official-summary level with the Navy RE-4 conflict printed both ways, and the checkable 8-item Before You Sign checklist. Part 2, the IRR: the 8-year MSO, the five obligations, muster and annual screening by service, the three recall authorities (§12304's 365-vs-270-day conflict printed, Code controls), no pay while inactive, no TRICARE in IRR status, the SGLI line inside the IRR, 15 membership points, and the doors back to SELRES or active duty. Members and spouses in full; future members see a locked card", icon: "route" },
+  { key: "first30", name: "First 30 Days", blurb: "The guided newcomer path — your first month at a new duty station, sequenced in the order the deadlines fall: 34 checkable tasks in four phases (Before Arrival 9 · Week 1 12 · Weeks 2–4 8 · By Day 30 5), filtered by your situation (single / family / EFMP / OCONUS; spouses get the family view), with the four service-level hard clocks printed exactly as published — the travel voucher in BOTH its DTMO/FMR and DFAS wordings, the TRICARE 90-day move-QLE with its DEERS anchor, Navy INDOC within 30 days (OPNAVINST 1740.3E), USMC Welcome Aboard within 90 days (MARADMIN 147/26) with Okinawa NOWA at 72 hours — and installation windows labeled examples, never universalized. Sponsorship per branch with the ACT sunset (Nov 14, 2025) printed as a conflict and MCO 1320.11H governing (the F version flagged stale). Members and spouses in full, each on their own profile's progress; future members see a locked card", icon: "route" },
+  { key: "firstyear", name: "First Year Out", blurb: "The guided transition path — from 12 months before separation to 12 months after: 31 checkable tasks in five phases (12–6 months out 6 · 6–1 months out 7 · Final 90 days 4 · First 90 days home 7 · Months 4–12 7), 15 of them deadline-bearing, with the deadline spine printed exactly as published — TAP no later than 365 days out (retirees up to 24 months), Capstone no later than 90 days, BDD filed 90–180 days out, TRICARE ending on the last duty day with TAMP at 180 days for eligible categories only (routine voluntary ETS excluded, printed), CHCBP within 60 days, VGLI at 240 days with the final deadline at 1 year + 120 days, SGLI day-120, UCX filed as soon as possible, and the 8-year MSO / IRR deep link — and the retiree final-move conflict (Air Force fact sheet 1 year vs current-JTR summaries 3 years) printed both ways with the transportation office controlling. Members and spouses in full, each on their own profile's progress; future members see a locked card", icon: "route" },
+  { key: "commissioning", name: "Commissioning from the Ranks", blurb: "Changing corps from inside the service. Enlisted → Officer: the service academies' enlisted appointments, Army OCS and the four Green to Gold routes, the Marine ECP / MECEP / MCP-R / RECP family, Navy OCS and STA-21 (verified ACTIVE), the Air Force OTS / SOAR / ASCP / POC-ERP / NECP / SLECP-A / LEAD set, and the Coast Guard's OCS / PPEP / CSPI. Enlisted → Warrant: the Army's board-and-WOCS door, Marine WO, Navy LDO / CWO / Cyber WO1, the Air Force's NEW warrant program (interim guidance — the AFGM void date prints on the card), Coast Guard CWO with its figures withheld to the PSC guide, the discontinued Flying CWO boxed CLOSED, and the Space Force's verified negative. Officer → Enlisted ships the honest finding: ZERO dedicated programs — the routes are separation and prior-service enlistment, grade determination (the officer grade is NOT kept), and the Army's enlisted-only voluntary-reduction rule. Every card prints who can apply as published, how to apply, its sources, and its ⚠ flags; conflicts print as conflicts.", icon: "cap" },
+  { key: "cool", name: "Credentials for Your Job", blurb: "Turn military training into civilian credentials, service by service: Army Credentialing Assistance ($2,000/FY per ALARACT 102/2025 — the superseded $4,000 flagged; 1 credential/yr, max 3 in 10 years, ≥45 business days lead, direct pay, no reimbursement), Navy COOL's finite-pool first-come-first-served funding (no per-Sailor cap exists — the mechanism prints, never a number), USMC exam vouchers with the fail rule verbatim, AF COOL's $4,500 LIFETIME cap, and the Coast Guard's reimbursement route with its per-FY limit CONFLICT printed as a conflict. Plus the JST (Army/USMC/Navy/CG only — AF/SF use CCAF), DANTES-funded first CLEP/DSST attempts, USMAP apprenticeships, the VA GI Bill test route (up to $2,000/test, Form 22-0803), and the certificate-mills check — the three official checks only. The COOL mapping tools ship as homepage routes labeled “search on their site” — no built-in MOS→credential search. Members and spouses in full", icon: "target" },
+  { key: "assignments", name: "How Assignments Work", blurb: "How orders actually happen, service by service — systems, cycles, and the humans behind them: the Army marketplace transition flagged as it stands (IPPS-A Marketplace current; AIM 2.0 / ASK-EM legacy being sunset; “transition complete” NOT verified), four enlisted cycles a year, Navy MNA's 7 applications per cycle with the rating-page variants flagged never blended, the current MMEA-1/MMEA-2 structure, HSST as an electronic package-screening process, DAF Developmental Duty (the new DSD name), and Coast Guard detail behind CAC, stated plainly. Co-location as five programs with five names (MACP, Dual-Mil, Navy Co-location at 90 driving miles “not guaranteed,” Join Spouse intent codes A/B/H, CG Colocation via both AOs), and the detailer-etiquette verdict table (Army PART FOUND, USMC NOT FOUND, Navy FOUND distributed, DAF NOT FOUND, CG FOUND in message traffic). No live cycle dates, no billets, no tour-length tables. Members and spouses in full", icon: "swap" },
+  { key: "evals", name: "Evaluations & Board File", blurb: "Your evaluation is a record document, not a conversation: the forms, rating chains, and distribution mechanics per service — Army DA 67-10-1A (the 67-9 series is superseded; there is NO “EREC” — appeals run to HRC's Evaluation Appeals Branch and the ASRB, 3 years from the THRU date), Navy NAVPERS 1610/2 / 1616/27 / 1616/26 with the forced-distribution caps printed (EP max 20%; EP+MP E5–E6 60%, E7–E9 50%, O3 60%, O4 50%, O5–O6 40%), the Air Force EPB as myEval ALQ with AF Form 716 (910/911/912 are EPR predecessors) and EFDP allocations verbatim, and the Coast Guard's re-lettered CG-5310 mapping with NO forced-distribution cap imported. The board file per branch, the three different fights (correction / appeal / statement), and the honest precept map: USMC, Navy, and CG publish; Army MOIs and AF charges do not. Members only", icon: "clipboard" },
+  { key: "fedjobs", name: "Veterans' Preference & Federal Jobs", blurb: "Preference in OPM's own terms, under the standing line: it is real, it is specific, and it is not automatic — you claim it, with documents, on each application, and the agency adjudicates. All five codes in full (SSP 0-pt; TP 5-pt with the windows, the 24-month rule, and the post-2010 gap printed in the entry; CP/CPS/XP 10-pt with the 0%-rating XP trap and derived preference's controlling limits), the mirrored checklist that ends at “OPM's criteria describe this as [code]” and never “you are eligible,” the Rule of Many (Nov 7, 2025) with the rule of three as history, military leave at 20 days/160 hours current (15 flagged superseded), RIF in BOTH regimes across the Sept 2, 2026 notice-date switch, and the authorities as OPM names them (VRA through GS-11, VEOA's right to compete, 30%+ with no grade cap, Schedule A as a distinction — not a veterans' authority). No job listings, no resume advice. Members in full; spouses see the derived-preference and spouse-authority routing", icon: "shield" },
+  { key: "channels", name: "Official Channels", blurb: "When something's wrong, the four doors as the offices that run them describe them: the Inspector General (four functions; recommend, not order; the DoD Hotline's own routing honesty; service hotlines), 10 U.S.C. § 1034 protected communication with the ONE-YEAR reprisal window (awareness-based; restriction complaints have no time limit), EO/MEO with the DoDI 1020.03 definitions printed verbatim and per-service forms/windows (Army DA 7279 at 60 days; DAF 90 duty days + hotline, transition-flagged; Navy and USMC windows flagged, never filled), civilian EEO kept SEPARATE (45-day counselor contact, 15-day formal — a different system), SAPR/SHARP with Restricted vs. Unrestricted as SAPRO states them, CATCH, expedited transfers, and the DoD Safe Helpline at 877-995-5247 (the only form of that number anywhere), and congressional inquiries with Congress's own expectation-setting — a review and a response, not a result. Members and spouses in full; future members see a locked card", icon: "clipboard" },
+  { key: "relief", name: "Relief Societies", blurb: "Emergency help from your own service — four independent 501(c)(3) charities, not the government, deciding loan vs. grant case by case, with every published cap flagged verify-current: AER (30+ categories; emergency-travel airfare a 100% grant since Jan 1, 2025; QAP $2,000; NO LONGER routed through the Red Cross — Soldier Portal Help is the after-hours route), NMCRS (Red Cross bridge at 877-272-7337 using NMCRS funds; QAL $500 with its conflict flag; education $500–$3,000 / loans to $4,000), AFAS (restructured June 1, 2025 — Falcon folded into Standard Assistance, No Loan Limit; Hap Arnold Grant), and CGMA (the broadest eligibility of the four — civilians and Auxiliary included; flagship loans to $6,000; Education Loan up to $7,500, the official figure). Members and spouses in full; future members see a locked card", icon: "heart" },
+  { key: "paycharts", name: "Pay Charts & Rates", blurb: "The one section that prints a full pay table: the complete 2026 DFAS monthly basic pay tables — Enlisted, Warrant Officer, Officer, and O-1E/O-2E/O-3E — all 22 years-of-service columns, effective January 1, 2026 (3.8% raise, EO 14368), transcribed exactly (cross-checked: E-9 Over 12 = $7,066.50; the $7,067.40 that circulates belongs to E-7 Over 26), blanks rendered —, never $0, with the E-1 under-4-months rate ($2,225.70) on the row itself, the Executive Schedule caps, the E-pay definition (over 4 years / 1,460 points), prior years routed to the DFAS Pay Tables index, and drill pay as these tables ÷ 30. Allowances print NO rates — BAH, OHA, CONUS COLA, Overseas COLA, and per diem ship as the five DTMO calculator routers only. Members and spouses in full; future members get the tables and Read First", icon: "wallet" },
+  { key: "chaplains", name: "Chaplains & Religious Life", blurb: "The confidentiality rule that makes chaplains different: MRE 503 printed verbatim — privileged, disclosure only with informed written consent, service pages stating there are NO exceptions including harm to self or others — contrasted with VA counseling's life-threat exception exactly as each side publishes it; the governing instruction SECNAVINST 1730.11 (2022), with live USMC/MCCS pages still citing the cancelled 1730.9A flagged; assistants per service (the privilege is the chaplain's office); the accommodation interview is NOT privileged. Find a chaplain: corps pages, the duty chaplain through the duty desk, NAVY311 ChaplainCare 1-855-NAVY-311, CNRFC (757) 322-5650, CG locator 202-372-4900 — and the Army/DAF national hotline ABSENCE printed as a finding. Accommodation under DoDI 1300.17 (normally accommodate; comply while you wait; 30 business days non-waiver CONUS; per-service routes incl. MCO 1730.9 / NAVMC 10274 and DAF GM2026-01), provide/facilitate/care-for-all, and preference field ≠ accommodation. Members and spouses in full; future members get the Accommodation tile (preaccession §3.2.i)", icon: "cross" },
+  { key: "honors", name: "Honors & Burial", blurb: "Factual and quiet — routing and eligibility only: VA national-cemetery burial (what it includes at no cost; eligibility incl. the not-eligible list as VA prints it), the burial allowance exactly as VA's Oct 7, 2026 page dates it (service-connected $2,000 post-9/11 / $1,500 before; non-service-connected $1,032 + $1,032 on/after Oct 1, 2026; private-cemetery headstone allowance $420, the $441→$420 decrease printed as published), headstones/medallions (40-1330 / 40-1330M), the burial flag (27-2008), the PMC (40-0247, five routes, no deadline published), pre-need determination (VA Form 40-10007, with VA's own stated limits — no gravesite reserved), military funeral honors at the 10 U.S.C. § 1491 floor requested through the FUNERAL DIRECTOR (1-877-MIL-HONR is the directors' line), Arlington per 32 CFR Part 553 (in-ground vs. inurnment table; NO standing cremated wait figure published — none printed), state cemeteries as a router, and the five casualty systems + Gold Star liaison. Members and spouses in full; future members see a locked card", icon: "flag" },
+  { key: "oconus", name: "OCONUS Family Papers", blurb: "The documents layer of an overseas move: no-fee passports (SIA-issued, max 5 years, not for personal travel; the member travels on CAC + orders, each dependent on their own book) riding on orders naming every dependent + DD Form 1056 through a DoD passport agent — plan 6–8 weeks (State's controlling figure: up to 6 weeks, April 2026; installation snapshots flagged); the Foreign Clearance Guide as the country router; SOFA status documented per theater — GERMANY: stamp OR AEA 600-77C certificate within 90 days, holding both is ILLEGAL; JAPAN: entry SOFA stamp by Japanese immigration plus a SEPARATE exit/re-entry stamp; KOREA: A-3/SOFA stamp within 30 days, and command-sponsored family members without a no-fee passport are DENIED BOARDING (Eighth Army); the two-book reality (tourist book at family expense); command sponsorship as the gate (EFMP-screened, never guaranteed; non-sponsored = tourists at 90 days); the 12-item source-traced checklist; and the special cases — CRBA + SSN via Federal Benefits Units (SS-5), dual citizenship per State, adoption/custody court papers, non-citizen dependents on their own passport + SOFA document. Members and spouses in full; future members see a locked card", icon: "pin" },
+  { key: "tsp", name: "TSP Center", blurb: "The Thrift Savings Plan as the FRTIB publishes it: the five core funds in TSP's own terms — the I Fund benchmark printed exactly (MSCI ACWI IMI ex USA ex China ex Hong Kong Index, transition completed Oct 2024; the stale EAFE cell flagged, never printed as the benchmark) — the L Funds' structure (no allocation percentages), the Mutual Fund Window fee stack ($95/yr + $28.75/trade confirmed; the $37 administrative fee with its verify note), 2026 limits year-labeled per IRS Notice 2025-67 ($24,500 / $8,000 / $11,250 ages 60–63 / $72,000), Roth vs Traditional with the combat-zone rules and 2026's in-plan conversions printed as a TAXABLE EVENT, the BRS match exactly as DoD publishes (1% automatic from day 61, 4% max match, 5% total at 5%), loans with the payoff waiting period flagged UNVERIFIED — neither circulating figure printed — and the §15 guardrails as a card: no projections, no fund recommendations, no tax advice, no personal numbers. Members and spouses in full", icon: "wallet" },
+  { key: "calculators", name: "Calculators", blurb: "Four calculators from the official formulas and tables: the Retirement Estimator (Legacy 2.5% / BRS 2.0% on a base you enter, DFAS round-down, Reserve points \u00f7 360, continuation pay from a Service-supplied multiplier, the BRS TSP government-contribution table; the lump-sum option described with NO dollar figure \u2014 the current Government Discount Rate was not captured), the VA Combined Ratings calculator (the full 38 CFR \u00a74.25 Table I as the engine, \u00a74.26 bilateral factor with the \u00a74.26(d) most-favorable comparison, every step shown; regulation math, not a VA decision), PCS Entitlements (JTR Table 5-37 HHG allowances, CY2026 primary DLA, TLE Table 5-17 percentages under the $290/day cap, travel days and Table 5-6 dependent percentages; locality rates route to DTMO, PPM from a Government Constructed Cost you supply, the GHC percentage flagged unresolved), and Debt Payoff (CFPB snowball vs avalanche with a minimums-only baseline; SCRA 6% only as a user-confirmed or labeled what-if). Inputs save privately to your own profile. Members in full; spouses get PCS + Debt in full with Retirement/VA locked (Retirement opens for surviving spouses); future members see a locked card", icon: "wallet" },
+  { key: "boardprep", name: "Board Prep", blurb: "How promotion and selection boards work at the published level: the DA Secretariat model (ASBS 1–6 scoring, 2–3 minutes per file), what the board sees per service (My Board File, OMPF + MBS, the Navy record), letters to the board with their deadlines and routes, the published record-audit checklists, and the local semi-centralized boards you stand in front of. NO board questions — none are officially published, and the section says so plainly instead of filling the gap from forums. Members only", icon: "clipboard" },
+  { key: "writing", name: "Writing Helpers", blurb: "Award and evaluation writing from the published guides only: the Air Force's Tongue and Quill Ch. 19 method, bullet structure, and its published verb table reproduced as published; the Army's DA Form 638 formats and justification standard from HRC; Navy Block 43 comment guidance under BUPERSINST 1610.10. And the honest gap, printed as content: only the Air Force publishes a verb list — no verb list is invented for any other service. Members only", icon: "clipboard" },
+  { key: "ides", name: "MEB/PEB (IDES) Guide", blurb: "The Integrated Disability Evaluation System in plain language: referral and the MRDP, the VA claim built in-process, C&P exams, the MEB and NARSUM, impartial review and rebuttal, the IPEB, the formal board (10 U.S.C. §1214), the one-time VARR, and the outcomes — the ≥30% / ≥20-year retirement rule, PDRL vs TDRL, the severance formula. Timelines are published GOALS printed both ways (the 180-day manual table and the 295-day figure), never promises; the PEBLO is an administrator, not your advocate — free counsel (OSC/SMEBC) is. Process only, not legal or medical advice. Members and spouses in full; future members see a locked card", icon: "medical" },
+  { key: "clepjst", name: "CLEP/DANTES + JST", blurb: "Credit for what you already know: CLEP's 34 exams and DSST's 38 (incl. upper-division titles), DANTES first-attempt funding per exam title, ACE credit recommendations and their limits, and the JST — Army/USMC/Navy/CG only; Air Force and Space Force use CCAF. Eligibility prints the Coast Guard asymmetry as published: Coast Guard spouses are funded, other services' spouses are not. The DSST retest conflict (DANTES 3 months vs college pages 30 days) prints both sides. Members and spouses in full; future members see a locked card", icon: "cap" },
+  { key: "housing", name: "Housing Pack", blurb: "The Tenant Bill of Rights quoted from the Aug 2021 DoD document — all 18 rights, each its own Binder-savable card, with the dispute deciding-authority conflict printed both sides and installation briefs treated as briefings, never overrides. Barracks & dorms at the published pattern (commander authority, weekly leader checks, CQ variants, ArMA) under the standing caution that NO DoD-wide inspection/CQ standard exists. Off-post renting: the military clause, free HSO lease review before you sign or send a deposit, AHOUS and HOMES.mil — and a cross-reference to Know Your Rights for SCRA lease termination, with no legal text duplicated. Members and spouses in full; future members see a locked card", icon: "home" },
+  { key: "carbuying", name: "Car-Buying Guide", blurb: "CFPB/FTC/Military OneSource only: total cost over monthly payment with the Shopping Sheet formula and its printed worked example; yo-yo financing, dealer markup, and payment packing (FTC's term) by their official names; add-ons as published, with CFPB's data (servicemembers averaged over $3,300 new / $3,000 used); and the MLA CORRECTION printed prominently — the 36% MAPR cap EXCLUDES purchase auto loans, with the conflicting OneSource sentence shown only as a flagged conflict. SCRA 6% with CFPB's warning (not for loans signed on active duty); the FTC CARS Rule only as a pattern description with its vacatur printed. Members and spouses in full; future members see a locked card", icon: "wallet" },
+  { key: "opsec", name: "OPSEC & Social Media", blurb: "The OPSEC 5-step process in BOTH the Marine Corps (MCICOM) and Army printings, attributed; family OPSEC (the countdown post is the vulnerability); the Army, USMC, and DAF handbook do/don'ts; geolocation risks (“geotagging is the equivalent of adding a 10-digit grid coordinate”); and the layered reporting route — chain of command and unit OPSEC manager first, USMC MOST, Army iSALUTE at 1-800-225-5779 for suspicious solicitation. NO DoD-wide OPSEC hotline exists and none is printed. Members and spouses in full; future members see a locked card", icon: "shield" },
+  { key: "spousework", name: "Spouse Work Abroad & After a PCS", blurb: "Working in Germany under SOFA from the Kaiserslautern Legal handout (Sep 2025): SOFA status and the labor permit, German-economy work (no SOFA status in the job, IdNr, social insurance), U.S. jobs on base with Military Spouse Preference, telework for a U.S. employer (government vs. private taxation as published), and U.S. licenses — U.S.-system routes ship; German-economy license recognition is NOT sourceable and prints as the finding. Plus unemployment insurance after a PCS quit, with the DOL-vs-Coast-Guard filing-state conflict printed both sides and the UCX cross-link. Members and spouses in full; future members see a locked card", icon: "briefcase" },
+  { key: "caregiver", name: "VA Caregiver Support & EFMP Respite", blurb: "VA Caregiver Support SHIPS FULL: PCAFC (70% rating, Form 10-10CG, CHAMPVA, the stipend as VA's published FORMULA — grade 4 step 1 locality rate ÷ 12, ×0.625 / ×1.00; VA publishes no dollar figure and none is printed), PGCSS, and VA respite through Geriatrics and Extended Care, with the Caregiver Support Line 1-855-260-3274. Plus EFMP respite by service: USMC / Air Force / Navy on the standardized LoN 3 = 20 / LoN 4 = 32 model with each service's older conflicting numbers printed; the Army gets NO single hour figure (its pages publish 40 and 25 — check your installation EFMP office); the Coast Guard runs the Special Needs Program, not EFMP, with the CGMA grant labeled as a charity grant. Members and spouses in full; future members see a locked card", icon: "heart" },
+  { key: "germany", name: "Germany Living Guide", blurb: "The Germany layer: VAT relief SHIPS FULL (no individual entitlement — relief through the VAT office; NF-1 up to €2,499.99, NF-2 €2,500+, UTAP for utilities, with the Stuttgart-vs-Kaiserslautern after-the-fact conflict and the UTAP timing conflict printed both sides); bringing a pet (microchip → rabies → 21-day wait → certificate, EU pet passport after arrival, the federal breed ban from German Customs); off-post housing (check in before you sign — Bavaria mandatory assignment, the Kaution at 2–3 months, Nebenkosten and OHA; the agent-fee who-pays rule is NOT sourceable as one rule); and teenagers (USAREUR licensing with the 17-vs-18 minimum-age conflict printed, Summer Hire ages 14–22). Members and spouses in full; future members see a locked card", icon: "pin" },
+  { key: "credit", name: "Building Credit From Zero", blurb: "Starting a credit file from nothing, CFPB/FINRED only: how a score is built (the 35/30/15 FICO percentages flagged as one CFPB training transcript's framing — the consumer page publishes none), secured cards (your deposit is not the payment), credit-builder loans (the CFPB 6–24 vs. 12–24 month conflict printed both sides), authorized-user status (single-sourced, flagged), and the fee-harvester warning with the CARD Act's 25%-of-limit first-year fee cap and the $2.7M Continental refund case. Members and spouses in full; future members see a locked card", icon: "wallet" },
+  { key: "barracks", name: "Barracks Daily Life", blurb: "Week-1 logistics for unaccompanied housing, written as typically-true + where-to-check because no service-wide standard exists: barracks WiFi with BOTH models printed (the older paid-provider model and the Department of War's free-WiFi pilots — BaseNet at Fort Wainwright, Fort Riley first), packages and mail (Postal Service Center / unit mail room / CMR box assigned on arrival — get the exact address before anyone ships), and laundry (free in each building at Fort Knox and NAS Oceana as published; a building-level fact everywhere). Members only; spouses and future members see a locked card", icon: "home" },
+  { key: "generalorders", name: "General Orders", blurb: "The General Orders verbatim as each service publishes them — Army 3 (USAREUR IET Guard Duty material), Marine Corps 11 (Battalion Order 1600.4N Enclosure (2), citing MCO 5530.15 — the canonical manual itself not directly verified, flagged on the card), Navy 11 (NSTC study guide) — with the wording differences printed, never harmonized, and a Practice Trainers deck drilling all 25 from these same cards. The why-3-vs-11 grouping entry is not sourceable and ships as a flag, not a fill. Members and spouses in full; future members see a locked card", icon: "book" },
+  { key: "retireewear", name: "Retiree Uniform & Ceremony", blurb: "Wearing the uniform after retirement: 10 U.S.C. § 772(c) as published (a retired officer, the retired grade, NO occasions list in the statute — the lists live in the service regs), Army / Navy / Air Force / Coast Guard occasion lists as each publishes them, and the 32 C.F.R. Part 53 limits. The USMC occasion list (MCO 1020.34H) was NOT retrieved from an official host and ships as a flagged pre-launch follow-up — never reconstructed from the Navy list. Plus ceremony planning: the Navy sequence (MILPERSMAN 1800-010), MCO 1900.16 para. 1012, the statutory retirement flag at no cost (NSN 8345-00-656-1435) vs. the Capitol-flown keepsake, DD 363 / DD 2542 / the 30-year Presidential letter, and the shadow box as pointers only (MILPERSMAN Note 5: a gift, not official funds). Members and spouses in full; future members see a locked card", icon: "flag" },
+  { key: "giveback", name: "Give-Back", blurb: "Blood, marrow, and organ donation at published level: the Armed Services Blood Program (official since 1962; the CONUS 17+/110 lb frame and the Landstuhl 18+ frame printed both sides, never harmonized); Salute to Life, the DoD marrow program (the site's own 3 criteria — 18–60, good health, DoD-affiliated — free mailed kit, ~1-in-430 match odds as published, and the keep-with that a blood deferral is not a marrow deferral); and organ donation as the honest finding — no DoD registry exists; the route is your state registry or the DMV, with Walter Reed's transplant service for living donation. Members and spouses in full; future members see a locked card", icon: "heart" },
 ];
+/**
+ * The More hub's eight labeled clusters (ux-reorg.md §B.4). Every
+ * MORE_SECTIONS key has exactly one primary home here; any key a
+ * future wave adds without updating this map still renders — in the
+ * "Everything else" fallback MoreView appends — so nothing can ever
+ * silently vanish from the hub.
+ */
+const MORE_CLUSTERS: { title: string; keys: View[] }[] = [
+  { title: "My Book", keys: ["binder", "whatchanged", "paths", "deadlines", "timeline", "emergency", "alerts", "first30", "firstyear", "feedback"] },
+  { title: "Money & Benefits", keys: ["pay", "paycharts", "les", "tsp", "calculators", "credit", "homeloan", "carbuying", "deals", "benefits", "states", "relief"] },
+  { title: "Career", keys: ["changejob", "switchbranches", "components", "reenlist", "commissioning", "assignments", "evals", "boardprep", "writing", "cool", "clepjst", "education", "fedjobs", "transition", "trainers", "reserve"] },
+  { title: "Moving & Family", keys: ["pcs", "housing", "oconus", "germany", "family", "spousehub", "spousework", "kids", "deployment", "mailcall", "travelhq"] },
+  { title: "Health & Care", keys: ["healthhq", "medical", "care", "emergencydeck", "caregiver", "ides"] },
+  { title: "Records, VA & Rights", keys: ["records", "claims", "claimtracker", "rights", "channels", "clearance", "voting", "taxes", "retirement"] },
+  { title: "Service Life", keys: ["readiness", "uniforms", "gear", "weapons", "quals", "ranks", "partners", "songs", "traditions", "fieldtools", "fieldcraft", "trails", "combat", "specops", "alliedsf", "generalorders", "retireewear", "ribbons", "lingo", "barracks", "installation", "find", "opsec"] },
+  { title: "Community & Story", keys: ["warstories", "wallofhonor", "thisday", "mentors", "people", "giveback", "honors", "chaplains"] },
+];
+const MORE_CLUSTER_KEYS = new Set<View>(MORE_CLUSTERS.flatMap((c) => c.keys));
+
 
 function MoreView({
   profile,
@@ -882,6 +2149,10 @@ function MoreView({
   const forYou = relevancePriority(profile)
     .filter((k) => MORE_SECTIONS.some((s) => s.key === k))
     .slice(0, 3);
+  const alertsQ = useQuery({ queryKey: ["alerts"], queryFn: () => api.getAlerts({}) });
+  const unreadAlerts = alertsQ.data?.unreadCount ?? 0;
+  const wcSeenQ = useChangelogSeen(profile.id);
+  const wcUnseen = unseenChangeCount(wcSeenQ.data?.hasSeen ?? false, wcSeenQ.data?.lastSeenAt ?? null);
   return (
     <div>
       <SectionHead
@@ -891,8 +2162,33 @@ function MoreView({
       <div className="mb-4">
         <GlobalSearch id="global-search-more" onNavigate={onSearchHit} />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        {MORE_SECTIONS.map((s) => (
+      <button
+        type="button"
+        aria-label="Chat with Battle Buddy"
+        onClick={() => go("buddy")}
+        className="mb-4 flex w-full items-center gap-3 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4 text-left"
+      >
+        <span className="shrink-0 text-[var(--accent-word)]">
+          <NavIcon name="chat" size={30} />
+        </span>
+        <span>
+          <span className="font-display block text-lg font-bold leading-tight text-[var(--text)]">Battle Buddy</span>
+          <span className="mt-0.5 block text-sm leading-snug text-[var(--dim)]">
+            The AI helper: ask a question and it answers from Battle Book&apos;s own content, naming the section
+            and linking you straight there — or just talk for a bit.
+          </span>
+        </span>
+      </button>
+      {MORE_CLUSTERS.map((cluster) => {
+        const items = cluster.keys
+          .map((k) => MORE_SECTIONS.find((sec) => sec.key === k))
+          .filter((x): x is (typeof MORE_SECTIONS)[number] => Boolean(x));
+        if (items.length === 0) return null;
+        return (
+          <section key={cluster.title} aria-label={cluster.title} className="mb-6">
+            <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{cluster.title}</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {items.map((s) => (
           <button
             key={s.key}
             type="button"
@@ -901,16 +2197,812 @@ function MoreView({
             className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
           >
             <span className="flex w-full items-start justify-between gap-2">
-              <span className="text-[var(--accent)]">
+              <span className="text-[var(--accent-word)]">
                 <NavIcon name={s.icon} size={28} />
               </span>
-              {forYou.includes(s.key) ? <Badge tone="official">FOR YOU</Badge> : null}
+              {s.key === "alerts" && unreadAlerts > 0 ? (
+                <Badge tone="red">{unreadAlerts} UNREAD</Badge>
+              ) : s.key === "whatchanged" && wcUnseen > 0 ? (
+                <Badge tone="red">{wcUnseen} NEW</Badge>
+              ) : forYou.includes(s.key) ? (
+                <Badge tone="official">FOR YOU</Badge>
+              ) : null}
             </span>
             <span className="font-display text-base font-bold leading-tight text-[var(--text)]">{s.name}</span>
             <span className="text-sm leading-snug text-[var(--dim)]">{s.blurb}</span>
           </button>
-        ))}
+              ))}
+            </div>
+          </section>
+        );
+      })}
+      {(() => {
+        const rest = MORE_SECTIONS.filter((sec) => !MORE_CLUSTER_KEYS.has(sec.key));
+        if (rest.length === 0) return null;
+        return (
+          <section aria-label="Everything else" className="mb-6">
+            <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Everything else</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {rest.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            aria-label={s.name}
+            onClick={() => go(s.key)}
+            className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="text-[var(--accent-word)]">
+              <NavIcon name={s.icon} size={28} />
+            </span>
+            <span className="font-display text-base font-bold leading-tight text-[var(--text)]">{s.name}</span>
+            <span className="text-sm leading-snug text-[var(--dim)]">{s.blurb}</span>
+          </button>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
+    </div>
+  );
+}
+
+/* ---------------------------- What Changed ---------------------------- */
+// The changelog surface (changelog.ts is the single source — the
+// page renders from it and nothing else). The Home/More card carries
+// the per-profile "New" badge: the count of entries newer than the
+// profile's server-stored last-seen timestamp. A profile that has
+// never opened the page gets NO badge — its card reads "Start here"
+// instead of a wall of fake newness. Opening the page marks it seen
+// (server-side, per profile) and the badge clears.
+
+function WhatChangedCard({ profile, go }: { profile: Profile; go: (v: View) => void }) {
+  const seenQ = useChangelogSeen(profile.id);
+  const hasSeen = seenQ.data?.hasSeen ?? false;
+  const unseen = unseenChangeCount(hasSeen, seenQ.data?.lastSeenAt ?? null);
+  const firstVisit = seenQ.data != null && !hasSeen;
+  return (
+    <button
+      type="button"
+      aria-label={
+        unseen > 0
+          ? `Open What Changed — ${unseen} new since your last visit`
+          : "Open What Changed"
+      }
+      onClick={() => go("whatchanged")}
+      className="mb-4 flex w-full items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+    >
+      <span className="shrink-0 text-[var(--accent-word)]">
+        <NavIcon name="news" size={30} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-display text-lg font-bold leading-tight text-[var(--text)]">What Changed</span>
+          {unseen > 0 ? <Badge tone="red">{unseen} NEW</Badge> : firstVisit ? <Badge tone="official">START HERE</Badge> : null}
+        </span>
+        <span className="mt-0.5 block text-sm leading-snug text-[var(--dim)]">
+          {unseen > 0
+            ? `${unseen} change${unseen === 1 ? "" : "s"} since your last visit — new sections and corrections, in the open.`
+            : firstVisit
+              ? "What's new in the book, and what got corrected — start here."
+              : "What's new in the book, and what got corrected. You're up to date."}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function ChangelogView({
+  profile,
+  track,
+  go,
+}: {
+  profile: Profile;
+  track: ShellTrack;
+  go: (v: View) => void;
+}) {
+  const queryClient = useQueryClient();
+  const seenQ = useChangelogSeen(profile.id);
+  const markedRef = useRef(false);
+  const markSeen = useMutation({
+    mutationFn: () => api.markChangelogSeen({ seenThrough: LATEST_CHANGE_AT }),
+    onSettled: () => {
+      // Whether the write landed or queued offline, this profile has
+      // now seen the page on this device — reflect it locally; the
+      // server row (or the queued replay) is the durable copy.
+      queryClient.setQueryData(["changelogSeen", profile.id], {
+        hasSeen: true,
+        lastSeenAt: LATEST_CHANGE_AT,
+      });
+    },
+  });
+  useEffect(() => {
+    if (markedRef.current || seenQ.isPending) return;
+    if (seenQ.data?.hasSeen && (seenQ.data?.lastSeenAt ?? 0) >= LATEST_CHANGE_AT) return;
+    markedRef.current = true;
+    markSeen.mutate();
+    // markSeen is stable for this mount; the ref guard runs this once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seenQ.isPending, seenQ.data]);
+  const correctedCount = CHANGELOG.filter((e) => e.tag === "CORRECTED").length;
+  return (
+    <div>
+      <SectionHead
+        title="What Changed"
+        sub="What's new in the book — and what got corrected. Corrections are never quiet here: if you read something that later got fixed, it is listed below, marked CORRECTED."
+      />
+      <p className="mb-4 text-sm text-[var(--dim)]">
+        {CHANGELOG.length} changes on record · {correctedCount} corrections. Entries your side of the book
+        can&apos;t open show as title-only lines — never dead links.
+      </p>
+      <div className="mb-5 flex flex-wrap gap-2">
+        <Badge tone="official">NEW — a section or feature was added</Badge>
+        <Badge tone="amber">CORRECTED — a published error was fixed</Badge>
+        <Badge>IMPROVED — the book got easier to use</Badge>
       </div>
+      {changelogByDate().map((group) => (
+        <section key={group.date} aria-label={group.dateLabel} className="mb-6">
+          <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.dateLabel}</h3>
+          <div className="grid gap-3">
+            {group.entries.map((e) => {
+              const tagBadge =
+                e.tag === "CORRECTED" ? (
+                  <Badge tone="amber">CORRECTED</Badge>
+                ) : e.tag === "NEW" ? (
+                  <Badge tone="official">NEW</Badge>
+                ) : (
+                  <Badge>IMPROVED</Badge>
+                );
+              if (!e.openIn.includes(track)) {
+                return (
+                  <div
+                    key={e.id}
+                    className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--surface)] p-4"
+                  >
+                    <span className="flex flex-wrap items-center gap-2">
+                      {tagBadge}
+                      <span className="font-display text-base font-bold leading-tight text-[var(--text)]">{e.title}</span>
+                    </span>
+                    <span className="mt-1 block text-sm text-[var(--dim)]">
+                      {track === "future"
+                        ? "Members area — unlocks when you're serving."
+                        : "In the full book — not part of your shell."}
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  aria-label={`Open: ${e.title}`}
+                  onClick={() => go(e.view as View)}
+                  className={
+                    e.tag === "CORRECTED"
+                      ? "w-full rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--surface)] p-4 text-left"
+                      : "w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+                  }
+                >
+                  <span className="flex flex-wrap items-center gap-2">
+                    {tagBadge}
+                    <span className="font-display text-base font-bold leading-tight text-[var(--text)]">{e.title}</span>
+                  </span>
+                  <span className="mt-1 block text-sm leading-snug text-[var(--dim)]">{e.line}</span>
+                  <span className="mt-1.5 block text-sm font-semibold text-[var(--accent-word)]">Open the section →</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------------------- Send Feedback ---------------------------- */
+
+const FEEDBACK_TYPES: { value: "working" | "broken" | "missing" | "correction"; label: string; hint: string }[] = [
+  { value: "working", label: "What's working", hint: "Something in the app helped — worth keeping and doing more of." },
+  { value: "broken", label: "Something's broken", hint: "A bug, a dead end, a wrong date or number, anything that doesn't work." },
+  { value: "missing", label: "Something's missing", hint: "A section, a job, a fact, or a tool you expected to find and didn't." },
+  { value: "correction", label: "A correction", hint: "Something the app says that isn't right — say what it should say." },
+];
+
+const FEEDBACK_TYPE_LABEL: Record<MemberFeedback["type"], string> = {
+  working: "What's working",
+  broken: "Something's broken",
+  missing: "Something's missing",
+  correction: "A correction",
+  flag: "Flagged entry",
+};
+
+const FEEDBACK_SECTIONS: string[] = [
+  "Home",
+  "Library",
+  "News",
+  "Fitness",
+  "Check-In",
+  ...MORE_SECTIONS.map((s) => s.name),
+].filter((v, i, a) => a.indexOf(v) === i);
+
+function FeedbackView() {
+  const queryClient = useQueryClient();
+  const inboxQ = useQuery({ queryKey: ["feedback"], queryFn: () => api.listFeedback({}) });
+  // The feedback form files the four ordinary feedback types only —
+  // "flag" rows are created by the Flag This Entry control, never here.
+  const [type, setType] = useState<"working" | "broken" | "missing" | "correction">("working");
+  const [section, setSection] = useState("");
+  const [body, setBody] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const submit = useMutation({
+    mutationFn: () => api.submitFeedback({ type, section, body: body.trim() }),
+    onSuccess: () => {
+      setBody("");
+      setSection("");
+      setType("working");
+      setSent(true);
+      void queryClient.invalidateQueries({ queryKey: ["feedback"] });
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (id: number) => api.deleteFeedback({ id }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["feedback"] }),
+  });
+
+  const inbox = inboxQ.data?.feedback ?? [];
+
+  return (
+    <div>
+      <SectionHead
+        title="Send Feedback"
+        sub="What's working, what's broken, what's missing, what needs correcting — straight from the people using the app. Every submission is tied to the profile that sent it."
+      />
+
+      <form
+        aria-label="Send feedback form"
+        className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          if (body.trim().length >= 3) submit.mutate();
+        }}
+      >
+        <p className={labelCls}>What kind of feedback is this?</p>
+        <div className="grid grid-cols-2 gap-2" role="group" aria-label="Feedback type">
+          {FEEDBACK_TYPES.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              aria-label={`Feedback type: ${t.label}`}
+              aria-pressed={type === t.value}
+              onClick={() => {
+                setType(t.value);
+                setSent(false);
+              }}
+              className={`rounded-[var(--radius)] border-2 p-3 text-left ${type === t.value ? "border-[var(--accent)] bg-[var(--surface2)]" : "border-[var(--border)]"}`}
+            >
+              <span className="font-display block text-base font-bold text-[var(--text)]">{t.label}</span>
+              <span className="mt-0.5 block text-sm text-[var(--dim)]">{t.hint}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4">
+          <label htmlFor="fb-section" className={labelCls}>Section (optional)</label>
+          <select
+            id="fb-section"
+            aria-label="Section this feedback is about (optional)"
+            value={section}
+            onChange={(e) => setSection(e.target.value)}
+            className={inputCls}
+          >
+            <option value="">No specific section</option>
+            {FEEDBACK_SECTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mt-4">
+          <label htmlFor="fb-body" className={labelCls}>Your feedback</label>
+          <textarea
+            id="fb-body"
+            aria-label="Your feedback"
+            value={body}
+            onChange={(e) => {
+              setBody(e.target.value);
+              setSent(false);
+            }}
+            rows={5}
+            maxLength={2000}
+            className={inputCls}
+            placeholder="Say it the way you'd say it to the person who built this — what happened, where, and what you expected instead."
+          />
+        </div>
+
+        <button type="submit" aria-label="Submit feedback" disabled={submit.isPending || body.trim().length < 3} className={`${btnPrimary} mt-4 w-full`}>
+          {submit.isPending ? "Sending…" : "Submit feedback"}
+        </button>
+        {sent && !submit.isPending ? (
+          <p className="mt-2 text-sm font-semibold text-[var(--accent-word)]" role="status">
+            Sent — thank you. It&apos;s in the Feedback Inbox below, under your name.
+          </p>
+        ) : null}
+        {submit.isError ? (
+          submit.error instanceof OfflineQueuedError ? (
+            <p className="mt-2 text-sm font-semibold text-[var(--amber)]" role="status">
+              You&apos;re offline — your feedback is saved on this device and will send when you&apos;re back.
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-[var(--red)]" role="alert">Your feedback couldn&apos;t be sent. Try again.</p>
+          )
+        ) : null}
+      </form>
+
+      <section aria-label="Feedback inbox" className="mt-6">
+        <h3 className="font-display text-xl font-bold text-[var(--text)]">Feedback Inbox</h3>
+        <p className="mt-1 rounded-[var(--radius)] bg-[var(--surface2)] p-3 text-sm text-[var(--dim)]">
+          In the production app this inbox is owner-only. In this prototype it stays visible so the owner can read
+          feedback in the same copy testers use. You can delete your own submissions; nobody can edit or delete
+          anyone else&apos;s.
+        </p>
+        {inboxQ.isPending ? <p className="mt-3 text-base text-[var(--dim)]">Loading the inbox…</p> : null}
+        {inboxQ.isError ? <p className="mt-3 text-base text-[var(--red)]">The inbox couldn&apos;t load. Reopen Send Feedback to try again.</p> : null}
+        {!inboxQ.isPending && !inboxQ.isError && inbox.length === 0 ? (
+          <p className="mt-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+            Nothing here yet. The first submission — yours, using the form above — will land here.
+          </p>
+        ) : null}
+        <div className="mt-3 space-y-3">
+          {inbox.map((f) => (
+            <article key={f.id} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone={f.type === "broken" ? "red" : f.type === "correction" || f.type === "flag" ? "amber" : "official"}>
+                  {FEEDBACK_TYPE_LABEL[f.type]}
+                </Badge>
+                {f.section ? <Badge>{f.section}</Badge> : null}
+                {f.entryId ? <Badge>{f.entryId}</Badge> : null}
+                {f.mine ? <Badge tone="official">YOURS</Badge> : null}
+              </div>
+              <p className="mt-2 whitespace-pre-wrap text-base text-[var(--text)]">{f.body}</p>
+              <p className="mt-2 text-sm text-[var(--dim)]">
+                {f.submitter}
+                {f.branch ? ` · ${f.branch}` : ""}
+                {f.mosCode ? ` · ${f.mosCode}` : ""}
+                {" · "}
+                {new Date(f.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </p>
+              {f.mine ? (
+                <button
+                  type="button"
+                  aria-label={`Delete my feedback from ${new Date(f.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+                  disabled={remove.isPending}
+                  onClick={() => remove.mutate(f.id)}
+                  className="mt-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--red)] disabled:opacity-50"
+                >
+                  Delete my submission
+                </button>
+              ) : null}
+            </article>
+          ))}
+        </div>
+        {remove.isError ? (
+          <p className="mt-2 text-sm text-[var(--red)]" role="alert">That submission couldn&apos;t be deleted. You can only delete your own.</p>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+/* ---------------------------- Battle Buddy ---------------------------- */
+// The AI helper chat. Answers come from the server action, grounded in
+// passages this client retrieves from the app's own content/search
+// index (buddy.ts), restricted to the asker's track; the server
+// re-filters and runs the crisis screen. History persists per profile
+// in buddy_messages. When the action reports the runtime's inference
+// is unavailable, the honest not-connected card renders instead of a
+// reply — never an error, never a hang.
+
+type BuddyMessage = ApiResponse<typeof api, "getBuddyHistory">["messages"][number];
+type BuddySource = BuddyMessage["sources"][number];
+
+const BUDDY_EXAMPLES: Record<string, string[]> = {
+  member: [
+    "When does the BDD window open before my EAS?",
+    "I'm PCSing — where do I start?",
+    "What does my job actually involve day to day?",
+  ],
+  future: [
+    "What does a combat engineer actually do?",
+    "How long is Marine Corps boot camp?",
+    "What benefits can I earn by serving?",
+  ],
+  spouse: [
+    "How does spouse license reimbursement work after a PCS?",
+    "What's my unit's family group called?",
+    "How do I send a care package to an APO address?",
+  ],
+};
+
+function BuddySourceButton({ source, onOpen }: { source: BuddySource; onOpen: (hit: SearchHit) => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={`Open ${source.title} in ${source.section}`}
+      onClick={() =>
+        onOpen({
+          section: source.section,
+          view: source.view,
+          title: source.title,
+          summary: "",
+          anchor: source.anchor || undefined,
+          mosId: source.mosId || undefined,
+        })
+      }
+      className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-left text-sm font-bold text-[var(--accent-word)]"
+    >
+      From {source.section}: {source.title} →
+    </button>
+  );
+}
+
+function BuddyView({
+  profile,
+  onSearchHit,
+}: {
+  profile: Profile;
+  onSearchHit: (hit: SearchHit) => void;
+}) {
+  const queryClient = useQueryClient();
+  const historyQ = useQuery({ queryKey: ["buddyHistory"], queryFn: () => api.getBuddyHistory({}) });
+  const [draft, setDraft] = useState("");
+  const [unavailable, setUnavailable] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const threadRef = useRef<HTMLDivElement>(null);
+
+  const messages = historyQ.data?.messages ?? [];
+  const examples = BUDDY_EXAMPLES[profile.track] ?? BUDDY_EXAMPLES.member;
+
+  const send = useMutation({
+    mutationFn: (text: string) =>
+      api.sendBuddyMessage({ message: text, passages: retrieveForBuddy(text, profile.track) }),
+    onSuccess: (res) => {
+      setUnavailable(res.status === "unavailable");
+      setDraft("");
+      void queryClient.invalidateQueries({ queryKey: ["buddyHistory"] });
+    },
+    onError: () => {
+      // A failed call is shown as the same honest not-connected card:
+      // the chat never surfaces a raw error or hangs.
+      setUnavailable(true);
+    },
+  });
+
+  const clear = useMutation({
+    mutationFn: () => api.clearBuddyHistory({}),
+    onSuccess: () => {
+      setConfirmClear(false);
+      setUnavailable(false);
+      void queryClient.invalidateQueries({ queryKey: ["buddyHistory"] });
+    },
+  });
+
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length, send.isPending]);
+
+  const submitText = (text: string) => {
+    const t = text.trim();
+    if (!t || send.isPending) return;
+    setUnavailable(false);
+    send.mutate(t);
+  };
+
+  return (
+    <div>
+      <SectionHead
+        title="Battle Buddy"
+        sub="Ask anything — answers come from Battle Book's own sections, and every answer names the section it came from, with a link straight there. If the app doesn't cover it, Battle Buddy says so and points you at the official source. Or skip the questions and just talk."
+      />
+
+      {/* Pinned safety line: always visible at the top of the chat. */}
+      <div className="mb-4 rounded-[var(--radius)] border-2 border-[var(--red)] bg-[var(--red-bg)] p-4">
+        <p className="text-base font-bold text-[var(--text)]">Battle Buddy is an AI helper, not a counselor.</p>
+        <p className="mt-1 text-sm text-[var(--text)]">
+          In a crisis, reach a human: call or text <strong>988</strong> and press <strong>1</strong> for the
+          Veterans Crisis Line, or text HOME to <strong>741741</strong> for the Crisis Text Line.
+        </p>
+        <a
+          href="tel:988"
+          aria-label="Call 988 Suicide and Crisis Lifeline, Veterans press 1"
+          className="mt-3 inline-block rounded-[var(--radius)] bg-[var(--red)] px-4 py-2.5 font-display text-base font-bold text-white"
+        >
+          Call 988 — Veterans press 1
+        </a>
+      </div>
+
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-[var(--dim)]">
+          {messages.length > 0
+            ? `Your conversation — saved on this profile only.`
+            : "New conversation."}
+        </p>
+        {messages.length > 0 ? (
+          confirmClear ? (
+            <span className="flex gap-2">
+              <button
+                type="button"
+                aria-label="Confirm clear Battle Buddy history"
+                disabled={clear.isPending}
+                onClick={() => clear.mutate()}
+                className="rounded-[var(--radius)] bg-[var(--red)] px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {clear.isPending ? "Clearing…" : "Tap again to clear"}
+              </button>
+              <button
+                type="button"
+                aria-label="Cancel clearing history"
+                onClick={() => setConfirmClear(false)}
+                className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--text)]"
+              >
+                Keep it
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              aria-label="Clear Battle Buddy history"
+              onClick={() => setConfirmClear(true)}
+              className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--text)]"
+            >
+              Clear history
+            </button>
+          )
+        ) : null}
+      </div>
+
+      <div ref={threadRef} className="space-y-3" aria-live="polite">
+        {historyQ.isPending ? (
+          <p className="text-base text-[var(--dim)]">Loading your conversation…</p>
+        ) : messages.length === 0 && !unavailable ? (
+          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+            <p className="text-base text-[var(--text)]">
+              Hey — I&apos;m Battle Buddy. I know this app cold: ask me where something lives or what it says,
+              and I&apos;ll answer from the section itself and link you there. I&apos;m also fine just talking.
+            </p>
+            <p className="mt-3 text-sm font-semibold text-[var(--dim)]">Try one of these:</p>
+            <div className="mt-2 flex flex-col gap-2">
+              {examples?.map((ex) => (
+                <button
+                  key={ex}
+                  type="button"
+                  aria-label={`Ask Battle Buddy: ${ex}`}
+                  onClick={() => submitText(ex)}
+                  className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5 text-left text-sm font-semibold text-[var(--text)]"
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {messages.map((m) =>
+          m.role === "user" ? (
+            <div key={m.id} className="flex justify-end">
+              <div className="max-w-[85%] rounded-[var(--radius)] bg-[var(--accent)] px-4 py-3 text-[var(--accent-text)]">
+                <p className="whitespace-pre-wrap text-base">{m.body}</p>
+              </div>
+            </div>
+          ) : (
+            <div key={m.id} className="flex justify-start">
+              <div
+                className={`max-w-[92%] rounded-[var(--radius)] border bg-[var(--surface)] px-4 py-3 ${
+                  m.crisis ? "border-2 border-[var(--red)]" : "border-[var(--border)]"
+                }`}
+              >
+                <p className="font-display text-xs font-bold tracking-widest text-[var(--dim)]">BATTLE BUDDY</p>
+                <p className="mt-1 whitespace-pre-wrap text-base text-[var(--text)]">{m.body}</p>
+                {m.sources.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {m.sources.map((s, i) => (
+                      <BuddySourceButton key={`${s.view}-${s.title}-${i}`} source={s} onOpen={onSearchHit} />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ),
+        )}
+
+        {send.isPending ? (
+          <div className="flex justify-start">
+            <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+              <p className="text-base text-[var(--dim)]">Battle Buddy is thinking…</p>
+            </div>
+          </div>
+        ) : null}
+
+        {unavailable ? (
+          <div className="rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-5">
+            <p className="font-display text-lg font-bold text-[var(--text)]">Battle Buddy isn&apos;t connected in this copy</p>
+            <p className="mt-2 text-base text-[var(--text)]">
+              Battle Buddy runs on the app&apos;s built-in AI, which isn&apos;t connected in this copy yet — it
+              joins at production launch.
+            </p>
+            <p className="mt-2 text-sm text-[var(--text)]">
+              In the meantime, the app&apos;s own search covers the same content — every section, with links
+              straight to the card:
+            </p>
+            <div className="mt-3 rounded-[var(--radius)] bg-[var(--surface)] p-3">
+              {profile.track === "future" ? (
+                <GlobalSearch
+                  id="global-search-buddy"
+                  onNavigate={onSearchHit}
+                  allowedSections={FUTURE_SEARCH_SECTIONS}
+                  scopeNote={FUTURE_SEARCH_SCOPE}
+                />
+              ) : profile.track === "spouse" ? (
+                <GlobalSearch
+                  id="global-search-buddy"
+                  onNavigate={onSearchHit}
+                  allowedSections={BUDDY_SPOUSE_SECTIONS}
+                  scopeNote="Search covers the sections open to you: the Spouse Hub, Benefits, Mail Call, Deals & Discounts, and Family & Life Events."
+                />
+              ) : (
+                <GlobalSearch id="global-search-buddy" onNavigate={onSearchHit} />
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <form
+        aria-label="Message Battle Buddy"
+        className="mt-4 flex items-end gap-2"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          submitText(draft);
+        }}
+      >
+        <div className="flex-1">
+          <label htmlFor="buddy-input" className="sr-only">
+            Message Battle Buddy
+          </label>
+          <textarea
+            id="buddy-input"
+            aria-label="Message Battle Buddy"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={2}
+            maxLength={2000}
+            placeholder="Ask about anything in the app — or just talk…"
+            className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base text-[var(--text)]"
+          />
+        </div>
+        <button
+          type="submit"
+          aria-label="Send message to Battle Buddy"
+          disabled={send.isPending || draft.trim().length === 0}
+          className={`${btnPrimary} shrink-0`}
+        >
+          {send.isPending ? "…" : "Send"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/* ----------------------------- Alerts center ---------------------------- */
+
+const ALERT_CATEGORY_LABEL: Record<MemberAlert["category"], string> = {
+  checkin: "CHECK-IN",
+  deadline: "DEADLINE",
+  mentorship: "MENTORSHIP",
+  review: "REVIEW QUEUE",
+  people: "FIND YOUR PEOPLE",
+};
+
+function AlertsView({ go, goTo }: { go: (v: View) => void; goTo: (v: View, anchor?: string) => void }) {
+  const queryClient = useQueryClient();
+  const alertsQ = useQuery({ queryKey: ["alerts"], queryFn: () => api.getAlerts({}) });
+  const alerts = alertsQ.data?.alerts ?? [];
+  const unread = alerts.filter((a) => !a.read);
+
+  const markRead = useMutation({
+    mutationFn: (key: string) => api.markAlertRead({ key }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["alerts"] }),
+  });
+  const markAll = useMutation({
+    mutationFn: () => api.markAllAlertsRead({ keys: alerts.map((a) => a.key) }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["alerts"] }),
+  });
+
+  const openAlert = (a: MemberAlert) => {
+    if (!a.read) markRead.mutate(a.key);
+    if (a.targetAnchor) {
+      goTo(a.targetView as View, a.targetAnchor);
+    } else {
+      go(a.targetView as View);
+    }
+  };
+
+  return (
+    <div>
+      <SectionHead
+        title="Alerts"
+        sub="Computed from your own app data — your squadmates' check-ins, your own deadline dates, mentor requests, and the review queues. Nothing here is padded: an alert exists only because a real record in the app calls for it."
+      />
+      <p className="mb-4 rounded-[var(--radius)] bg-[var(--surface2)] p-3 text-sm text-[var(--dim)]">
+        Alerts live inside the app today — the bell on Home carries the unread count. Push notifications to a
+        closed phone are a production step that plugs into this same center.
+      </p>
+
+      {alertsQ.isPending ? <p className="text-base text-[var(--dim)]">Loading your alerts…</p> : null}
+      {alertsQ.isError ? <p className="text-base text-[var(--red)]">Your alerts couldn&apos;t load. Reopen Alerts to try again.</p> : null}
+
+      {!alertsQ.isPending && !alertsQ.isError && alerts.length === 0 ? (
+        <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5 text-base font-semibold text-[var(--text)]">
+          Nothing needs you right now.
+        </p>
+      ) : null}
+
+      {alerts.length > 0 ? (
+        <>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-[var(--dim)]">
+              {unread.length > 0 ? `${unread.length} unread` : "All caught up"} · {alerts.length} alert{alerts.length === 1 ? "" : "s"}
+            </p>
+            <button
+              type="button"
+              aria-label="Mark all alerts read"
+              disabled={markAll.isPending || unread.length === 0}
+              onClick={() => markAll.mutate()}
+              className={btnGhost}
+            >
+              {markAll.isPending ? "Marking…" : "Mark all read"}
+            </button>
+          </div>
+          <div className="space-y-3">
+            {alerts.map((a) => (
+              <article
+                key={a.key}
+                className={`rounded-[var(--radius)] border bg-[var(--surface)] p-4 ${a.read ? "border-[var(--border)]" : "border-2 border-[var(--accent)]"}`}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone={a.category === "checkin" ? "red" : a.category === "deadline" ? "amber" : "official"}>
+                    {ALERT_CATEGORY_LABEL[a.category]}
+                  </Badge>
+                  {a.read ? <Badge>READ</Badge> : <Badge tone="official">UNREAD</Badge>}
+                </div>
+                <p className={`mt-2 text-base text-[var(--text)] ${a.read ? "" : "font-semibold"}`}>{a.text}</p>
+                {a.detail ? <p className="mt-1 text-sm text-[var(--dim)]">{a.detail}</p> : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    aria-label={`${a.cta} — ${a.text}`}
+                    onClick={() => openAlert(a)}
+                    className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent-word)]"
+                  >
+                    {a.cta} →
+                  </button>
+                  {!a.read ? (
+                    <button
+                      type="button"
+                      aria-label={`Mark read — ${a.text}`}
+                      disabled={markRead.isPending}
+                      onClick={() => markRead.mutate(a.key)}
+                      className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--text)] disabled:opacity-50"
+                    >
+                      Mark read
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -920,9 +3012,13 @@ function MoreView({
 function LoginGate({
   onContinueAs,
   onNewProfile,
+  onFutureProfile,
+  onSpouseProfile,
 }: {
   onContinueAs: (id: number) => void;
   onNewProfile: () => void;
+  onFutureProfile: () => void;
+  onSpouseProfile: () => void;
 }) {
   const profilesQ = useQuery({ queryKey: ["profiles"], queryFn: () => api.listProfiles({}) });
   const profiles = profilesQ.data?.profiles ?? [];
@@ -970,6 +3066,16 @@ function LoginGate({
                       {p.branch}
                       {p.mosCode ? ` · ${p.mosCode}` : ""}
                     </span>
+                    {p.track === "future" ? (
+                      <span className="mt-1.5 inline-block rounded bg-[var(--amber-bg)] px-2 py-0.5 text-xs font-bold tracking-wide text-[var(--amber)]">
+                        FUTURE MEMBER — NOT VERIFIED
+                      </span>
+                    ) : null}
+                    {p.track === "spouse" ? (
+                      <span className="mt-1.5 inline-block rounded bg-[var(--amber-bg)] px-2 py-0.5 text-xs font-bold tracking-wide text-[var(--amber)]">
+                        MILITARY SPOUSE
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}
@@ -982,6 +3088,23 @@ function LoginGate({
               Continue with simulated ID.me
             </button>
           )}
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            <p className="text-sm text-[var(--dim)]">
+              Not serving yet? You don&apos;t need ID.me — the Joining area is open while you&apos;re still deciding.
+            </p>
+            <button type="button" aria-label="I'm thinking about joining — skip ID.me" onClick={onFutureProfile} className={`${btnGhost} mt-2 w-full`}>
+              I&apos;m thinking about joining — skip ID.me
+            </button>
+          </div>
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            <p className="text-sm text-[var(--dim)]">
+              The service member in your house isn&apos;t you? The spouse side is yours — the Spouse Hub and
+              Spouse Connect, no ID.me, nothing to verify.
+            </p>
+            <button type="button" aria-label="I'm a military spouse/partner" onClick={onSpouseProfile} className={`${btnGhost} mt-2 w-full`}>
+              I&apos;m a military spouse/partner
+            </button>
+          </div>
           <p className="mt-4 text-sm text-[var(--dim)]">
             Honest labels, always: identity here is <strong>simulated</strong>, and the MOS you enter next is{" "}
             <strong>self-reported</strong> — ID.me verifies identity and affiliation, not your MOS.
@@ -999,15 +3122,21 @@ function ProfileForm({
   submitLabel,
   onDone,
   createNew,
+  extraSave,
 }: {
   initial: Partial<Profile>;
   submitLabel: string;
   onDone: () => void;
   createNew?: boolean;
+  /** Track fields written alongside the member fields — used by the
+   * future→member conversion, which flips the track to "member" (the
+   * saved target date is deliberately not passed, so it carries). */
+  extraSave?: { track: "member" | "future"; pathInterest?: string };
 }) {
   const queryClient = useQueryClient();
   const [displayName, setDisplayName] = useState(initial.displayName ?? "");
   const [branch, setBranch] = useState(initial.branch ?? "Marine Corps");
+  const [partnerBranch, setPartnerBranch] = useState(initial.partnerBranch ?? "");
   const [component, setComponent] = useState(initial.component ?? "Active");
   const [status, setStatus] = useState(initial.status ?? "Active duty");
   const [mosCode, setMosCode] = useState(initial.mosCode ?? "");
@@ -1016,9 +3145,27 @@ function ProfileForm({
   const [homeState, setHomeState] = useState(initial.homeState ?? "");
   const save = useMutation({
     mutationFn: () =>
-      api.saveProfile({ displayName, branch, component, status, mosCode, rank, goals, homeState, createNew: createNew ?? false }),
+      api.saveProfile({
+        displayName,
+        branch,
+        partnerBranch,
+        component,
+        status,
+        mosCode,
+        rank,
+        goals,
+        homeState,
+        createNew: createNew ?? false,
+        ...(extraSave ? { track: extraSave.track, pathInterest: extraSave.pathInterest ?? "" } : {}),
+      }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      // A profile save can mean a NEW active profile (first login, a
+      // fresh profile from the gate, a track conversion): every
+      // profile-scoped cache (notes, field kit, claims, buddy history…)
+      // must go, exactly as the sign-in gate's invalidate-all does —
+      // otherwise the previous profile's private data renders for the
+      // new one until reload.
+      void queryClient.invalidateQueries();
       onDone();
     },
   });
@@ -1042,6 +3189,20 @@ function ProfileForm({
           ))}
           <option value="Other / Not yet serving">Other / Not yet serving</option>
         </select>
+      </div>
+      <div>
+        <label htmlFor="pf-partner-branch" className={labelCls}>Partner also serves — their branch (optional)</label>
+        <select id="pf-partner-branch" aria-label="Partner's branch" value={partnerBranch} onChange={(e) => setPartnerBranch(e.target.value)} className={inputCls}>
+          <option value="">No serving partner / not set</option>
+          {BRANCHES.map((b) => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+        </select>
+        <p className="mt-1 text-sm text-[var(--dim)]">
+          Dual-military household? Set your partner's branch and the app's branch filters become a household
+          filter — sections show both branches' content, and search marks your partner's branch instead of
+          calling it “Other branch.” Leave it unset and nothing changes.
+        </p>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -1100,20 +3261,1367 @@ function ProfileForm({
   );
 }
 
-function Onboarding({ onDone, createNew }: { onDone: () => void; createNew?: boolean }) {
+/* --------------------- Future-member profile form --------------------- */
+// The Joining front door's onboarding: no ID.me step, and only four
+// things collected — display name, branch of interest, path interest,
+// and an optional target date. The profile it saves is badged FUTURE
+// MEMBER — NOT VERIFIED everywhere it appears.
+
+function FutureProfileForm({
+  initial,
+  submitLabel,
+  onDone,
+  createNew,
+}: {
+  initial: Partial<Profile>;
+  submitLabel: string;
+  onDone: () => void;
+  createNew?: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [displayName, setDisplayName] = useState(initial.displayName ?? "");
+  const [branchInterest, setBranchInterest] = useState<string>(
+    initial.branch && [...BRANCHES, "Not sure yet"].includes(initial.branch) ? initial.branch : "Not sure yet",
+  );
+  const [pathInterest, setPathInterest] = useState(initial.pathInterest || "Not sure");
+  const [targetDate, setTargetDate] = useState(initial.targetDate ?? "");
+  const save = useMutation({
+    mutationFn: () =>
+      api.saveProfile({
+        displayName,
+        branch: branchInterest,
+        component: "Future service member",
+        status: "Future service member",
+        mosCode: "",
+        rank: "",
+        goals: "",
+        homeState: initial.homeState ?? "",
+        track: "future",
+        pathInterest,
+        targetDate,
+        createNew: createNew ?? false,
+      }),
+    onSuccess: () => {
+      // A profile save can mean a NEW active profile (first login, a
+      // fresh profile from the gate, a track conversion): every
+      // profile-scoped cache (notes, field kit, claims, buddy history…)
+      // must go, exactly as the sign-in gate's invalidate-all does —
+      // otherwise the previous profile's private data renders for the
+      // new one until reload.
+      void queryClient.invalidateQueries();
+      onDone();
+    },
+  });
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    save.mutate();
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <div>
+        <label htmlFor="fp-future-name" className={labelCls}>Name or callsign (optional)</label>
+        <input id="fp-future-name" aria-label="Name or callsign" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} placeholder="e.g., Alex" />
+      </div>
+      <div>
+        <label htmlFor="fp-future-branch" className={labelCls}>Branch of interest (optional)</label>
+        <select id="fp-future-branch" aria-label="Branch of interest" value={branchInterest} onChange={(e) => setBranchInterest(e.target.value)} className={inputCls}>
+          {BRANCHES.map((b) => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+          <option value="Not sure yet">Not sure yet</option>
+        </select>
+      </div>
+      <div>
+        <label htmlFor="fp-future-path" className={labelCls}>Path you&apos;re considering</label>
+        <select id="fp-future-path" aria-label="Path interest" value={pathInterest} onChange={(e) => setPathInterest(e.target.value)} className={inputCls}>
+          {["Enlisted", "Officer", "Not sure"].map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label htmlFor="fp-future-date" className={labelCls}>Target date (optional)</label>
+        <input id="fp-future-date" aria-label="Target date" type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className={inputCls} />
+        <p className="mt-1 text-sm text-[var(--dim)]">
+          A ship date or class date you&apos;re aiming at, if you have one. Get Ready counts down to it and builds
+          your preparation plan around it.
+        </p>
+      </div>
+      <p className="rounded-[var(--radius)] bg-[var(--surface2)] p-3 text-sm text-[var(--dim)]">
+        Label on your profile: <strong>FUTURE MEMBER — NOT VERIFIED</strong>. There is no ID.me step on this path
+        and nothing here is verified — this area is for learning and preparing. The member areas unlock when
+        you&apos;re serving.
+      </p>
+      {save.isError ? <p className="text-sm text-[var(--red)]">Could not save your profile. Try again.</p> : null}
+      <button type="submit" aria-label={submitLabel} disabled={save.isPending} className={`${btnPrimary} w-full`}>
+        {save.isPending ? "Saving…" : submitLabel}
+      </button>
+    </form>
+  );
+}
+
+/* ----------------------- Spouse profile form ----------------------- */
+// The Spouse door's onboarding: no ID.me step, and four things
+// collected — your name, your service member's branch, your family
+// status, and your home state. The profile it saves is badged
+// MILITARY SPOUSE everywhere it appears — self-reported, with no
+// verification step, the same prototype honesty as the future track.
+
+function SpouseProfileForm({
+  initial,
+  submitLabel,
+  onDone,
+  createNew,
+}: {
+  initial: Partial<Profile>;
+  submitLabel: string;
+  onDone: () => void;
+  createNew?: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [displayName, setDisplayName] = useState(initial.displayName ?? "");
+  const [memberBranch, setMemberBranch] = useState<string>(
+    initial.branch && (BRANCHES as readonly string[]).includes(initial.branch) ? initial.branch : "Army",
+  );
+  const [familyStatus, setFamilyStatus] = useState<string>(
+    initial.familyStatus && (SPOUSE_FAMILY_STATUSES as readonly string[]).includes(initial.familyStatus)
+      ? initial.familyStatus
+      : (SPOUSE_FAMILY_STATUSES[0] ?? "Spouse of a serving member"),
+  );
+  // Serving-spouse branch override (red-team round 2, F-1): a spouse
+  // who also serves names their OWN branch. Unset = the H-3 default
+  // (the spouse inherits the member's branch) stays exactly as before.
+  const [ownBranch, setOwnBranch] = useState<string>(initial.spouseOwnBranch ?? "");
+  const [homeState, setHomeState] = useState(initial.homeState ?? "");
+  const save = useMutation({
+    mutationFn: () =>
+      api.saveProfile({
+        displayName,
+        branch: memberBranch,
+        spouseOwnBranch: ownBranch,
+        component: "",
+        status: familyStatus,
+        mosCode: "",
+        rank: "",
+        goals: "",
+        homeState,
+        track: "spouse",
+        familyStatus,
+        createNew: createNew ?? false,
+      }),
+    onSuccess: () => {
+      // A profile save can mean a NEW active profile (first login, a
+      // fresh profile from the gate, a track conversion): every
+      // profile-scoped cache (notes, field kit, claims, buddy history…)
+      // must go, exactly as the sign-in gate's invalidate-all does —
+      // otherwise the previous profile's private data renders for the
+      // new one until reload.
+      void queryClient.invalidateQueries();
+      onDone();
+    },
+  });
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    save.mutate();
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <div>
+        <label htmlFor="sp-name" className={labelCls}>Your name or callsign (optional)</label>
+        <input id="sp-name" aria-label="Your name or callsign" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} placeholder="e.g., Jordan" />
+      </div>
+      <div>
+        <label htmlFor="sp-branch" className={labelCls}>Your service member&apos;s branch</label>
+        <select id="sp-branch" aria-label="Your service member's branch" value={memberBranch} onChange={(e) => setMemberBranch(e.target.value)} className={inputCls}>
+          {BRANCHES.map((b) => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+        </select>
+        <p className="mt-1 text-sm text-[var(--dim)]">
+          Their branch, not yours — it points the Spouse Hub at the right orientation program, readiness
+          structure, and employment door, and it&apos;s the branch on your Spouse Connect listing.
+        </p>
+      </div>
+      <div>
+        <label htmlFor="sp-family-status" className={labelCls}>Family status</label>
+        <select id="sp-family-status" aria-label="Family status" value={familyStatus} onChange={(e) => setFamilyStatus(e.target.value)} className={inputCls}>
+          {SPOUSE_FAMILY_STATUSES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label htmlFor="sp-own-branch" className={labelCls}>I also serve — my own branch (optional)</label>
+        <select id="sp-own-branch" aria-label="My own branch, if I also serve" value={ownBranch} onChange={(e) => setOwnBranch(e.target.value)} className={inputCls}>
+          <option value="">I don&apos;t serve — use my member&apos;s branch</option>
+          {BRANCHES.map((b) => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+        </select>
+        <p className="mt-1 text-sm text-[var(--dim)]">
+          Dual-military spouse? Set your own branch and the app treats your household as both branches — your
+          own branch is never labeled “Other branch” in search, and branch filters show both branches&apos;
+          content. Leave it unset and the app uses your member&apos;s branch, as before.
+        </p>
+      </div>
+      <div>
+        <label htmlFor="sp-home-state" className={labelCls}>Home state (optional)</label>
+        <select id="sp-home-state" aria-label="Home state" value={homeState} onChange={(e) => setHomeState(e.target.value)} className={inputCls}>
+          <option value="">Not set — skip for now</option>
+          {STATE_ENTRIES.map((s) => (
+            <option key={s.state} value={s.state}>{s.state}</option>
+          ))}
+        </select>
+        <p className="mt-1 text-sm text-[var(--dim)]">
+          The state you call home. It&apos;s the state on your Spouse Connect listing and your shortcut into the
+          State Benefits Finder — nothing else uses it, and you can change or clear it any time.
+        </p>
+      </div>
+      <p className="rounded-[var(--radius)] bg-[var(--surface2)] p-3 text-sm text-[var(--dim)]">
+        Label on your profile: <strong>MILITARY SPOUSE</strong> — self-reported. There is no ID.me step on this
+        path and nothing here is verified; in production, spouse affiliation is exactly what a real verification
+        step would check.
+      </p>
+      {save.isError ? <p className="text-sm text-[var(--red)]">Could not save your profile. Try again.</p> : null}
+      <button type="submit" aria-label={submitLabel} disabled={save.isPending} className={`${btnPrimary} w-full`}>
+        {save.isPending ? "Saving…" : submitLabel}
+      </button>
+    </form>
+  );
+}
+
+function Onboarding({ onDone, createNew, initialTrack }: { onDone: () => void; createNew?: boolean; initialTrack?: "future" | "spouse" }) {
+  const [track, setTrack] = useState<"member" | "future" | "spouse" | null>(initialTrack ?? null);
   return (
     <div className="min-h-screen bg-[var(--bg)] px-4 py-8">
       <SafeAreaTopScrim backgroundColor="var(--bg)" />
       <div className="mx-auto max-w-md">
-        <p className="font-display text-sm font-bold tracking-widest text-[var(--accent)]">BATTLE BOOK — MILITARY LIFE</p>
-        <h1 className="font-display mt-2 text-3xl font-bold text-[var(--text)]">First login — set up your profile</h1>
-        <p className="mt-2 text-base text-[var(--dim)]">
-          Six quick questions. Your home screen, news feed, and fitness coach all key off this.
+        <p className="font-display text-sm font-bold tracking-widest text-[var(--accent-word)]">BATTLE BOOK — MILITARY LIFE</p>
+        {track === null ? (
+          <>
+            <h1 className="font-display mt-2 text-3xl font-bold text-[var(--text)]">First login — where are you starting from?</h1>
+            <p className="mt-2 text-base text-[var(--dim)]">
+              Pick the one that fits today. If your situation changes, you can switch in your profile later.
+            </p>
+            <div className="mt-6 space-y-3">
+              <button
+                type="button"
+                aria-label="I'm serving or have served"
+                onClick={() => setTrack("member")}
+                className="block w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5 text-left"
+              >
+                <span className="font-display block text-xl font-bold text-[var(--text)]">I&apos;m serving or have served</span>
+                <span className="mt-1 block text-sm text-[var(--dim)]">
+                  Active duty, Reserve, Guard, or veteran. You&apos;ll set up a member profile — in this prototype
+                  the ID.me step is simulated.
+                </span>
+              </button>
+              <button
+                type="button"
+                aria-label="I'm thinking about joining"
+                onClick={() => setTrack("future")}
+                className="block w-full rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5 text-left"
+              >
+                <span className="font-display block text-xl font-bold text-[var(--text)]">I&apos;m thinking about joining</span>
+                <span className="mt-1 block text-sm text-[var(--dim)]">
+                  No ID.me and nothing to verify — a future-member profile for learning how boot camp and officer
+                  school work, exploring every job, reading the benefits, and getting physically ready.
+                </span>
+              </button>
+              <button
+                type="button"
+                aria-label="I'm a military spouse/partner"
+                onClick={() => setTrack("spouse")}
+                className="block w-full rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5 text-left"
+              >
+                <span className="font-display block text-xl font-bold text-[var(--text)]">I&apos;m a military spouse/partner</span>
+                <span className="mt-1 block text-sm text-[var(--dim)]">
+                  The service member is your spouse or partner, not you. No ID.me and nothing to verify — a spouse
+                  profile opens the Spouse Hub and Spouse Connect, written spouse-first.
+                </span>
+              </button>
+            </div>
+          </>
+        ) : track === "spouse" ? (
+          <>
+            <h1 className="font-display mt-2 text-3xl font-bold text-[var(--text)]">Military spouse — your spouse profile</h1>
+            <p className="mt-2 text-base text-[var(--dim)]">
+              Four quick things, and you&apos;re in. No ID.me step on this path — your profile is badged MILITARY
+              SPOUSE, self-reported like everything in this prototype.
+            </p>
+            <div className="mt-6 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+              <SpouseProfileForm initial={{}} submitLabel="Save and open my spouse home" onDone={onDone} createNew={createNew} />
+            </div>
+            <button type="button" aria-label="Back to track choice" onClick={() => setTrack(null)} className={`${btnGhost} mt-4`}>
+              ← Back
+            </button>
+          </>
+        ) : track === "future" ? (
+          <>
+            <h1 className="font-display mt-2 text-3xl font-bold text-[var(--text)]">Thinking about joining — your future-member profile</h1>
+            <p className="mt-2 text-base text-[var(--dim)]">
+              Four quick things, and you&apos;re in. No ID.me step on this path.
+            </p>
+            <div className="mt-6 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+              <FutureProfileForm initial={{}} submitLabel="Save and open Start Here" onDone={onDone} createNew={createNew} />
+            </div>
+            <button type="button" aria-label="Back to track choice" onClick={() => setTrack(null)} className={`${btnGhost} mt-4`}>
+              ← Back
+            </button>
+          </>
+        ) : (
+          <>
+            <h1 className="font-display mt-2 text-3xl font-bold text-[var(--text)]">First login — set up your profile</h1>
+            <p className="mt-2 text-base text-[var(--dim)]">
+              Six quick questions. Your home screen, news feed, and fitness coach all key off this.
+            </p>
+            <div className="mt-6 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+              <ProfileForm initial={{}} submitLabel="Save profile and enter" onDone={onDone} createNew={createNew} />
+            </div>
+            <button type="button" aria-label="Back to track choice" onClick={() => setTrack(null)} className={`${btnGhost} mt-4`}>
+              ← Back
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------- Joining (future members) ------------------------- */
+
+/** Whole days from today until a YYYY-MM-DD date, or null when unset/unparseable. */
+function daysUntilDate(s: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((d.getTime() - today.getTime()) / 86_400_000);
+}
+
+function formatLongDate(s: string): string {
+  return new Date(`${s}T00:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+/** A pack flag, rendered flagged — both figures printed, never smoothed. */
+function JoiningFlag({ text }: { text: string }) {
+  return (
+    <div className="mt-3 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-3">
+      <p className="text-xs font-bold tracking-wide text-[var(--amber)]">⚠ SOURCE FLAG — OFFICIAL PAGES DIFFER</p>
+      <p className="mt-1 text-sm text-[var(--text)]">{text}</p>
+    </div>
+  );
+}
+
+function JoiningSources({ sources }: { sources: JoiningSource[] }) {
+  return (
+    <>
+      <h4 className="font-display mt-5 text-base font-bold text-[var(--text)]">Sources</h4>
+      <ul className="mt-1 space-y-1">
+        {sources.map((s) => (
+          <li key={s.url}>
+            <a
+              href={s.url}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Open source: ${s.label}`}
+              className="text-base font-semibold text-[var(--accent-word)] underline"
+            >
+              {s.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+const FUTURE_SEARCH_SECTIONS = ["MOS Library", "Benefits", "Boot Camp", "Becoming an Officer", "Get Ready", "Fitness Calculators", "Lingo", "Weapon Systems", "Annual Qualification", "Guard & Reserve", "Know Your Rights", "Partner Forces", "Songs, Anthem & Pledge + Flags", "Special Forces & Elite Units", "Allied Special Forces", "Qualifications, Schools & Certifications", "Connect with a Recruiter", "Commissioning from the Ranks", "Parents & Loved Ones", "ROTC & Academies", "Nutrition", "What Changed", "My Binder"];
+const FUTURE_SEARCH_SCOPE =
+  "Search covers every job in the Library (public layer), plus Benefits, Boot Camp, Becoming an Officer, Get Ready, Lingo, the Weapon Systems fact files, Annual Qualification, the Guard & Reserve Hub, Know Your Rights, Partner Forces, and Special Forces & Elite Units, Allied Special Forces, Qualifications, Schools & Certifications, Connect with a Recruiter, and Commissioning from the Ranks (aspirational reference — the same published entries members see), plus Nutrition fueling education and the food database in boot-camp/OCS prep framing (the tracker and meal plans open once you are in). Zeroing and the operator material are members-only and stay out of future-member search.";
+
+const FUTURE_LOCKED_AREAS = [
+  "Check-In & Squads",
+  "Find a Mentor",
+  "Find Your People",
+  "Spouse Hub",
+  "Spouse Connect",
+  "Contributions & Field Notes",
+  "War Stories — submit a story",
+  "Wall of Honor — add a tribute",
+  "Review Queue",
+  "My Service Timeline",
+  "VA Claim Tracker",
+  "Guided Paths & Deadlines",
+  "Uniforms",
+  "Gear Search — store router & the other buying guides",
+  "Medical Training & Certs",
+  "Weapons & Qualification — Zeroing & Operator Basics",
+  "Field Tools",
+  "My Installation",
+  "Security Clearances",
+  "Switching Components",
+  "Reenlistment & IRR",
+  "Calculators",
+  "First 30 Days",
+  "When It Goes Wrong",
+  "First Year Out",
+  "Practice Trainers",
+  "Official Channels",
+  "Relief Societies",
+  "Honors & Burial",
+  "OCONUS Family Papers",
+  "Your Pay Stub, Explained",
+  "Awards & Ribbon Rack",
+  "VA Home Loan Center",
+  "Family Care Plan & Deployment Readiness",
+  "Alerts",
+  "Send Feedback",
+  "Board Prep",
+  "Writing Helpers",
+  "MEB/PEB (IDES) Guide",
+  "CLEP/DANTES + JST",
+  "Housing Pack",
+  "Car-Buying Guide",
+  "OPSEC & Social Media",
+  "Give-Back",
+  "Spouse Work Abroad & After a PCS",
+  "VA Caregiver Support & EFMP Respite",
+  "Germany Living Guide",
+  "Building Credit From Zero",
+  "Barracks Daily Life",
+  "General Orders",
+  "Retiree Uniform & Ceremony",
+];
+
+function LockedMembersGrid() {
+  return (
+    <section aria-label="Members area" className="mt-6">
+      <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">Members area</h3>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {FUTURE_LOCKED_AREAS.map((name) => (
+          <div key={name} className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--surface2)] p-4">
+            <span className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-display text-base font-bold text-[var(--dim)]">{name}</span>
+              <Badge>LOCKED</Badge>
+            </span>
+            <span className="mt-1 block text-sm text-[var(--dim)]">Members area — unlocks when you&apos;re serving</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The member/spouse cross-reference for Connect with a Recruiter —
+ * ONE simple pointer card, no recruiter content. The section itself
+ * lives only behind the future-member front door (Start Here); a
+ * member who lands here (e.g. from global search) is pointed at the
+ * door, following the app's cross-track pointer precedent (the
+ * future track's locked Members area grid and the spouse track's
+ * Members area grid both point across tracks the same way).
+ */
+function RecruiterDoorPointer() {
+  return (
+    <div>
+      <SectionHead
+        title="Connect with a Recruiter"
+        sub="This area belongs to the future-member track — it is written for people who have not signed yet."
+      />
+      <section aria-label="Connect with a Recruiter lives in Start Here" className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+        <p className="text-base text-[var(--text)]">
+          Every branch&apos;s official recruiter door — the forms, the published phone and chat channels, and the
+          read-before-you-sign prep cards — lives in <strong>Start Here</strong>, behind the future-member front
+          door, because its audience is people thinking about joining.
         </p>
-        <div className="mt-6 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
-          <ProfileForm initial={{}} submitLabel="Save profile and enter" onDone={onDone} createNew={createNew} />
+        <p className="mt-2 text-base text-[var(--text)]">
+          Know someone weighing it? Point them to a future-member profile: from the sign-in screen,{" "}
+          <strong>“I&apos;m thinking about joining — skip ID.me”</strong> opens Start Here, and Connect with a
+          Recruiter is right there. No recruiter content is duplicated onto member or spouse profiles.
+        </p>
+      </section>
+    </div>
+  );
+}
+
+function StartHereView({
+  profile,
+  go,
+  onSearchHit,
+  onSwitchProfile,
+}: {
+  profile: Profile;
+  go: (v: View) => void;
+  onSearchHit: (hit: SearchHit) => void;
+  onSwitchProfile: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const days = profile.targetDate ? daysUntilDate(profile.targetDate) : null;
+
+  const areas: { view: View; title: string; blurb: string }[] = [
+    {
+      view: "whatchanged",
+      title: "What Changed",
+      blurb: "What's new in the book — and what got corrected — since your last visit. Corrections are listed in the open, marked CORRECTED. Sections that unlock when you're serving show as title-only lines here, never dead links.",
+    },
+    {
+      view: "buddy",
+      title: "Battle Buddy",
+      blurb: "The AI helper: ask anything about joining and it answers from the public layer you can see — what a job is, how boot camp runs, what benefits look like — naming the section and linking you there. The full job knowledge stays members-only, in the chat too.",
+    },
+    {
+      view: "bootcamp",
+      title: "Boot Camp",
+      blurb: "What entry training is called, where it happens, how long it runs, the phases, what to expect, and how graduation works — for all six branches, from the branches' own pages.",
+    },
+    {
+      view: "officer",
+      title: "Becoming an Officer",
+      blurb: "Each branch's OCS or OTS — where it is, how long it runs, what the course is — plus the qualifications to commission, quoted as the branch publishes them, and the other routes in.",
+    },
+    {
+      view: "mos",
+      title: "Explore Jobs",
+      blurb: `All ${ALL_MOS_ENTRIES.length} jobs across all six branches, at the public layer: what each job is and how its training pipeline runs. The full job knowledge unlocks once you're serving.`,
+    },
+    {
+      view: "benefits",
+      title: "Benefits",
+      blurb: "The full Benefits section, open — VA & DoD benefits and each branch's programs, with every card's framing intact: what applies while you serve and what applies after.",
+    },
+    {
+      view: "getready",
+      title: "Get Ready",
+      blurb: "Your branch's published entry fitness standards, quoted exactly as the branch prints them, plus a progressive preparation plan that counts down to your target date.",
+    },
+    {
+      view: "fitness",
+      title: "Fitness Calculators",
+      blurb: "Score the test you're training for: the branch fitness calculators and checkers (Marine Corps PFT/CFT points, the Army AFT and Navy PRT standards, the Air Force PFRA, Space Force HPA, Coast Guard accession), the SOF assessment checkers (PST, IFT), and the allied tests — each with its governing document and date, and every source conflict printed as a flag.",
+    },
+    {
+      view: "gear",
+      title: "Before You Ship — Gear Basics",
+      blurb: "The one Gear Search guide open to future members: you will be issued nearly everything, so this teaches what NOT to buy before shipping and routes you to your branch's official what-to-bring list through your recruiter — no shopping list. The store router and the other nine guides unlock once you're serving.",
+    },
+    {
+      view: "lingo",
+      title: "Lingo",
+      blurb: "The family-facing dictionary, fully open to you: the phonetic alphabet as the FAA and NATO publish it, plus 172 plain-English definitions — the pay words, the people, the daily-life vocabulary, the move words, and the slang, labeled SLANG. Learn the language before you're living in it.",
+    },
+    {
+      view: "weapons",
+      title: "Weapons & Qualification",
+      blurb: "The public layer, open to you: all 28 weapon systems at official fact-file level — the same public fact files the Library's public layer is built from — plus every branch's annual qualification as officially published. Zeroing and the operator material are members-only, like the deep job knowledge, and show as locked cards inside.",
+    },
+    {
+      view: "trails",
+      title: "Trails & Camping",
+      blurb: "The family/leisure finder, fully open to you: type a place — a base, city, state, or country — and it builds the real platforms' own search links (Recreation.gov, The Dyrt, Hiking Project; NPS and Campendium state pages for state inputs), routes the platforms whose search links couldn't be verified honestly as “search on their site,” and covers military camping — FamCamps, ODR gear rentals, the UNOFFICIAL campground directory labeled as such — plus guides on dispersed camping, trails near bases, camping overseas, and Leave No Trace.",
+    },
+    {
+      view: "reserve",
+      title: "Guard & Reserve",
+      blurb: "Choosing a component is choosing a contract: what drill actually pays (1/30th of monthly base pay per period), TRICARE Reserve Select premiums, retirement points and the good year, and the mobilization authorities — the reserve-component picture, from DFAS and DoD, before you sign anything.",
+    },
+    {
+      view: "rights",
+      title: "Know Your Rights",
+      blurb: "The laws that will protect you once you sign: SCRA on pre-service debts, USERRA on your civilian job when service pulls you away, and the MLA's 36% cap on new credit — published by the agencies that run them, open to you now because these decisions start at the recruiting office.",
+    },
+    {
+      view: "partners",
+      title: "Partner Forces",
+      blurb: "Orientation for working alongside allies: the NATO grade codes (OF-1…OF-10, OR-1…OR-9) with the U.S. correspondence and the officer offset, 17 partner-country rank profiles from each country's own official pages — gaps printed, never filled — and the courtesy basics: salute the officers you recognize, and address them by their own titles.",
+    },
+    {
+      view: "songs",
+      title: "Songs, Anthem & Pledge + Flags",
+      blurb: "Orientation for every ceremony ahead of you: the six service songs as the services publish them, the Star-Spangled Banner and the Pledge with their etiquette, the 17 allies' anthems in their native languages (English only where the government publishes it — Spain's anthem has no words at all), and 24 flags with their official descriptions.",
+    },
+    {
+      view: "quals",
+      title: "Qualifications, Schools & Certifications",
+      blurb: "Aspirational reference, in full: the swim quals (the Marine Corps five levels, current since October 2026), what the weapons tables mean in each service, UET and the helo dunker family, and the schools you can volunteer for — Airborne, Pathfinder (GT ≥110), Air Assault, Ranger and Sapper, the dive schools, SERE, mountain and jungle courses, sniper and instructor certifications, maritime quals — every entry with the qualifications and how to earn it as the official pages publish them, conflicts flagged and gated standards marked NOT PUBLICLY PUBLISHED, plus the 45-item NOT CONFIRMED register of rumored schools that could not be verified. The only application routes shown are the published routes the entries themselves print.",
+    },
+    {
+      view: "specops",
+      title: "Special Forces & Elite Units",
+      blurb: "Aspirational reference, in full: what each branch's elite units are, the qualifications their official recruiting pages publish (GT scores, PST and IFT tables, the works — conflicts flagged, never blended), and how their pipelines run, phase by official phase name — SFAS and Robin Sage, RASP, BUD/S and SQT, the Marine Raider Course, the AFSPECWAR pipelines, and the Coast Guard's rescue swimmers. The only application routes shown are the published recruiting routes the entries themselves print.",
+    },
+    {
+      view: "alliedsf",
+      title: "Allied Special Forces",
+      blurb: "Aspirational reference, in full: the special forces of the 17 Partner Forces countries as their own governments present them — Germany's KSK tables, Norway's two different FSK/MJK batteries, Canada's PFSE standards, Australia's one combined SF Operator route, Korea's full UDT/SEAL tables — with deliberate silences printed as findings (UK Regular SAS/SBS, Japan, Spain, Türkiye), dated sources labeled dated, and Poland's figures withheld as ⚠ NOT VERIFIED. The only application routes shown are the published recruiting routes the entries themselves print.",
+    },
+    {
+      view: "recruiters",
+      title: "Connect with a Recruiter",
+      blurb: "Ready to talk to an actual recruiter? Every branch's official door, labeled by path: the GoArmy form (one door for Active, officer, and Reserve), the Guard's ZIP locator and Get Started form, the Marines' single form for everything, Navy's hub and /start form with its chat hours, the Air Force directory that returns named recruiters by type, Space Force's own locator, and the Coast Guard's chat-instead-of-a-phone funnel — plus the Before You Sign prep cards: get it in writing, the walk-away question answered honestly, MEPS and DEP. Battle Book collects nothing; every form lives on the branch's own site.",
+    },
+    {
+      view: "commissioning",
+      title: "Commissioning from the Ranks",
+      blurb: "Looking ahead, in full: the routes SERVING members use to change corps — enlisted to officer (OCS, Green to Gold, MECEP, STA-21 verified active, the Air Force and Coast Guard sets) and enlisted to warrant (including the Air Force's brand-new warrant program and the Coast Guard's, with its figures routed to the PSC guide), each with the degree it builds in or requires. Shown as published reference for planning — none of these is an entry route from civilian life; your doors are Becoming an Officer and Connect with a Recruiter.",
+    },
+    {
+      view: "parents",
+      title: "Parents & Loved Ones",
+      blurb: "For the people sending someone off: the Red Cross Hero Care card pinned first (the Red Cross verifies — the commander decides leave), DEP and MEPS for families, then one card per training command — the Army's battalion-page pattern, TWO separate Marine depot cards (Parris Island and San Diego keep separate prohibited-mail lists), Navy RTC's call schedule and off-base ticket pickup (no guest number — the current page states none), Air Force BMT (recordings only; livestream claims are scams), and Cape May, which has NO Family Day. The livestream patchwork prints per branch at equal weight; no prices, no hotel picks.",
+    },
+    {
+      view: "paycharts",
+      title: "Pay Charts & Rates",
+      blurb: "What the pay actually is, before you sign: the full 2026 DFAS monthly basic pay tables — enlisted, warrant, officer, and the prior-service O-1E/O-2E/O-3E table — effective January 1, 2026 (3.8% raise), with how to read the years-of-service columns. The location allowances (BAH, OHA, COLA, per diem) are members' calculators and open once you are in; no allowance rate is printed anywhere.",
+    },
+    {
+      view: "chaplains",
+      title: "Chaplains & Religious Life — Accommodation",
+      blurb: "The one joining-relevant tile of the chaplains section: religious accommodation under DoDI 1300.17, including the preaccession right (§3.2.i) — applicants must be informed of the policies and given the opportunity to submit a request and receive a final decision before participating. The rest of the section opens once you are in.",
+    },
+    {
+      view: "rotc",
+      title: "ROTC & Academies",
+      blurb: "The two college doors to a commission: the five academies (four require a nomination; the Coast Guard Academy's are “not required or considered” — its own words, verified five ways; USMMA's narrower rule, MARAD not DoD, three-part obligation, no prep school), the nomination step from congressional pages only, the four prep schools, Army ROTC with SMP, NROTC with CORTRAMID (never merged with the Academy's PROTRAMID) and the College Program, AFROTC at the flagged level (HSSP/ICSP/CMLA primary, no Type dollar table, no Field Training duration), the Coast Guard's no-ROTC negative, and the Academy vs. ROTC vs. OCS comparison — structure only, no odds, no ranking.",
+    },
+  ];
+
+  return (
+    <div>
+      <header className="mb-4 flex items-center gap-3">
+        <img src={battleBookIcon} alt="" className="h-11 w-11 shrink-0 rounded-[var(--radius)]" />
+        <div>
+          <p className="font-display text-2xl font-bold leading-tight text-[var(--text)]">Battle Book</p>
+          <p className="text-sm font-semibold text-[var(--dim)]">Start Here — thinking about joining</p>
+        </div>
+      </header>
+      <div className="mb-4">
+        <GlobalSearch
+          id="global-search-start-here"
+          onNavigate={onSearchHit}
+          allowedSections={FUTURE_SEARCH_SECTIONS}
+          scopeNote={FUTURE_SEARCH_SCOPE}
+        />
+      </div>
+
+      <section aria-label="Your future-member profile" className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+        <MastheadBand />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <MastheadEmblem branch={profile.branch} />
+          <div className="min-w-52 flex-1">
+            <p className="font-display text-sm font-bold tracking-widest text-[var(--dim)]">
+              {(profile.branch || "BRANCH OF INTEREST").toUpperCase()}
+              {profile.pathInterest ? ` · ${profile.pathInterest.toUpperCase()} PATH` : ""}
+            </p>
+            <h1 className="font-display mt-1 text-3xl font-bold text-[var(--text)]">
+              {profile.displayName || "Future Service Member"}
+            </h1>
+            <p className="mt-1 text-base text-[var(--dim)]">
+              {profile.targetDate
+                ? `Target date: ${formatLongDate(profile.targetDate)}${days !== null && days >= 0 ? ` — ${days} day${days === 1 ? "" : "s"} out` : days !== null ? " — date has passed; update it in Edit profile" : ""}`
+                : "No target date set — add one in Edit profile and Get Ready will build your plan around it."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" aria-label="Edit profile" onClick={() => setEditing((v) => !v)} className={btnGhost}>
+              {editing ? "Close" : "Edit profile"}
+            </button>
+            <button type="button" aria-label="Switch profile" onClick={onSwitchProfile} className={btnGhost}>
+              Switch profile
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Badge tone="amber">FUTURE MEMBER — NOT VERIFIED</Badge>
+          <Badge>No ID.me — nothing here is verified</Badge>
+        </div>
+        {editing ? (
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            {converting ? (
+              <>
+                <p className="mb-3 text-base text-[var(--text)]">
+                  <strong>I&apos;m serving now.</strong> This runs the normal member onboarding — your branch and
+                  your job — and unlocks the member areas: Check-In and squads, Find a Mentor, your service
+                  timeline, and the full job knowledge in the Library. Your target date stays on your profile.
+                </p>
+                <ProfileForm
+                  initial={{
+                    displayName: profile.displayName,
+                    branch: (BRANCHES as readonly string[]).includes(profile.branch) ? profile.branch : "Marine Corps",
+                    component: "Active",
+                    status: "Active duty",
+                    mosCode: "",
+                    rank: "",
+                    goals: profile.goals,
+                    homeState: profile.homeState,
+                  }}
+                  submitLabel="Switch to a member profile"
+                  extraSave={{ track: "member" }}
+                  onDone={() => {
+                    setConverting(false);
+                    setEditing(false);
+                  }}
+                />
+                <button type="button" aria-label="Cancel switching to a member profile" onClick={() => setConverting(false)} className={`${btnGhost} mt-3`}>
+                  Not yet — stay a future member
+                </button>
+              </>
+            ) : (
+              <>
+                <FutureProfileForm
+                  initial={profile}
+                  submitLabel="Save profile changes"
+                  onDone={() => setEditing(false)}
+                />
+                <div className="mt-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-4">
+                  <p className="text-base font-semibold text-[var(--text)]">Shipping out, in the DEP, or serving now?</p>
+                  <p className="mt-1 text-sm text-[var(--dim)]">
+                    Switch this profile to a member profile and the member areas unlock — you&apos;ll set your
+                    branch and job, like any first login.
+                  </p>
+                  <button type="button" aria-label="I'm serving now — switch to a member profile" onClick={() => setConverting(true)} className={`${btnPrimary} mt-3`}>
+                    I&apos;m serving now
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+      </section>
+
+      <ThemePanel profile={profile} />
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {areas.map((a) => (
+          <button
+            key={a.view}
+            type="button"
+            aria-label={`Open ${a.title}`}
+            onClick={() => go(a.view)}
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5 text-left"
+          >
+            <span className="font-display block text-xl font-bold text-[var(--text)]">{a.title}</span>
+            <span className="mt-1 block text-sm text-[var(--dim)]">{a.blurb}</span>
+          </button>
+        ))}
+      </div>
+
+      <LockedMembersGrid />
+
+      <a
+        href="tel:988"
+        aria-label="Call 988 Suicide and Crisis Lifeline, Veterans press 1"
+        className="mt-4 block rounded-[var(--radius)] bg-[var(--red)] p-4 text-center font-display text-lg font-bold text-white"
+      >
+        988 Suicide &amp; Crisis Lifeline — Veterans, press 1
+      </a>
+    </div>
+  );
+}
+
+function FutureMoreView({
+  profile,
+  go,
+  onSearchHit,
+}: {
+  profile: Profile;
+  go: (v: View) => void;
+  onSearchHit: (hit: SearchHit) => void;
+}) {
+  const binder = useBinder();
+  return (
+    <div>
+      <SectionHead
+        title="More"
+        sub={`${profile.displayName || "Future member"} — future member, not verified. Everything open to you lives in Start Here, the bottom bar, and here.`}
+      />
+      <div className="mb-4">
+        <GlobalSearch
+          id="global-search-future-more"
+          onNavigate={onSearchHit}
+          allowedSections={FUTURE_SEARCH_SECTIONS}
+          scopeNote={FUTURE_SEARCH_SCOPE}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          aria-label="Open My Binder"
+          onClick={() => go("binder")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="binder" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">My Binder</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">
+            {binder.items.length > 0
+              ? `${binder.items.length} card${binder.items.length === 1 ? "" : "s"} you've saved in Boot Camp, Becoming an Officer, and the Library`
+              : "Cards you save in Boot Camp and Becoming an Officer collect here"}
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Benefits"
+          onClick={() => go("benefits")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="shield" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Benefits</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">VA &amp; DoD benefits, branch programs, and state help — fully open to future members</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Chat with Battle Buddy"
+          onClick={() => go("buddy")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="chat" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Battle Buddy</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">Ask the AI helper — answers from the public layer only, with the section named and linked</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open What Changed"
+          onClick={() => go("whatchanged")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="news" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">What Changed</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">What&apos;s new in the book — and what got corrected — since your last visit. Members-only changes show as title-only lines, never dead links</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Fitness Calculators"
+          onClick={() => go("fitness")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="pulse" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Fitness Calculators</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">Score the branch tests you&apos;re training for — PFT/CFT points, AFT and PRT standards, PFRA, the PST and IFT screens, and allied tests</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Lingo"
+          onClick={() => go("lingo")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="chat" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Lingo</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">The phonetic alphabet and the 172-word plain-English dictionary — fully open to future members and families</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Weapons & Qualification"
+          onClick={() => go("weapons")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="target" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Weapons &amp; Qualification</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">The 28 weapon-system fact files and every branch&apos;s annual qualification — public layer, open to you. Zeroing &amp; operator basics stay locked until you&apos;re serving</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Trails & Camping"
+          onClick={() => go("trails")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="tent" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Trails &amp; Camping</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">The trails &amp; camping finder — platform search links, FamCamps, and the camping guides — fully open to future members and families</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open My Emergency Card"
+          onClick={() => go("emergency")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="cross" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">My Emergency Card</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">Emergency cards open with a member or spouse profile — this card explains why yours is locked for now</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Guard & Reserve Hub"
+          onClick={() => go("reserve")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="shield" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Guard &amp; Reserve Hub</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">Drill pay, TRICARE Reserve Select, points, and mobilization — the reserve-component picture before you choose a component</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Know Your Rights"
+          onClick={() => go("rights")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="clipboard" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Know Your Rights</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">SCRA, USERRA, and the MLA — the federal protections that start the day you sign, from the agencies that run them</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Partner Forces"
+          onClick={() => go("partners")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="flag" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Partner Forces</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">The NATO grade codes and 17 allied rank profiles from each country&apos;s own official pages — recognition and courtesy basics for the joint world you&apos;re joining</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Songs, Anthem and Pledge plus Flags"
+          onClick={() => go("songs")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="flag" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Songs, Anthem &amp; Pledge + Flags</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">The six service songs, the anthem and Pledge with their etiquette, the allies&apos; anthems in their native languages, and 24 flags — the ceremonial layer of the world you&apos;re joining</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Qualifications, Schools and Certifications"
+          onClick={() => go("quals")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="target" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Qualifications, Schools &amp; Certifications</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">The quals and schools as aspirational reference — swim levels, weapons tables, UET and the helo dunker, Airborne, dive, SERE and the rest, with the qualifications and how to earn each one</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Special Forces and Elite Units"
+          onClick={() => go("specops")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="target" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Special Forces &amp; Elite Units</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">The elite forces as aspirational reference — the qualifications the official recruiting pages publish and each pipeline&apos;s structure, branch tile by branch tile, flags and all</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Allied Special Forces"
+          onClick={() => go("alliedsf")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="target" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Allied Special Forces</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">The allies&apos; special forces as aspirational reference — 17 countries in Partner Forces order, each at exactly the level its own government publishes, silences and flags included</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Connect with a Recruiter"
+          onClick={() => go("recruiters")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="users" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Connect with a Recruiter</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">Every branch&apos;s official recruiter door by path — forms, published phone and chat channels, and the Before You Sign prep cards. The forms live on the branches&apos; own sites; this app collects nothing</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Pay Charts and Rates"
+          onClick={() => go("paycharts")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="wallet" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Pay Charts &amp; Rates</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">The full 2026 DFAS basic pay tables — what each grade earns by years of service, before you sign</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Chaplains and Religious Life — Accommodation"
+          onClick={() => go("chaplains")}
+          className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+        >
+          <span className="text-[var(--accent-word)]">
+            <NavIcon name="cross" size={28} />
+          </span>
+          <span className="font-display text-base font-bold leading-tight text-[var(--text)]">Chaplains — Accommodation</span>
+          <span className="text-sm leading-snug text-[var(--dim)]">Religious accommodation under DoDI 1300.17, including the preaccession decision right for applicants</span>
+        </button>
+      </div>
+      <LockedMembersGrid />
+    </div>
+  );
+}
+
+/* ------------------------------- Boot Camp ------------------------------- */
+
+function BootcampCard({ entry }: { entry: BootcampEntry }) {
+  return (
+    <section aria-label={`Boot camp — ${entry.branch}`} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="official">OFFICIAL SOURCES</Badge>
+        <Badge>{entry.branch}</Badge>
+        <Badge>{entry.length}</Badge>
+      </div>
+      <h3 className="font-display mt-2 text-2xl font-bold text-[var(--text)]">
+        {entry.branch} — {entry.officialName}
+      </h3>
+      <p className="mt-1 text-sm font-semibold text-[var(--dim)]">{entry.locations}</p>
+      <p className="mt-3 text-base text-[var(--text)]">{entry.framing}</p>
+      {entry.blocks.map((b) => (
+        <div key={b.heading}>
+          <h4 className="font-display mt-5 text-lg font-bold text-[var(--text)]">{b.heading}</h4>
+          {b.body ? <p className="mt-1 text-base text-[var(--text)]">{b.body}</p> : null}
+          {b.bullets && b.bullets.length > 0 ? (
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-base text-[var(--text)]">
+              {b.bullets.map((x) => (
+                <li key={x}>{x}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ))}
+      <h4 className="font-display mt-5 text-lg font-bold text-[var(--text)]">Graduation</h4>
+      <p className="mt-1 text-base text-[var(--text)]">{entry.graduation}</p>
+      {entry.flags.map((f) => (
+        <JoiningFlag key={f.slice(0, 48)} text={f} />
+      ))}
+      <JoiningSources sources={entry.sources} />
+      <CardTools
+        cardRef={{
+          section: "bootcamp",
+          itemKey: entry.branch,
+          title: `${entry.branch} — ${entry.officialName}`,
+          summary: entry.framing,
+          source: entry.sources[0]?.label ?? null,
+        }}
+      />
+    </section>
+  );
+}
+
+function BootcampView() {
+  return (
+    <div>
+      <SectionHead
+        title="Boot Camp"
+        sub="Entry training for all six branches — what it's called, where it happens, how long it runs, how it's structured, what to expect, and how graduation works."
+      />
+      <div className="mb-5 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+        <p className="text-base font-semibold text-[var(--text)]">{JOINING_STANDING_NOTE}</p>
+      </div>
+      <div className="space-y-4">
+        {BOOTCAMP_ENTRIES.map((e) => (
+          <BootcampCard key={e.branch} entry={e} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------- Becoming an Officer --------------------------- */
+
+function OfficerCard({ entry }: { entry: OfficerEntry }) {
+  return (
+    <section aria-label={`Officer — ${entry.branch}`} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="official">OFFICIAL SOURCES</Badge>
+        <Badge>{entry.branch}</Badge>
+        <Badge>{entry.length}</Badge>
+      </div>
+      <h3 className="font-display mt-2 text-2xl font-bold text-[var(--text)]">
+        {entry.branch} — {entry.schoolName}
+      </h3>
+      <p className="mt-1 text-sm font-semibold text-[var(--dim)]">{entry.location}</p>
+      <p className="mt-3 text-base text-[var(--text)]">{entry.framing}</p>
+      {entry.before ? (
+        <>
+          <h4 className="font-display mt-5 text-lg font-bold text-[var(--text)]">Before the school</h4>
+          <p className="mt-1 text-base text-[var(--text)]">{entry.before}</p>
+        </>
+      ) : null}
+      <h4 className="font-display mt-5 text-lg font-bold text-[var(--text)]">Qualifications — as the branch publishes them</h4>
+      <ul className="mt-1 list-disc space-y-1 pl-5 text-base text-[var(--text)]">
+        {entry.qualifications.map((q) => (
+          <li key={q.slice(0, 60)}>{q}</li>
+        ))}
+      </ul>
+      {entry.qualificationsNote ? <p className="mt-2 text-sm text-[var(--dim)]">{entry.qualificationsNote}</p> : null}
+      <h4 className="font-display mt-5 text-lg font-bold text-[var(--text)]">Other routes to a commission</h4>
+      <p className="mt-1 text-base text-[var(--text)]">{entry.otherRoutes}</p>
+      {entry.flags.map((f) => (
+        <JoiningFlag key={f.slice(0, 48)} text={f} />
+      ))}
+      <JoiningSources sources={entry.sources} />
+      <CardTools
+        cardRef={{
+          section: "officer",
+          itemKey: entry.branch,
+          title: `${entry.branch} — ${entry.schoolName}`,
+          summary: entry.framing,
+          source: entry.sources[0]?.label ?? null,
+        }}
+      />
+    </section>
+  );
+}
+
+function OfficerView() {
+  return (
+    <div>
+      <SectionHead
+        title="Becoming an Officer"
+        sub="Each branch's candidate school — its name, location, and length, what the course is in the branch's own framing, the qualifications to commission through that route quoted as the branch publishes them, and the other commissioning routes."
+      />
+      <div className="mb-5 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+        <p className="text-base font-semibold text-[var(--text)]">{JOINING_STANDING_NOTE}</p>
+      </div>
+      <div className="space-y-4">
+        {OFFICER_ENTRIES.map((e) => (
+          <OfficerCard key={e.branch} entry={e} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------- Get Ready ------------------------------- */
+
+function GetReadyView({ profile }: { profile: Profile }) {
+  const [branch, setBranch] = useState<string>(() =>
+    (JOINING_BRANCHES as readonly string[]).includes(profile.branch) ? profile.branch : "Marine Corps",
+  );
+  const [target, setTarget] = useState<"bootcamp" | "ocs">(profile.pathInterest === "Officer" ? "ocs" : "bootcamp");
+  const [dateStr, setDateStr] = useState(profile.targetDate ?? "");
+  const [checks, setChecks] = useState<ReadonlySet<string>>(new Set());
+  const entry = ENTRY_FITNESS_ENTRIES.find((e) => e.branch === branch) ?? ENTRY_FITNESS_ENTRIES[0];
+  if (!entry) return null;
+
+  const days = dateStr ? daysUntilDate(dateStr) : null;
+  const weeks = days === null ? 8 : Math.min(24, Math.max(1, Math.ceil(days / 7)));
+  const phase1End = Math.max(1, Math.round(weeks * 0.4));
+  const phase2End = Math.max(phase1End, Math.round(weeks * 0.8));
+  const phases: { title: string; weeksLabel: string; body: string }[] =
+    weeks <= 1
+      ? [
+          {
+            title: "Final stretch",
+            weeksLabel: "Your last week",
+            body: `One honest self-test against the published minimums below, early in the week. Then easy movement only — short, relaxed ${entry.runEvent} work and light ${entry.calisthenics.join(" and ").toLowerCase()} — and sleep. Arrive rested, not peaked.`,
+          },
+        ]
+      : [
+          {
+            title: "Phase 1 — Build the base",
+            weeksLabel: `Weeks 1–${phase1End}`,
+            body: `Three run days built around the ${entry.runEvent} — easy, conversational pace — and two calisthenics days (${entry.calisthenics.join(", ")}) in short, clean sets spread through the day. One mixed day: a walk, a swim, or light work. Learn the movements and make training a habit before you chase numbers.`,
+          },
+          {
+            title: "Phase 2 — Build toward the standard",
+            weeksLabel: phase2End > phase1End ? `Weeks ${phase1End + 1}–${phase2End}` : `Week ${phase2End}`,
+            body: "Add about 10% distance or reps each week — no bigger jumps. Turn one run day into intervals (short faster repeats with easy jogging between), and test one event every weekend against the published minimums below so you know exactly where you stand.",
+          },
+          {
+            title: "Phase 3 — Test and taper",
+            weeksLabel: phase2End < weeks ? `Weeks ${phase2End + 1}–${weeks}` : `Week ${weeks}`,
+            body: "Run a full self-test early in this phase — every event, in order, against the minimums. Keep the work sharp but shorter, and make the last 3–4 days easy: light movement and sleep, so you arrive rested.",
+          },
+        ];
+  const checkedCount = entry.selfCheck.filter((c) => checks.has(c)).length;
+
+  return (
+    <div>
+      <SectionHead
+        title="Get Ready"
+        sub="Prepare for your branch's published entry fitness standards — quoted exactly as the branch prints them — with a simple progressive plan toward your target date."
+      />
+      <div className="mb-5 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+        <p className="text-base font-semibold text-[var(--text)]">{GET_READY_DISCLAIMER}</p>
+      </div>
+
+      <div className="mb-5 space-y-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div>
+          <span className={labelCls} id="gr-branch-label">Branch</span>
+          <div role="group" aria-labelledby="gr-branch-label" className="flex flex-wrap gap-2">
+            {JOINING_BRANCHES.map((b) => (
+              <button
+                key={b}
+                type="button"
+                aria-label={`Get ready for: ${b}`}
+                aria-pressed={branch === b}
+                onClick={() => {
+                  setBranch(b);
+                  setChecks(new Set());
+                }}
+                className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${branch === b ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span className={labelCls} id="gr-target-label">Your target</span>
+          <div role="group" aria-labelledby="gr-target-label" className="flex flex-wrap gap-2">
+            {(
+              [
+                { key: "bootcamp", label: "Boot camp" },
+                { key: "ocs", label: "OCS / officer school" },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                aria-label={`Target: ${t.label}`}
+                aria-pressed={target === t.key}
+                onClick={() => setTarget(t.key)}
+                className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${target === t.key ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {target === "ocs" ? (
+            <p className="mt-2 text-sm text-[var(--dim)]">
+              Officer candidates meet the same entry fitness picture shown here — and the course itself tests you
+              again once you&apos;re in it. See Becoming an Officer for the school itself.
+            </p>
+          ) : null}
+        </div>
+        <div>
+          <label htmlFor="gr-date" className={labelCls}>Target date (optional)</label>
+          <input id="gr-date" aria-label="Target date" type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} className={inputCls} />
+          <p className="mt-1 text-sm text-[var(--dim)]">
+            {days === null
+              ? "No date set — the plan below uses an 8-week runway. Set your ship or class date and it counts down to the day."
+              : days < 0
+                ? "That date has passed — pick the next one you're aiming at."
+                : `${days} day${days === 1 ? "" : "s"} out — about ${weeks} week${weeks === 1 ? "" : "s"} of preparation.`}
+          </p>
         </div>
       </div>
+
+      <section aria-label={`Get ready — ${entry.branch}`} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone="official">OFFICIAL SOURCES</Badge>
+          <Badge>{entry.branch}</Badge>
+          <Badge>{target === "ocs" ? "OFFICER TARGET" : "BOOT CAMP TARGET"}</Badge>
+        </div>
+        <h3 className="font-display mt-2 text-2xl font-bold text-[var(--text)]">{entry.gateTitle}</h3>
+        <p className="mt-2 text-base text-[var(--text)]">{entry.gateIntro}</p>
+        <h4 className="font-display mt-5 text-lg font-bold text-[var(--text)]">The published standard</h4>
+        <dl className="mt-2 space-y-2">
+          {entry.standards.map((s) => (
+            <div key={s.label} className="rounded-[var(--radius)] bg-[var(--surface2)] p-3">
+              <dt className="text-sm font-bold text-[var(--text)]">{s.label}</dt>
+              <dd className="mt-0.5 text-base text-[var(--text)]">{s.value}</dd>
+            </div>
+          ))}
+        </dl>
+        {entry.standardsNote ? <p className="mt-2 text-sm text-[var(--dim)]">{entry.standardsNote}</p> : null}
+        {entry.flags.map((f) => (
+          <JoiningFlag key={f.slice(0, 48)} text={f} />
+        ))}
+        <h4 className="font-display mt-5 text-lg font-bold text-[var(--text)]">{entry.waitingTitle}</h4>
+        <p className="mt-1 text-base text-[var(--text)]">{entry.waiting}</p>
+        <h4 className="font-display mt-5 text-lg font-bold text-[var(--text)]">How the branch says to prepare</h4>
+        <p className="mt-1 text-base text-[var(--text)]">{entry.prepGuidance}</p>
+        <JoiningSources sources={entry.sources} />
+      </section>
+
+      <section aria-label="Your preparation plan" className="mt-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+        <h3 className="font-display text-2xl font-bold text-[var(--text)]">Your preparation plan — {entry.branch}</h3>
+        <p className="mt-1 text-base text-[var(--text)]">{entry.planFocus}</p>
+        <p className="mt-1 text-sm text-[var(--dim)]">
+          {weeks} week{weeks === 1 ? "" : "s"} {days === null ? "(default runway — set a target date to tailor it)" : `to ${formatLongDate(dateStr)}`}. Five training days a week, two rest days — move the days to fit your life, keep the pattern.
+        </p>
+        <div className="mt-3 space-y-3">
+          {phases.map((p) => (
+            <div key={p.title} className="rounded-[var(--radius)] bg-[var(--surface2)] p-4">
+              <p className="font-display text-base font-bold text-[var(--text)]">
+                {p.title} <span className="text-sm font-semibold text-[var(--dim)]">· {p.weeksLabel}</span>
+              </p>
+              <p className="mt-1 text-sm text-[var(--text)]">{p.body}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-sm text-[var(--dim)]">{GET_READY_DISCLAIMER}</p>
+      </section>
+
+      <section aria-label="Self-check against the published minimums" className="mt-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+        <h3 className="font-display text-2xl font-bold text-[var(--text)]">Self-check — can you hit the published minimums?</h3>
+        <p className="mt-1 text-sm text-[var(--dim)]" role="status">
+          {checkedCount} of {entry.selfCheck.length} checked. Test yourself honestly, under the same conditions the branch describes — this list is the standard as published, nothing added.
+        </p>
+        <div className="mt-3 space-y-2">
+          {entry.selfCheck.map((c) => {
+            const done = checks.has(c);
+            return (
+              <button
+                key={c}
+                type="button"
+                role="checkbox"
+                aria-checked={done}
+                aria-label={`Self-check: ${c}`}
+                onClick={() =>
+                  setChecks((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(c)) next.delete(c);
+                    else next.add(c);
+                    return next;
+                  })
+                }
+                className="flex w-full items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3 text-left"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded border-2 text-base font-bold ${done ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-text)]" : "border-[var(--border)] bg-[var(--surface)] text-transparent"}`}
+                >
+                  ✓
+                </span>
+                <span className={`text-base ${done ? "text-[var(--dim)] line-through" : "text-[var(--text)]"}`}>{c}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }
@@ -1202,7 +4710,7 @@ function PathsView({
                     type="button"
                     aria-label="Print this checklist"
                     onClick={() => onPrintPath(path, completed)}
-                    className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)]"
+                    className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)]"
                   >
                     Print this checklist
                   </button>
@@ -1235,7 +4743,7 @@ function PathsView({
                             type="button"
                             aria-label={`${step.cta} — step: ${step.title}`}
                             onClick={() => goTo(step.view as View, step.anchor)}
-                            className="mt-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)]"
+                            className="mt-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)]"
                           >
                             {step.cta} →
                           </button>
@@ -1259,11 +4767,16 @@ function PathsView({
 
 const VIEW_LABELS: Record<string, string> = {
   home: "Home",
+  starthere: "Start Here",
+  bootcamp: "Boot Camp",
+  officer: "Becoming an Officer",
+  getready: "Get Ready",
   mos: "MOS Library",
   news: "News",
   fitness: "Fitness",
   checkin: "Check-In",
   ranks: "Rank Charts",
+  commissioning: "Commissioning from the Ranks",
   benefits: "Benefits",
   deals: "Deals & Discounts",
   transition: "Transition & Jobs",
@@ -1271,17 +4784,18 @@ const VIEW_LABELS: Record<string, string> = {
   pay: "Pay & Money",
   pcs: "PCS Move Center",
   family: "Family & Life Events",
-  claims: "VA Claims & VSO Guide",
-  readiness: "Readiness & Life Skills",
+  claims: "VA Claims & Free Help",
+  readiness: "Duties, Uniforms & Everyday Know-How",
   retirement: "Retirement Hub",
-  records: "Records & DD214 Center",
+  records: "Your Records & DD214",
   states: "State Benefits Finder",
   care: "Care & Crisis",
-  find: "Find Anything",
+  find: "Find an Office, Number, or Service",
   changejob: "Change Your Job",
   switchbranches: "Switch Branches",
-  combat: "Close Combat",
+  combat: "Hand-to-Hand Programs",
   fieldcraft: "Fieldcraft",
+  fieldtools: "Field Tools",
   warstories: "War Stories",
   mentors: "Find a Mentor",
   traditions: "Traditions & Lore",
@@ -1289,16 +4803,38 @@ const VIEW_LABELS: Record<string, string> = {
   paths: "Guided Paths",
   deadlines: "Deadlines & Countdowns",
   binder: "My Binder",
+  recruiters: "Connect with a Recruiter",
+  cool: "Credentials for Your Job",
+  assignments: "How Assignments Work",
+  evals: "Evaluations & Board File",
+  fedjobs: "Veterans' Preference & Federal Jobs",
+  tsp: "TSP Center",
+  parents: "Parents & Loved Ones",
+  rotc: "ROTC & Academies",
+  channels: "Official Channels",
+  relief: "Relief Societies",
+  paycharts: "Pay Charts & Rates",
+  chaplains: "Chaplains & Religious Life",
+  honors: "Honors & Burial",
+  oconus: "OCONUS Family Papers",
+  first30: "First 30 Days",
+  emergencydeck: "When It Goes Wrong",
+  firstyear: "First Year Out",
 };
 
 function BinderView({
+  profile,
   openItem,
   onPrint,
 }: {
+  profile: Profile;
   openItem: (item: BinderItem) => void;
-  onPrint: (items: BinderItem[]) => void;
+  onPrint: () => void;
 }) {
   const binder = useBinder();
+  const coverMos = ALL_MOS_ENTRIES.find(
+    (e) => e.branch === profile.branch && e.code.toUpperCase() === profile.mosCode.toUpperCase(),
+  );
   const items = binder.items;
   const groups = BINDER_SECTIONS.map((s) => ({
     ...s,
@@ -1310,25 +4846,47 @@ function BinderView({
     <div>
       <SectionHead
         title="My Binder"
-        sub="The cards you've starred across the app, kept together — tap one to jump back to the original card in its section."
+        sub="The cards you've saved across the app, kept together — tap one to jump back to the original card in its section."
       />
+      <BinderCover profile={profile} mosField={coverMos?.field ?? null} />
+      {/* Print my Binder — the printable export's entry point. The
+          control is always here; with an empty Binder it explains
+          plainly instead of opening a blank document, and with cards
+          saved it opens the print sheet, which resolves this same
+          profile-scoped Binder live (no items are handed over). */}
+      <div className="mb-5">
+        <button
+          type="button"
+          aria-label="Print my Binder"
+          aria-disabled={items.length === 0}
+          onClick={() => {
+            if (items.length > 0) onPrint();
+          }}
+          className={`${btnPrimary} w-full ${items.length === 0 ? "opacity-60" : ""}`}
+        >
+          Print my Binder{items.length > 0 ? ` (${items.length} card${items.length === 1 ? "" : "s"})` : ""}
+        </button>
+        {items.length === 0 ? (
+          <p role="status" className="mt-2 text-sm text-[var(--dim)]">
+            Your Binder is empty — save cards with ☆ Save to Binder and they&apos;ll print here.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-[var(--dim)]">
+            One clean printout of everything below — grouped by section, with each card&apos;s source. It&apos;s
+            generated on this device from your own Binder; nothing is sent or shared.
+          </p>
+        )}
+      </div>
       {items.length === 0 ? (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
           <p className="text-base text-[var(--text)]">
-            Nothing saved yet. Every reference card in the app carries a star — star the BDD card in Claims and
-            it&apos;ll live here, grouped by section and ready to print.
+            Nothing saved yet. Every reference card in the app has a <strong>Save to Binder</strong> button at the
+            bottom of the card — tap it on the BDD card in Claims and it&apos;ll live here, grouped by section and
+            ready to print.
           </p>
         </div>
       ) : (
         <>
-          <button
-            type="button"
-            aria-label="Print binder"
-            onClick={() => onPrint(items)}
-            className={`${btnPrimary} mb-5 w-full`}
-          >
-            Print binder ({items.length} card{items.length === 1 ? "" : "s"})
-          </button>
           {[...groups, ...(ungrouped.length > 0 ? [{ key: "other", label: "Saved cards", entries: ungrouped }] : [])].map(
             (group) => (
               <section key={group.key} aria-label={`Binder — ${group.label}`} className="mb-6">
@@ -1359,7 +4917,7 @@ function BinderView({
                         type="button"
                         aria-label={`Open “${item.title}” in ${binderSectionLabel(item.section)}`}
                         onClick={() => openItem(item)}
-                        className="mt-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)]"
+                        className="mt-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)]"
                       >
                         Open in {binderSectionLabel(item.section)} →
                       </button>
@@ -1379,17 +4937,33 @@ function BinderView({
 
 function PrintSheet({ job, onClose }: { job: PrintJob; onClose: () => void }) {
   const sheetRef = useRef<HTMLDivElement | null>(null);
+  // Printable Binder export — LIVE resolution: the binder sheet reads
+  // the signed-in profile's Binder through the same profile-scoped
+  // query My Binder renders (BinderProvider's ["binder"] query, fed
+  // by the owner-only getBinder action), and the cover identity from
+  // the same ["profile"] query the app shell renders. The PrintJob
+  // carries no items, so nothing in this sheet is a snapshot copy:
+  // cards saved or removed since the sheet opened are reflected the
+  // moment the query updates, and another profile's cards can never
+  // appear — the server only ever returns the active profile's rows.
+  // Generated entirely client-side; nothing leaves the device except
+  // the member's own print action.
+  const binder = useBinder();
+  const printProfileQ = useQuery({ queryKey: ["profile"], queryFn: () => api.getProfile({}) });
   const sheetTitle =
     job.kind === "binder"
       ? "My Binder — Battle Book"
       : job.kind === "timeline"
         ? "My Service Timeline — Battle Book"
-        : `${job.path.name} — Battle Book`;
-
-  /** Invoke the browser's print flow for this clean sheet. */
-  const handlePrintPage = () => {
-    window.print();
-  };
+        : job.kind === "fieldcard"
+          ? `${job.card.name} — Battle Book`
+          : job.kind === "killcard"
+            ? "Kill Card — Battle Book"
+          : job.kind === "deck"
+            ? "Smart-Card Deck — Battle Book"
+            : job.kind === "watchbill"
+            ? `${job.watchbill.title} — Watchbill — Battle Book`
+            : `${job.path.name} — Battle Book`;
 
   /**
    * Open the same clean sheet as a standalone page in a new tab, for
@@ -1422,11 +4996,30 @@ function PrintSheet({ job, onClose }: { job: PrintJob; onClose: () => void }) {
     day: "numeric",
     year: "numeric",
   });
+  const binderItems = job.kind === "binder" ? binder.items : [];
+  const binderProfile = job.kind === "binder" ? (printProfileQ.data?.profile ?? null) : null;
+  const binderCoverMos = binderProfile
+    ? ALL_MOS_ENTRIES.find(
+        (e) => e.branch === binderProfile.branch && e.code.toUpperCase() === binderProfile.mosCode.toUpperCase(),
+      )
+    : undefined;
   const binderGroups =
     job.kind === "binder"
-      ? BINDER_SECTIONS.map((s) => ({ ...s, entries: job.items.filter((i) => i.section === s.key) })).filter(
-          (g) => g.entries.length > 0,
-        )
+      ? [
+          ...BINDER_SECTIONS.map((s) => ({
+            ...s,
+            entries: binderItems.filter((i) => i.section === s.key),
+          })).filter((g) => g.entries.length > 0),
+          ...(binderItems.some((i) => !BINDER_SECTIONS.some((s) => s.key === i.section))
+            ? [
+                {
+                  key: "other",
+                  label: "Saved cards",
+                  entries: binderItems.filter((i) => !BINDER_SECTIONS.some((s) => s.key === i.section)),
+                },
+              ]
+            : []),
+        ]
       : [];
   const pathDone = job.kind === "path" ? job.path.steps.filter((s) => job.completed.includes(s.key)).length : 0;
   const timelinePrint = job.kind === "timeline" ? timelineSummary(job.entries) : null;
@@ -1444,22 +5037,15 @@ function PrintSheet({ job, onClose }: { job: PrintJob; onClose: () => void }) {
         </button>
         <button
           type="button"
-          aria-label="Print this page"
-          onClick={handlePrintPage}
-          className="rounded-[10px] bg-[#4b5320] px-5 py-3 text-base font-bold text-white"
-        >
-          Print this page
-        </button>
-        <button
-          type="button"
           aria-label="Open printable page in new tab"
           onClick={handleOpenStandalone}
-          className="rounded-[10px] border border-[#c9c9c9] bg-white px-4 py-3 text-base font-semibold text-[#1c1c1c]"
+          className="rounded-[10px] bg-[#4b5320] px-5 py-3 text-base font-bold text-white"
         >
-          Open in new tab
+          Open printable page
         </button>
         <p className="w-full text-sm text-[#666]">
-          If Print does nothing in this app view, tap “Open in new tab”, then “Print this page” there.
+          Printing opens this sheet as its own page in a new tab — use “Print this page” there, or your
+          browser's Print command on that page.
         </p>
       </div>
 
@@ -1470,23 +5056,52 @@ function PrintSheet({ job, onClose }: { job: PrintJob; onClose: () => void }) {
         </div>
         {job.kind === "binder" ? (
           <>
-            <h1 className="text-3xl font-bold">My Binder</h1>            <p className="mt-1 text-sm text-[#555]">
-              {job.items.length} saved card{job.items.length === 1 ? "" : "s"} · Printed {printedOn}
+            {/* Cover header: Battle Book — My Binder, the member's
+                branch / MOS when set, and the date printed. */}
+            <h1 className="text-3xl font-bold">My Binder</h1>
+            <p className="mt-1 text-base font-semibold">
+              Battle Book — My Binder
+              {binderProfile?.branch ? ` · ${binderProfile.branch}` : ""}
+              {binderCoverMos
+                ? ` · ${binderCoverMos.code} — ${binderCoverMos.title}`
+                : binderProfile?.mosCode
+                  ? ` · ${binderProfile.mosCode}`
+                  : ""}
             </p>
-            {binderGroups.map((group) => (
-              <section key={group.key} className="mt-7">
-                <h2 className="border-b-2 border-[#1c1c1c] pb-1 text-lg font-bold tracking-wide">
-                  {group.label.toUpperCase()}
-                </h2>
-                {group.entries.map((item) => (
-                  <div key={`${item.section}-${item.itemKey}`} className="mt-4 break-inside-avoid">
-                    <h3 className="text-base font-bold">{item.title}</h3>
-                    {item.summary ? <p className="mt-0.5 text-sm leading-relaxed">{item.summary}</p> : null}
-                    <p className="mt-1 text-xs text-[#555]">{trustLine(item.source)}</p>
-                  </div>
-                ))}
-              </section>
-            ))}
+            <p className="mt-1 text-sm text-[#555]">
+              {binderItems.length} saved card{binderItems.length === 1 ? "" : "s"} · Printed {printedOn}
+            </p>
+            <p className="mt-1 text-sm text-[#555]">
+              Your own saved cards, printed from this device — nothing was sent or shared.
+            </p>
+            {binderItems.length === 0 ? (
+              <p className="mt-6 text-base">
+                Your Binder is empty — save cards with ☆ Save to Binder and they&apos;ll print here.
+              </p>
+            ) : (
+              binderGroups.map((group, groupIdx) => (
+                <section
+                  key={group.key}
+                  className="mt-7"
+                  style={groupIdx > 0 ? { breakBefore: "page" } : undefined}
+                >
+                  <h2 className="border-b-2 border-[#1c1c1c] pb-1 text-lg font-bold tracking-wide">
+                    {group.label.toUpperCase()}
+                  </h2>
+                  {group.entries.map((item) => (
+                    <div
+                      key={`${item.section}-${item.itemKey}`}
+                      className="mt-4"
+                      style={{ breakInside: "avoid" }}
+                    >
+                      <h3 className="text-base font-bold">{item.title}</h3>
+                      {item.summary ? <p className="mt-0.5 text-sm leading-relaxed">{item.summary}</p> : null}
+                      <p className="mt-1 text-xs text-[#555]">{trustLine(item.source)}</p>
+                    </div>
+                  ))}
+                </section>
+              ))
+            )}
           </>
         ) : job.kind === "timeline" ? (
           <>
@@ -1515,6 +5130,64 @@ function PrintSheet({ job, onClose }: { job: PrintJob; onClose: () => void }) {
                 </li>
               ))}
             </ol>
+          </>
+        ) : job.kind === "fieldcard" ? (
+          <>
+            <h1 className="text-3xl font-bold">{job.card.name}</h1>
+            <p className="mt-1 text-sm text-[#555]">
+              Range card · Fieldcraft — Battle Book · Printed {printedOn}
+            </p>
+            <div className="mt-4">
+              <SketchCardPrintBody card={job.card} />
+            </div>
+          </>
+        ) : job.kind === "killcard" ? (
+          <>
+            <h1 className="text-3xl font-bold">Kill Card</h1>
+            <p className="mt-1 text-sm text-[#555]">
+              Personal data card · Fieldcraft — Battle Book · Printed {printedOn}
+            </p>
+            <div className="mt-4">
+              <KillCardPrintBody card={job.card} />
+            </div>
+          </>
+        ) : job.kind === "deck" ? (
+          <>
+            <h1 className="text-3xl font-bold">Smart-Card Deck</h1>
+            <p className="mt-1 text-sm text-[#555]">
+              Pocket deck · Field Tools — Battle Book · Printed {printedOn}
+            </p>
+            <div className="mt-4">
+              <DeckPrintBody />
+            </div>
+          </>
+        ) : job.kind === "watchbill" ? (
+          <>
+            <h1 className="text-3xl font-bold">{job.watchbill.title}</h1>
+            <p className="mt-1 text-sm text-[#555]">
+              Watchbill · {job.watchbill.names.length} in rotation · {job.watchbill.shiftHours} h shifts ·{" "}
+              {job.watchbill.days} day{job.watchbill.days === 1 ? "" : "s"} · Battle Book · Printed {printedOn}
+            </p>
+            <table className="mt-4 w-full text-left text-base">
+              <thead>
+                <tr>
+                  <th className="py-1 pr-2">#</th>
+                  <th className="py-1 pr-2">On watch</th>
+                  <th className="py-1 pr-2">From</th>
+                  <th className="py-1">To</th>
+                </tr>
+              </thead>
+              <tbody>
+                {buildWatchbillRows(job.watchbill).map((r) => (
+                  <tr key={r.index} className="border-t border-[#ccc]">
+                    <td className="py-1 pr-2">{r.index + 1}</td>
+                    <td className="py-1 pr-2 font-semibold">{r.holder}</td>
+                    <td className="py-1 pr-2">{formatWatchTime(r.start)}</td>
+                    <td className="py-1">{formatWatchTime(r.end)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </>
         ) : (
           <>
@@ -1593,31 +5266,59 @@ function DateField({
   );
 }
 
+type ProfileDatesInput = {
+  easDate: string;
+  itfDate: string;
+  idCardExpiry: string;
+  fcpReviewDate: string;
+  fcpLastValidated: string;
+  partnerReturnDate: string;
+};
+
 function DeadlinesView({ profile, goTo }: { profile: Profile; goTo: (v: View, anchor?: string) => void }) {
   const queryClient = useQueryClient();
   const [easDate, setEasDate] = useState(profile.easDate);
   const [itfDate, setItfDate] = useState(profile.itfDate);
   const [idCardExpiry, setIdCardExpiry] = useState(profile.idCardExpiry);
+  // Family Care Plan dates + partner return date (red-team round 2, F-9).
+  const [fcpReviewDate, setFcpReviewDate] = useState(profile.fcpReviewDate);
+  const [fcpLastValidated, setFcpLastValidated] = useState(profile.fcpLastValidated);
+  const [partnerReturnDate, setPartnerReturnDate] = useState(profile.partnerReturnDate);
   const save = useMutation({
-    mutationFn: (d: { easDate: string; itfDate: string; idCardExpiry: string }) => api.saveProfileDates(d),
+    mutationFn: (d: ProfileDatesInput) => api.saveProfileDates(d),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["profile"] }),
   });
-  const hasDates = Boolean(profile.easDate || profile.itfDate || profile.idCardExpiry);
+  const hasDates = Boolean(
+    profile.easDate || profile.itfDate || profile.idCardExpiry || profile.fcpReviewDate || profile.fcpLastValidated || profile.partnerReturnDate,
+  );
   const cards = computeDeadlineCards({
     easDate: profile.easDate,
     itfDate: profile.itfDate,
     idCardExpiry: profile.idCardExpiry,
+    fcpReviewDate: profile.fcpReviewDate,
+    fcpLastValidated: profile.fcpLastValidated,
+    branch: profile.branch,
+    partnerReturnDate: profile.partnerReturnDate,
   });
 
-  function clearField(field: "eas" | "itf" | "id") {
-    const next = {
-      easDate: field === "eas" ? "" : easDate,
-      itfDate: field === "itf" ? "" : itfDate,
-      idCardExpiry: field === "id" ? "" : idCardExpiry,
-    };
+  function currentDates(): ProfileDatesInput {
+    return { easDate, itfDate, idCardExpiry, fcpReviewDate, fcpLastValidated, partnerReturnDate };
+  }
+
+  function clearField(field: "eas" | "itf" | "id" | "fcpReview" | "fcpValidated" | "partnerReturn") {
+    const next = currentDates();
+    if (field === "eas") next.easDate = "";
+    if (field === "itf") next.itfDate = "";
+    if (field === "id") next.idCardExpiry = "";
+    if (field === "fcpReview") next.fcpReviewDate = "";
+    if (field === "fcpValidated") next.fcpLastValidated = "";
+    if (field === "partnerReturn") next.partnerReturnDate = "";
     setEasDate(next.easDate);
     setItfDate(next.itfDate);
     setIdCardExpiry(next.idCardExpiry);
+    setFcpReviewDate(next.fcpReviewDate);
+    setFcpLastValidated(next.fcpLastValidated);
+    setPartnerReturnDate(next.partnerReturnDate);
     save.mutate(next);
   }
 
@@ -1625,7 +5326,7 @@ function DeadlinesView({ profile, goTo }: { profile: Profile; goTo: (v: View, an
     <div>
       <SectionHead
         title="Deadlines & Countdowns"
-        sub="The windows service members actually miss, counted down from your own dates — TAP, SkillBridge, the BDD claim window, your intent to file, your ID card, and the January FPCA."
+        sub="The windows service members actually miss, counted down from your own dates — TAP, SkillBridge, the BDD claim window, your intent to file, your ID card, your Family Care Plan review, your partner's return, and the January FPCA."
       />
 
       <div className="mb-5 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
@@ -1666,13 +5367,37 @@ function DeadlinesView({ profile, goTo }: { profile: Profile; goTo: (v: View, an
             onChange={setIdCardExpiry}
             onClear={() => clearField("id")}
           />
+          <DateField
+            id="dl-fcp-review"
+            label="Family Care Plan review date"
+            unlocks="An exact revalidation date set by your command or branch policy. When set, it drives the FCP review countdown exactly — no app-suggested date overrides it."
+            value={fcpReviewDate}
+            onChange={setFcpReviewDate}
+            onClear={() => clearField("fcpReview")}
+          />
+          <DateField
+            id="dl-fcp-validated"
+            label="Family Care Plan last validated"
+            unlocks="The date your command last validated your Family Care Plan. Navy, Marine Corps, and Air Force publish an annual revalidation — the board suggests the one-year date with its source flags. For other branches no published clock was verified, and the board says so instead of inventing one."
+            value={fcpLastValidated}
+            onChange={setFcpLastValidated}
+            onClear={() => clearField("fcpValidated")}
+          />
+          <DateField
+            id="dl-partner-return"
+            label="Partner's return / deployment date"
+            unlocks="Your partner's deployment, return, or other key date. The board counts it down as a date only — no rules are attached to it."
+            value={partnerReturnDate}
+            onChange={setPartnerReturnDate}
+            onClear={() => clearField("partnerReturn")}
+          />
         </div>
         {save.isError ? <p className="mt-3 text-sm text-[var(--red)]">Could not save your dates. Try again.</p> : null}
         <button
           type="button"
           aria-label="Save dates"
           disabled={save.isPending}
-          onClick={() => save.mutate({ easDate, itfDate, idCardExpiry })}
+          onClick={() => save.mutate(currentDates())}
           className={`${btnPrimary} mt-4 w-full`}
         >
           {save.isPending ? "Saving…" : "Save dates"}
@@ -1704,7 +5429,7 @@ function DeadlinesView({ profile, goTo }: { profile: Profile; goTo: (v: View, an
               type="button"
               aria-label={`${c.cta} — ${c.title}`}
               onClick={() => goTo(c.view as View, c.anchor)}
-              className="mt-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)]"
+              className="mt-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)]"
             >
               {c.cta} →
             </button>
@@ -1742,8 +5467,11 @@ function HomeView({
     queryFn: () => api.listContributions({ status: "pending", targetId: "" }),
   });
   const checkinsQ = useQuery({ queryKey: ["checkins"], queryFn: () => api.getCheckins({}) });
+  const alertsQ = useQuery({ queryKey: ["alerts"], queryFn: () => api.getAlerts({}) });
+  const unreadAlerts = alertsQ.data?.unreadCount ?? 0;
   const today = checkinsQ.data?.checkins.find((c) => c.dayKey === todayKey());
   const pendingCount = pendingQ.data?.contributions.length ?? 0;
+  const binderForYou = useBinder();
   const myMos = ALL_MOS_ENTRIES.find(
     (e) => e.branch === profile.branch && e.code.toUpperCase() === profile.mosCode.toUpperCase(),
   );
@@ -1758,44 +5486,108 @@ function HomeView({
       activePath = { path: p, done, total: p.steps.length, pct };
     }
   }
-  const hasDates = Boolean(profile.easDate || profile.itfDate || profile.idCardExpiry);
+  const hasDates = Boolean(
+    profile.easDate || profile.itfDate || profile.idCardExpiry || profile.fcpReviewDate || profile.fcpLastValidated || profile.partnerReturnDate,
+  );
   const homeDeadlineCards = computeDeadlineCards({
     easDate: profile.easDate,
     itfDate: profile.itfDate,
     idCardExpiry: profile.idCardExpiry,
+    fcpReviewDate: profile.fcpReviewDate,
+    fcpLastValidated: profile.fcpLastValidated,
+    branch: profile.branch,
+    partnerReturnDate: profile.partnerReturnDate,
   }).filter((c) => c.key !== "fvap");
   const bddCard = homeDeadlineCards.find((c) => c.key === "bdd");
+  // For You "Next deadline" is the SOONEST dated card (F-9), not the
+  // first card the generator emits.
+  const nextDeadlineCard = soonestDeadlineCard(homeDeadlineCards) ?? homeDeadlineCards[0];
   const easSoon = easWithinYear(profile.easDate);
   const easDays = daysUntilEas(profile.easDate);
 
   const cards: { view: View; title: string; blurb: string }[] = [
     { view: "mos", title: "MOS Library", blurb: `${ALL_MOS_ENTRIES.length} jobs across all six branches — search yours, or anyone's.` },
     { view: "ranks", title: "Rank Charts", blurb: "Enlisted, warrant, and officer grades for all six branches — titles, abbreviations, and the split-track variants." },
+    { view: "trainers", title: "Practice Trainers", blurb: "Drill the Book's own cards: Rank Insignia, Knots, Hand & Arm Signals, and the General Orders as flashcards and quizzes — missed cards come back in the same session, and your streaks and personal bests save on your profile." },
+    { view: "uniforms", title: "Uniforms", blurb: `All ${UNIFORM_COUNT} standard uniforms across the six branches: what each one is, when it's worn, a labeled front-view diagram, and the full component list in wear order as a tick-off assembly checklist — with the governing regulation cited on every card (AGSU and ASU transition dates, the Space Force service-dress rollout, and Uniform Board 221 updates carried as written).` },
     { view: "benefits", title: "Benefits", blurb: "VA & DoD benefits for everyone — home loan, GI Bill, disability, health — plus what your branch adds: TA, COOL, relief, and family programs." },
     { view: "deals", title: "Deals & Discounts", blurb: "Deal apps like GovX and Vet Tix, a finder that routes you to the right source for your city and category, and on-base life: MCCS, MWR, SMP, ITT, Space-A, and the commissary." },
+    { view: "gear", title: "Gear Search", blurb: "Type a piece of gear once and open each store's own live results — 12 stores, with search links only where the pattern was verified live (OpticsPlanet, Tactical Distributors, LA Police Gear, 5.11, Military Luggage) and honest homepage routing for the rest (eBay, Amazon, GovX, the Exchange, and more). No prices in the app — prices are always the store's own live ones. Plus 10 buying guides: what to look for, issue vs. aftermarket, sizing traps, and knockoff warnings, from boots and rucks to APEL eye pro and watches." },
+    { view: "lingo", title: "Lingo", blurb: "The words, decoded for the whole family: the phonetic alphabet exactly as the FAA publishes it (Alfa, Juliett, and the digit pronunciations — TREE, FIFE, NIN-ER), then 172 plain-English definitions in seven groups — pay & paperwork, people & roles, daily life, orders & moves, medical & benefits, field & radio, and slang with every entry labeled SLANG. HUA's famous expansion is flagged as the folklore it is, and the profane-expansion terms aren't printed at all." },
+    { view: "weapons", title: "Weapons & Qualification", blurb: `All ${ALL_WEAPON_SYSTEMS.length} weapon systems at official fact-file level — figures verbatim with their citations where a fact file exists, and an honest “no official fact file found” where none does, conflicts flagged, never blended. Zeroing and fundamentals from TC 3-22.9 and MCRP 3-01A (a true zero + consistent groups is the goal — “perfect” is never promised), every branch's annual qualification as published with withheld figures marked NOT PUBLISHED HERE, the published safety-rule sets verbatim, operator basics only for the three systems with public manuals, and the cycle of operations for seven systems — the M240B's full eight steps first.` },
+    { view: "trails", title: "Trails & Camping", blurb: "Find trails and campsites anywhere: type a place and the finder builds the platforms' own live search links — Recreation.gov, The Dyrt, and Hiking Project verified, NPS and Campendium state pages when you enter a state, and the platforms whose search links couldn't be verified (AllTrails, Hipcamp, iOverlander, park4night, Gaia GPS) routed honestly as “search on their site.” No trail data lives in the app. Then the military side: FamCamps and installation campgrounds with eligibility exactly as DoD publishes it and Military OneSource's “check ahead” caution as the standing rule, ODR gear rentals, the volunteer-run militarycampgrounds.us directory labeled UNOFFICIAL with the verify-with-the-base rule, and four guides — dispersed camping (BLM's 14-days-in-28 and the Forest Service's usually-14-days printed as the separate agency positions they are), trails on and near bases with the range-safety framing, camping outside the US, and Leave No Trace's seven principles." },
+    { view: "installation", title: "My Installation", blurb: profile.installationName ? `${profile.installationName} is set as your installation — open its on-base guide: food, exchange, commissary, pool, fitness, MWR/ITT, lodging, medical, child care, housing, legal, chaplain, and library, every service link harvested from ${profile.installationName}'s own MilitaryINSTALLATIONS overview page, plus the national locators and the off-base guide for the ~50 miles around it.` : "Set your installation once — from the MilitaryINSTALLATIONS directory's own list of 409 installations worldwide — and this becomes its guide: the on-base amenities by category, each routing to that installation's own official pages (links harvested from its directory overview, never constructed), the national locators, and what's off base within ~50 miles. No hours or phone numbers in the app — those live on the installation's own pages." },
+    { view: "medical", title: "Medical Training & Certs", blurb: "The training itself, not the job: TCCC from All Service Members through Combat Medic/Corpsman — with Tier 4's “coming soon” status stated as the Joint Trauma System states it, and currency printed layered (the DoDI 1322.24 floor vs. each service's own rule), never as one number. BLS, ACLS, and PALS through the Military Training Network, valid two years as the issuers state it; how the medic pipelines connect to NREMT certification — and why Navy corpsmen don't come out with it; Stop the Bleed, owned by DoD and delivered by the ACS and partners under license; each branch's medical training, stated plainly (the Marine Corps has no medics of its own — your Doc is a Navy corpsman); and CPR/AED courses for families. About the training only — skills content lives at Deployed Medicine and the certifying bodies, linked on every card." },
     { view: "transition", title: "Transition & Jobs", blurb: "Getting out, or drilling in the Reserve with a civilian job: translate your MOS, TAP and SkillBridge before EAS, veteran job boards, apprenticeships, federal jobs, USERRA rights, and starting a business." },
     { view: "pay", title: "Pay & Money", blurb: "Read your own pay: the official DFAS tables (with 2026 example cells), BAH/BAS and the overseas allowances, DoD's RMC estimator, a block-by-block LES decoder, pay dates, and free money help — MilTax, counselors, and the MLA's 36% cap." },
     { view: "pcs", title: "PCS Move Center", blurb: "The whole move, orders to arrival: the phase-by-phase timeline, the entitlements people forget (DLA, 21-day TLE, pet reimbursement), household goods and damage claims, housing decisions, special cases, and the travel claim." },
+    { view: "first30", title: "First 30 Days", blurb: "Just arrived at a new duty station? The guided newcomer path: 34 checkable tasks in four phases — Before Arrival, Week 1, Weeks 2–4, By Day 30 — filtered to your situation, with the four hard clocks printed as published (voucher in 5 working days, TRICARE's 90-day move window from your DEERS update, Navy INDOC in 30 days, USMC Welcome Aboard in 90 days / Okinawa NOWA in 72 hours) and a deep link on every task to the section that owns the detail. The PCS Move Center owns the move; this path owns the landing." },
     { view: "family", title: "Family & Life Events", blurb: "Marriage, baby, divorce, and casualty checklists at the DEERS level; SpouseWorks and MSEP for spouse careers and the scholarship; MilitaryChildCare.com and MCCYN fee assistance; EFMP by branch (Coast Guard: the Special Needs Program); and the support centers and counselors — with the confidentiality differences stated plainly." },
-    { view: "claims", title: "VA Claims & VSO Guide", blurb: "How a claim actually moves: file on VA.gov, lock your start date with an intent to file, BDD before you get out (180–90 days), the evidence VA decides on, ratings at concept level, the three review lanes after a decision, and free accredited VSO help — plus VA's own warning about claim predators." },
-    { view: "readiness", title: "Readiness & Life Skills", blurb: "Before you deploy and at your first station: the Military OneSource pre-deployment checklist, family care plans, and the paperwork sweep; special duties from recruiting to embassy duty; your branch's uniform publication; barracks basics and the housing-office-before-you-sign rule; the MLA's 36% shield, first-car traps, per-installation off-limits lists; and FVAP absentee voting — a new FPCA every January and every time you move." },
+    { view: "claims", title: "VA Claims & Free Help", blurb: "How a claim actually moves: file on VA.gov, lock your start date with an intent to file, BDD before you get out (180–90 days), the evidence VA decides on, ratings at concept level, the three review lanes after a decision, and free accredited VSO help — plus VA's own warning about claim predators." },
+    { view: "readiness", title: "Duties, Uniforms & Everyday Know-How", blurb: "Before you deploy and at your first station: the Military OneSource pre-deployment checklist, family care plans, and the paperwork sweep; special duties from recruiting to embassy duty; your branch's uniform publication; barracks basics and the housing-office-before-you-sign rule; the MLA's 36% shield, first-car traps, per-installation off-limits lists; and FVAP absentee voting — a new FPCA every January and every time you move." },
     { view: "retirement", title: "Retirement Hub", blurb: "Which system you're in is decided by your DIEMS — BRS vs. legacy High-3 explained plainly, with the official DoD calculators to run your own numbers. Then the decisions that follow you: SBP and spouse concurrence (and full SBP + DIC together since Feb 1, 2023), CRDP vs. CRSC, Reserve points, the 20-year letter, and the gray area; the application timeline; and life after the check starts — myPay, taxes, and re-enrolling in TRICARE within 90 days. No pay predictions anywhere." },
-    { view: "records", title: "Records & DD214 Center", blurb: "Your paper life, in one place: VA's records page as the front door, eVetRecs and the SF-180, milConnect/DPRIS with VA's per-branch cutoff dates, next-of-kin requests, the 62-year rule, and the 1973 fire. Replacing a lost DD214 (free — NARA's warning about fee-charging companies is on the card), DD Form 215 routing as it works now, and replacement medals. Corrections and discharge upgrades as an orientation map: DD 293 within 15 years, DD 149 for error or injustice — and the key distinction: boards change the record, VA separately decides benefits. No processing-time promises anywhere, because the official sources publish none." },
+    { view: "records", title: "Your Records & DD214", blurb: "Your paper life, in one place: VA's records page as the front door, eVetRecs and the SF-180, milConnect/DPRIS with VA's per-branch cutoff dates, next-of-kin requests, the 62-year rule, and the 1973 fire. Replacing a lost DD214 (free — NARA's warning about fee-charging companies is on the card), DD Form 215 routing as it works now, and replacement medals. Corrections and discharge upgrades as an orientation map: DD 293 within 15 years, DD 149 for error or injustice — and the key distinction: boards change the record, VA separately decides benefits. No processing-time promises anywhere, because the official sources publish none." },
     { view: "states", title: "State Benefits Finder", blurb: "Some of the richest benefits are state-level and wildly different state to state. Pick your state — all 50 plus DC — for its official veterans affairs agency, its official site, and its headline benefits: property-tax exemptions with the thresholds exactly as the state states them, tuition waivers, state veterans homes, and signature benefits. Where a figure couldn't be verified on the state's own pages, the card says “see official site” instead of borrowing a number. Not sure which agency runs veterans affairs in your state? The finder opens with NASDVA, the national directory VA.gov points to." },
     { view: "care", title: "Care & Crisis", blurb: "Help for hard moments, plain and warm. The Veterans Crisis Line is pinned at the top — call 988 and press 1, text 838255, or chat — before anything else. Then: Vet Centers (free readjustment counseling, no VA enrollment or disability rating needed, records kept separate from VA and DoD), VA health care enrollment walked through step by step, the Military Crisis Line numbers for overseas, Military OneSource with its boundary stated plainly, housing help led by the National Call Center for Homeless Veterans (877-4AID-VET), and funeral & burial honors — national cemeteries, pre-need eligibility, and Arlington's different, stricter rules." },
-    { view: "find", title: "Find Anything", blurb: "Just got to a new town and need the office? 27 official locators in 8 categories, searchable by name or purpose: MilitaryINSTALLATIONS, the VA facility locator and the pre-filtered Vet Center route, RAPIDS ID offices and milConnect (now on myAuth, not DS Logon), legal assistance and financial counselors, the commissary split (shop.commissaries.com to shop, corp.commissaries.com for store info), PCS help through Military OneSource — Move.mil is gone — Space-A terminals, American Job Centers, and TRICARE's Find a Doctor (West Region: TriWest). Where no national locator exists — MWR/ITT, education centers — the entry says so and routes you through MilitaryINSTALLATIONS instead of faking a link." },
+    { view: "emergencydeck", title: "When It Goes Wrong", blurb: "The first-24-hours deck: 8 calm, ordered action cards — DO FIRST, CALL, THEN, WATCH OUT — for a family emergency at home (Red Cross Hero Care 1-877-272-7337; the Red Cross verifies, the commander decides), a lost CAC, an accident overseas (Germany / Türkiye / Okinawa only), an arrest abroad, a death in the family, a lost passport, identity theft, and a medical emergency overseas (TRICARE Overseas call centers). Also in Care & Crisis, and printable in the Smart-Card Deck." },
+    { view: "find", title: "Find an Office, Number, or Service", blurb: "Just got to a new town and need the office? 27 official locators in 8 categories, searchable by name or purpose: MilitaryINSTALLATIONS, the VA facility locator and the pre-filtered Vet Center route, RAPIDS ID offices and milConnect (now on myAuth, not DS Logon), legal assistance and financial counselors, the commissary split (shop.commissaries.com to shop, corp.commissaries.com for store info), PCS help through Military OneSource — Move.mil is gone — Space-A terminals, American Job Centers, and TRICARE's Find a Doctor (West Region: TriWest). Where no national locator exists — MWR/ITT, education centers — the entry says so and routes you through MilitaryINSTALLATIONS instead of faking a link." },
     { view: "changejob", title: "Change Your Job", blurb: "Same branch, new job. Every branch runs it the same basic way — the service's needs decide, there's a window, a career counselor or planner is the gatekeeper, and headquarters approves — under a different name: Marine Corps Lateral Move (LatMove, through your Career Planner into a RELM in TFRS), Army Reclassification (keyed to the current In/Out Calls MILPER), Navy Conversion (C-WAY still runs SELRES conversions and reenlistment quotas while active-duty billet conversions are adjudicated in MyNavy Assignment), Air Force Retraining (FTA and NCORP, applied for in myFSS), Space Force through the same Air Force system, and Coast Guard Change in Rating through PSC-EPM. No quotas or open-field lists are printed anywhere — they change too fast to be honest — so every card routes to the branch's live official source for what's open today." },
     { view: "switchbranches", title: "Switch Branches", blurb: "A different branch, not just a different job. Two paths: transfer while serving under DoDI 1300.04 with a DD Form 368 — started by the gaining service, signed by your service's personnel-center authority, not your unit commander, both services required to agree, no appeal, and the release expires — or separate first and rejoin as a prior-service applicant under the gaining branch's business rules. The reality checks lead: grade determination can cost you rank, your job may not exist or be open over there, prior-service seats are the smallest pile, DD214 codes gate everything, and clearance transfer is likely, not promised. Then each gaining branch's official door — Army USAREC rules and grade determination, Navy NAVET/OSVET and PRISE-R (other-service veterans enter with no rating), Marine Corps PSEP framed honestly as the route for former Marines, Space Force IST in announced windows, Air Force prior service and AFPC officer IST, and the Coast Guard's dedicated prior-service page — and a checklist that starts with the recruiter conversation. No quotas, caps, or open-job lists anywhere." },
     { view: "education", title: "Education Planner", blurb: "Turn your training into college credit: pull your JST or CCAF transcript, test out of classes with free DANTES-funded CLEP/DSST first attempts, stack TA and the GI Bill in the right order, and use your branch's degree programs." },
     { view: "warstories", title: "War Stories", blurb: "The stories behind the service: 13 documented accounts from official sources (Veterans History Project stories labeled as first-person recollections), 15 Medal of Honor profiles summarized from the official citations with the authoritative databases linked, and 9 most-decorated profiles presented unranked — because there is no official ranking. Plus member stories: yours can be submitted, and every one is reviewed before it publishes." },
     { view: "traditions", title: "Traditions & Lore", blurb: "Why the flag folds 13 times (a ceremonial script — labeled TRADITION, not doctrine), the corrected Tomb guard timeline, three volleys that are NOT a 21-gun salute, the blood stripe the Corps itself calls “more fable than fact,” challenge-coin origins labeled LEGEND, and Hooah/Hooyah etymologies labeled DISPUTED. 30 cards in three groups — Flag & Honors, Branch Traditions, Culture & Custom — each with its honesty label showing and its official source linked." },
+    { view: "songs", title: "Songs, Anthem & Pledge + Flags", blurb: "The songs you'll stand for: all six service songs in full as the services publish them — the Army Song adoption conflict (1952 vs 1956) printed as a conflict, “Anchors Aweigh” carrying the Navy's own UNOFFICIAL label, the Air Force Song in its current 2020 text — plus the Star-Spangled Banner's first verse, the § 301(b) etiquette, the Pledge verbatim, the 17 allies' anthems opening in their native languages with an English side only where the government publishes one, and 24 flags with official descriptions and symbolism only where a government officially states it." },
     { view: "mailcall", title: "Mail Call", blurb: "Mailing to someone deployed, from official sources only: APO/FPO/DPO addressing exactly as USPS prints it — domestic prices, a specific named person, and never the foreign city or country — plus the free USPS Military Care Kit, the 2026 holiday send-by dates (Nov 4 Ground Advantage, Dec 9 First-Class/Priority, Dec 16 express — 2026 dates, republished every fall), the prohibited list and the lithium rule, what to send and what not to send, and the verified USO and Red Cross routes for reaching troops you don't know." },
-    { view: "combat", title: "Close Combat", blurb: "The MCMAP catalog belt by belt — every named technique, its category, and what it's for — plus Army Combatives levels and the other branches' programs. Curriculum structure only: train on the mat, under a certified instructor." },
+    { view: "combat", title: "Hand-to-Hand Programs", blurb: "The MCMAP catalog belt by belt — every named technique, its category, and what it's for — plus Army Combatives levels and the other branches' programs. Curriculum structure only: train on the mat, under a certified instructor." },
     { view: "fieldcraft", title: "Fieldcraft", blurb: "Ruck packing list with live pack weight, a ruck planner, and short field guides." },
     { view: "news", title: "News", blurb: "Verified sources only — official and independent, badged, with your branch's official messages pinned." },
     { view: "fitness", title: "Fitness Coach", blurb: "Train for your branch's test — or pick Other and build your dream body." },
     { view: "checkin", title: "Check-In", blurb: "Daily status for you and your squad. 988 pinned. No strangers, no feed, no location." },
+    { view: "reserve", title: "Guard & Reserve", blurb: "The reserve-component rules: drill pay at 1/30th per period with DFAS's 2026 examples flagged, TRICARE Reserve Select premiums, the points system (130 inactive-point cap, 50-point good year, ÷360 math), DD Form 214-1 as the DD214's supplement, §12304a vs. §12304b mobilization, and the IDT travel cap conflict printed as a conflict." },
+    { view: "rights", title: "Know Your Rights", blurb: "SCRA's 6% cap (interest forgiven, not deferred — and the 180-day written notice), USERRA's return deadlines and the ESGR → DOL VETS → DOJ/OSC ladder, and the MLA's 36% MAPR — from DOJ, DOL, and the CFPB themselves. No sample letters; drafting is legal assistance's job." },
+    { view: "les", title: "Your Pay Stub, Explained", blurb: "Tap any field on the statement and see what it means: all 78 numbered fields, the four current W-4 fields, and every entitlement, deduction, and allotment line code — from DFAS's May 2026 guide, with SGLI at $0.05/$1,000 and no remarks-code table anywhere, because DFAS doesn't publish one." },
+    { view: "homeloan", title: "VA Home Loan Center", blurb: "COE first, then the math: basic entitlement, second-tier entitlement with the worked example recomputed on the FHFA 2026 baseline ($432,750 max no-down on $100k used), and the funding-fee chart exactly as VA publishes it — 2.15%/3.30% under 5% down, IRRRL 0.50%, five exemption categories verbatim. No lenders, no rates." },
+    { view: "ribbons", title: "Awards & Ribbon Rack", blurb: "Build your rack in your branch's official precedence order — labeled color-block renditions, three across — and look any award up in the finder: 52 confirmed entries from TIOH and the manuals, the rest index-only and stamped as such. Wear only what you've earned." },
+    { view: "deployment", title: "Family Care Plan & Deployment Readiness", blurb: "Who must have a Family Care Plan under DoDI 1342.19 and your service's own regulation — including the Coast Guard's printed negative finding — what the plan can and cannot do legally, and the 32-item pre-deployment checklist you can check off and save." },
+    { view: "clearance", title: "Security Clearances", blurb: "DCSA's own rules: the levels and investigations, the end-to-end process, the 13 SEAD 4 guidelines by name, and the self-reporting duty — all foreign travel (Canada/Mexico day trips included), deviations in 5 business days, and the TS-tier thresholds. No processing-time figures anywhere, because DCSA publishes none." },
+    { view: "kids", title: "Kids & Schools", blurb: "School Liaisons, the Interstate Compact provision by provision from mic3.net, IEP & 504 continuity, the PCS paper drill, DoDEA / NDSP / DVHS, Impact Aid, homeschooling, and youth programs — the families' section, open to spouses too." },
+    { view: "travelhq", title: "Travel, Space-A & Lodging", blurb: "Space-A categories per DoDI 4515.13 Table 3 with the signup flux printed as flux, Patriot Express, DoD lodging and the AFRC resorts, booking channels, and airport benefits. No prices anywhere in the section." },
+    { view: "taxes", title: "Tax & Residency", blurb: "MilTax free filing, the full IRS combat-zone formula, domicile and the SCRA, and the MSRRA three-way election from the enrolled text — member's residence, spouse's residence, or duty station, for taxation." },
+    { view: "voting", title: "Voting Center", blurb: "FVAP's process: the FPCA every January and every move (90+ days out, attaching the 45-day MOVE Act protection), the FWAB backup at 30 days, and every state deadline routed to FVAP's own tool. Strictly nonpartisan." },
+    { view: "healthhq", title: "Health Care & TRICARE", blurb: "The pure router: milConnect for enrollment/DEERS, GENESIS for records and appointments, your contractor portal (East Humana, West TriWest, Overseas International SOS, TFL WPS) for claims, Express Scripts for pharmacy, and the Nurse Advice Line at 1-800-TRICARE, option 1." },
+    { view: "specops", title: "Special Forces & Elite Units", blurb: "The elite forces, branch tile by branch tile, exactly as the official recruiting and command pages publish them: what each unit is, who can apply, the qualifications (conflicts printed as flags — the 37F GT 107-vs-105, the MARSOC PFT 235-vs-225, the SEAL page's own two age lines), and each pipeline's structure by official phase names — RASP, BUD/S, the Marine Raider Course, the ten-step PJ and CCT pipelines, the 22-week AST A School. Delta is existence-only because the Army publishes nothing more; the Space Force card says plainly that no SOF exists; and the only attrition figure in the section is the Coast Guard's own ~73% for AST, attributed." },
+    { view: "alliedsf", title: "Allied Special Forces", blurb: "The allies' special forces, country tile by country tile in Partner Forces order, exactly as each country's own official pages publish them: what each unit is, who can apply, the standards only where published (KSK's two tables, FSK vs MJK kept separate, PFSE 1/2/3, the SF entry PFA, the full UDT/SEAL tables with F-14/F-15 flagged unresolved), and each pipeline by named phases. Deliberate silences print as findings; Poland's GROM and AGAT ship verified from the official pages (the rest flagged), and Türkiye's ÖKK route ships as published in regulation, with its direct-entry correction printed." },
+    { view: "quals", title: "Qualifications, Schools & Certifications", blurb: "The quals you keep current and the schools you volunteer for: USMC swim's five current levels (MCO 1500.52E) with the cancelled system as history and MCIWS at MOS 0918, the weapons tables per service with no score bands duplicated, the helo dunker / UET device family disambiguated, CBRN/driver/OIC-RSO/language currency quals, then Airborne, Pathfinder (GT ≥110), dive, SERE, mountain, sniper, instructor and maritime schools — qualifications and how to earn each one, flags printed, gated standards NOT PUBLICLY PUBLISHED, and the NOT CONFIRMED register of 45 rumored items." },
+    { view: "components", title: "Switching Components", blurb: "Active ⇄ Reserve, both directions: the landscape (AGR/TAR/AR are full-time Reserve-component statuses — affiliation follows component, not duty status), each branch's route (RCCC, DAP, AC2SELRES/AC2TAR, Palace Front vs Palace Chase with the obligation extended — never reduced — and no conversion multiple printed, the Space Force no-reserve-component finding, R2R; then CAD, AGR, the AR Program, RC2AC/RC2TAR, VLPAD/CIP, EAD → integration), what carries over, and the 10-item Before You Sign checklist in full. No quotas, windows, or bonus figures — those live at the official sources linked on every card." },
+    { view: "reenlist", title: "Reenlistment & IRR", blurb: "Signing again, branch by branch — the ROW, boatspaces and the SRB no-retroactivity warning, the C-WAY gate, CJR windows, the CO's recommendation — with SRB printed as structure only (no current bonus amounts; flagged standing constants only), RE codes, and the checkable 8-item Before You Sign checklist. Then the IRR: the 8-year MSO, your five obligations, muster and screening, the three recall authorities, and the doors back to drilling or active duty." },
+    { view: "commissioning", title: "Commissioning from the Ranks", blurb: "Every published route from enlisted to a commission or a warrant: OCS and Green to Gold, ECP / MECEP / MCP-R / RECP, STA-21 (verified active), the Air Force's OTS family and its brand-new warrant program (void date printed), Navy LDO / CWO, Coast Guard CWO with figures routed to the PSC guide, the Flying CWO boxed closed — and Officer → Enlisted, where the honest finding is zero dedicated programs. Degree each route builds in or requires, sources and ⚠ flags on every card." },
+    { view: "cool", title: "Credentials for Your Job", blurb: "Civilian credentials from military training, service by service: Army CA at $2,000/FY (ALARACT 102/2025; the old $4,000 flagged), Navy's finite pool with no per-Sailor cap, USMC exam vouchers, AF COOL's $4,500 lifetime cap, the CG reimbursement route with its limit conflict printed as a conflict — plus JST, DANTES, USMAP, the VA test route, and the certificate-mills checks. Mapping tools route to the COOL homepages — search on their site." },
+    { view: "assignments", title: "How Assignments Work", blurb: "The systems, cycles, and humans behind your orders: IPPS-A Marketplace (transition flagged), Navy MNA's 7 applications per cycle, MMEA-1/MMEA-2, Developmental Duty, CG detail behind CAC — plus co-location's five programs under five names and the detailer-etiquette verdicts. No live dates, no billets, no tour tables." },
+    { view: "evals", title: "Evaluations & Board File", blurb: "Forms, chains, and distribution mechanics per service; your three fights (correction, appeal, statement) kept separate; the board file per branch; and the honest precept map — USMC, Navy, and CG publish theirs, Army and the Air Force do not. No “EREC” exists; the OER support form is DA 67-10-1A." },
+    { view: "fedjobs", title: "Veterans' Preference & Federal Jobs", blurb: "OPM's system in OPM's terms: the five codes in full, the mirrored checklist (never a verdict), Rule of Many current, military leave at 20 days, RIF in both regimes across the Sept. 2, 2026 switch, and the authorities as OPM names them. Claimed with documents, adjudicated by the agency." },
+    { view: "tsp", title: "TSP Center", blurb: "The plan as the FRTIB publishes it: five funds (I Fund benchmark printed exactly), 2026 limits year-labeled, the BRS match as DoD publishes it, Roth conversions as a taxable event, the loan waiting period flagged unverified — and the guardrails card: no projections, no recommendations, no personal numbers." },
+    { view: "channels", title: "Official Channels", blurb: "When something's wrong: the Inspector General, § 1034 protected communication (one-year reprisal window), EO/MEO (definitions verbatim), civilian EEO kept separate (45-day clock), SAPR/SHARP with the Safe Helpline at 877-995-5247, and congressional inquiries with Congress's own expectation-setting." },
+    { view: "relief", title: "Relief Societies", blurb: "Emergency help from your own service's relief society — AER, NMCRS, AFAS, CGMA: who they help, what they fund, the published caps, and the after-hours routes, flags printed where sources conflict." },
+    { view: "paycharts", title: "Pay Charts & Rates", blurb: "The full 2026 DFAS monthly basic pay tables — Enlisted, Warrant, Officer, O-1E/O-2E/O-3E, all 22 years-of-service columns — plus the five DTMO allowance calculators (no allowance rates printed anywhere)." },
+    { view: "chaplains", title: "Chaplains & Religious Life", blurb: "MRE 503 confidentiality verbatim, how to reach a chaplain (duty chaplain, NAVY311 ChaplainCare 1-855-NAVY-311), religious accommodation under DoDI 1300.17, and faith resources — with the missing Army/DAF hotline printed as a finding." },
+    { view: "honors", title: "Honors & Burial", blurb: "VA burial benefits, the dated allowance table, headstones and flags, pre-need determination, funeral honors through the funeral director, and Arlington per 32 CFR Part 553 — factual and quiet." },
+    { view: "oconus", title: "OCONUS Family Papers", blurb: "No-fee passports, SOFA by theater (Germany's both-is-illegal rule, Korea's denied-boarding rule, Japan's two stamps), command sponsorship, and the source-traced checklist for an accompanied overseas tour." },
   ];
+
+  // First Year Out Home card — shown for profiles within the path's
+  // window per the profile's own EAS date: from 24 months before
+  // separation through 12 months after it. With no EAS date on the
+  // profile the window cannot be ruled out, so the card shows (the
+  // Deadlines view is where the date is set).
+  const fyDays = daysUntilEas(profile.easDate);
+  if (fyDays === null || (fyDays <= 730 && fyDays >= -365)) {
+    const tIdx = cards.findIndex((c) => c.view === "transition");
+    cards.splice(tIdx + 1, 0, {
+      view: "firstyear",
+      title: "First Year Out",
+      blurb: "Getting out — or just out? The guided path across the transition: 31 checkable tasks from 12 months before separation to 12 months after, 15 of them deadline-bearing (TAP by 365 days out, Capstone by 90, BDD at 90–180, VGLI at 240), every deadline as published and the retiree final-move conflict printed both ways.",
+    });
+  }
 
   // Personalized order: sections the member's profile promotes come
   // first, in relevance order; everything else keeps its default
@@ -1811,17 +5603,50 @@ function HomeView({
     <div>
       <header className="mb-4 flex items-center gap-3">
         <img src={battleBookIcon} alt="" className="h-11 w-11 shrink-0 rounded-[var(--radius)]" />
-        <div>
+        <div className="flex-1">
           <p className="font-display text-2xl font-bold leading-tight text-[var(--text)]">Battle Book</p>
           <p className="text-sm font-semibold text-[var(--dim)]">Military Life</p>
         </div>
+        <button
+          type="button"
+          aria-label={unreadAlerts > 0 ? `Open Alerts — ${unreadAlerts} unread` : "Open Alerts"}
+          onClick={() => go("alerts")}
+          className="relative rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3 text-[var(--text)]"
+        >
+          <NavIcon name="bell" size={24} />
+          {unreadAlerts > 0 ? (
+            <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--red)] px-1 text-xs font-bold text-white">
+              {unreadAlerts}
+            </span>
+          ) : null}
+        </button>
       </header>
       <div className="mb-4">
         <GlobalSearch id="global-search-home" onNavigate={onSearchHit} />
       </div>
+      <button
+        type="button"
+        aria-label="Chat with Battle Buddy"
+        onClick={() => go("buddy")}
+        className="mb-4 flex w-full items-center gap-3 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4 text-left"
+      >
+        <span className="shrink-0 text-[var(--accent-word)]">
+          <NavIcon name="chat" size={30} />
+        </span>
+        <span>
+          <span className="font-display block text-lg font-bold leading-tight text-[var(--text)]">Battle Buddy</span>
+          <span className="mt-0.5 block text-sm leading-snug text-[var(--dim)]">
+            Ask anything — answers come from Battle Book&apos;s own sections, with a link to where it found them.
+            Or just talk; no task required.
+          </span>
+        </span>
+      </button>
+      <WhatChangedCard profile={profile} go={go} />
       <section aria-label="Your profile" className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+        <MastheadBand />
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <MastheadEmblem branch={profile.branch} />
+          <div className="min-w-52 flex-1">
             <p className="font-display text-sm font-bold tracking-widest text-[var(--dim)]">
               {profile.branch.toUpperCase()} · {profile.component.toUpperCase()}
             </p>
@@ -1841,6 +5666,10 @@ function HomeView({
             <button type="button" aria-label="Switch profile" onClick={onSwitchProfile} className={btnGhost}>
               Switch profile
             </button>
+            <button type="button" aria-label="Send Feedback" onClick={() => go("feedback")} className={btnGhost}>
+              Send Feedback
+            </button>
+            <ScopeResetButton />
           </div>
         </div>
         <p className="mt-2 text-sm text-[var(--dim)]">
@@ -1861,6 +5690,143 @@ function HomeView({
         ) : null}
       </section>
 
+      {/* For You row (ux-reorg.md §B.3): five compact doors driven by
+          the profile itself — your job, your next deadline, your
+          installation, your squad's check-in, your Binder. */}
+      <section aria-label="For you">
+        <h2 className="font-display mb-3 text-xl font-bold text-[var(--text)]">For you</h2>
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          <button
+            type="button"
+            aria-label="For you: your job"
+            onClick={() => (myMos ? openMos(myMos.id) : go("mos"))}
+            className="min-w-40 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="block text-xs font-bold tracking-widest text-[var(--dim)]">YOUR JOB</span>
+            <span className="font-display mt-1 block text-base font-bold leading-tight text-[var(--text)]">
+              {myMos ? `${myMos.code} — ${myMos.title}` : "Set your job"}
+            </span>
+            <span className="mt-0.5 block text-sm text-[var(--dim)]">{myMos ? myMos.branch : "Add your job code to your profile"}</span>
+          </button>
+          <button
+            type="button"
+            aria-label="For you: your next deadline"
+            onClick={() => go("deadlines")}
+            className="min-w-40 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="block text-xs font-bold tracking-widest text-[var(--dim)]">NEXT DEADLINE</span>
+            <span className="font-display mt-1 block text-base font-bold leading-tight text-[var(--text)]">
+              {nextDeadlineCard ? nextDeadlineCard.title : "Set your dates"}
+            </span>
+            <span className="mt-0.5 block text-sm text-[var(--dim)]">
+              {nextDeadlineCard ? nextDeadlineCard.state : "TAP, BDD, ID card — from your own dates"}
+            </span>
+          </button>
+          {profile.partnerBranch && profile.partnerBranch !== profile.branch ? (
+            <button
+              type="button"
+              aria-label="For you: your partner's branch"
+              onClick={() => go("benefits")}
+              className="min-w-40 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+            >
+              <span className="block text-xs font-bold tracking-widest text-[var(--dim)]">YOUR PARTNER</span>
+              <span className="font-display mt-1 block text-base font-bold leading-tight text-[var(--text)]">
+                {branchShort(profile.partnerBranch)} — your household
+              </span>
+              <span className="mt-0.5 block text-sm text-[var(--dim)]">
+                {profile.branch} + {profile.partnerBranch} — Benefits shows both branches
+              </span>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            aria-label="For you: my installation"
+            onClick={() => go("installation")}
+            className="min-w-40 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="block text-xs font-bold tracking-widest text-[var(--dim)]">MY INSTALLATION</span>
+            <span className="font-display mt-1 block text-base font-bold leading-tight text-[var(--text)]">
+              {profile.installationName || "Set your installation"}
+            </span>
+            <span className="mt-0.5 block text-sm text-[var(--dim)]">Its on-base guide, food, and services</span>
+          </button>
+          <button
+            type="button"
+            aria-label="For you: my squad"
+            onClick={() => go("checkin")}
+            className="min-w-40 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="block text-xs font-bold tracking-widest text-[var(--dim)]">MY SQUAD</span>
+            <span className="font-display mt-1 block text-base font-bold leading-tight text-[var(--text)]">
+              {today ? `Checked in: ${STATUS_LABEL[today.status]}` : "Check in today"}
+            </span>
+            <span className="mt-0.5 block text-sm text-[var(--dim)]">Your daily check-in and your squad</span>
+          </button>
+          <button
+            type="button"
+            aria-label="For you: my Binder"
+            onClick={() => go("binder")}
+            className="min-w-40 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="block text-xs font-bold tracking-widest text-[var(--dim)]">MY BINDER</span>
+            <span className="font-display mt-1 block text-base font-bold leading-tight text-[var(--text)]">
+              {binderForYou.items.length > 0 ? `${binderForYou.items.length} saved card${binderForYou.items.length === 1 ? "" : "s"}` : "Nothing saved yet"}
+            </span>
+            <span className="mt-0.5 block text-sm text-[var(--dim)]">Everything you've saved, in one place</span>
+          </button>
+        </div>
+      </section>
+
+      {/* In the field (Nov 10, 2026): Field Tools and Fieldcraft
+          surfaced on Home at Christian's call — both were previously
+          reachable only through More / search. Member shell only:
+          neither view is in the spouse or future whitelists, matching
+          those sections' existing track posture. */}
+      <section aria-label="In the field" className="mt-5">
+        <h2 className="font-display mb-3 text-xl font-bold text-[var(--text)]">In the field</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            aria-label="Open Field Tools"
+            onClick={() => go("fieldtools")}
+            className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5 text-left"
+          >
+            <span className="flex items-center gap-3">
+              <span className="shrink-0 text-[var(--accent-word)]">
+                <NavIcon name="compass" size={30} />
+              </span>
+              <span className="font-display block text-xl font-bold leading-tight text-[var(--text)]">Field Tools</span>
+            </span>
+            <span className="mt-2 block text-sm leading-snug text-[var(--dim)]">
+              The on-device field kit — compass, pace counter, MGRS and Zulu tools — plus Land Navigation,
+              First Aid &amp; Buddy Aid, the 59-knot library, all 185 Hand &amp; Arm Signals, and the printable
+              pocket deck.
+            </span>
+            <span className="mt-2 block text-sm font-bold text-[var(--accent-word)]">Open Field Tools →</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Open Fieldcraft"
+            onClick={() => go("fieldcraft")}
+            className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5 text-left"
+          >
+            <span className="flex items-center gap-3">
+              <span className="shrink-0 text-[var(--accent-word)]">
+                <NavIcon name="tent" size={30} />
+              </span>
+              <span className="font-display block text-xl font-bold leading-tight text-[var(--text)]">Fieldcraft</span>
+            </span>
+            <span className="mt-2 block text-sm leading-snug text-[var(--dim)]">
+              Pack it, weigh it, plan the movement: the ruck packing checklist with live pack weight, the ruck
+              planner, the short field guides, and your Kill Card and Range Card.
+            </span>
+            <span className="mt-2 block text-sm font-bold text-[var(--accent-word)]">Open Fieldcraft →</span>
+          </button>
+        </div>
+      </section>
+
+      <ThemePanel profile={profile} />
+
       {myMos ? (
         <button
           type="button"
@@ -1880,8 +5846,21 @@ function HomeView({
           <span className="mt-1 block text-sm text-[var(--dim)]">
             {myMos.summary.length > 220 ? `${myMos.summary.slice(0, 220)}…` : myMos.summary}
           </span>
-          <span className="mt-2 block text-sm font-bold text-[var(--accent)]">Open in the Library →</span>
+          <JobLayerBlock branch={profile.branch} mosCode={profile.mosCode} mosField={myMos.field} />
+          <span className="mt-2 block text-sm font-bold text-[var(--accent-word)]">Open in the Library →</span>
         </button>
+      ) : profile.mosCode ? (
+        <section aria-label="Your job" className="mt-4 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+          <span className="flex flex-wrap items-center gap-2">
+            <Badge tone="official">YOUR JOB</Badge>
+            <span className="text-sm font-semibold text-[var(--dim)]">{profile.branch}</span>
+          </span>
+          <h2 className="font-display mt-2 text-2xl font-bold text-[var(--text)]">{profile.mosCode}</h2>
+          <p className="mt-1 text-sm text-[var(--dim)]">
+            Your job code as text — this code isn't matched to a Library entry, so no title is attached to it.
+          </p>
+          <JobLayerBlock branch={profile.branch} mosCode={profile.mosCode} mosField={null} />
+        </section>
       ) : null}
 
       {homeName ? (
@@ -1900,7 +5879,7 @@ function HomeView({
             Your home state's veterans agency and its headline benefits — property-tax exemptions, tuition
             waivers, state veterans homes.
           </span>
-          <span className="mt-2 block text-sm font-bold text-[var(--accent)]">Open your state card →</span>
+          <span className="mt-2 block text-sm font-bold text-[var(--accent-word)]">Open your state card →</span>
         </button>
       ) : null}
 
@@ -1941,7 +5920,7 @@ function HomeView({
             <button
               type="button"
               aria-label="Open BDD in Claims"
-              onClick={() => goTo("claims", "Before You Get Out: BDD & the Under-90-Day Path")}
+              onClick={() => goTo("claims", "Claim Before You Get Out — BDD")}
               className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--text)]"
             >
               Claims &amp; BDD
@@ -2004,11 +5983,15 @@ function HomeView({
 
       <HomeBinderButton go={go} />
 
+      <HomeEmergencyCard go={go} />
+
       <HomeTimelineCard go={go} />
 
       <HomeWallCard go={go} />
 
       <HomeMentorCard go={go} />
+
+      <HomePeopleCard go={go} />
 
       <HomeThisDayCard go={go} openAppLink={openThisDayLink} />
 
@@ -2049,6 +6032,38 @@ function HomeView({
   );
 }
 
+/** Home entry point to My Emergency Card — the member's own private
+ * quick card. Shows whether a card exists yet; the card itself is
+ * owner-only, resolved server-side from the signed-in profile. */
+function HomeEmergencyCard({ go }: { go: (v: View) => void }) {
+  const cardQ = useQuery({ queryKey: ["emergencyCard"], queryFn: () => api.getEmergencyCard({}) });
+  const card = cardQ.data;
+  const contactCount = card?.contacts.filter((c) => c.name || c.phone).length ?? 0;
+  return (
+    <button
+      type="button"
+      aria-label="Open My Emergency Card"
+      onClick={() => go("emergency")}
+      className="mt-3 block w-full rounded-[var(--radius)] border-2 border-[var(--red)] bg-[var(--surface)] p-5 text-left"
+    >
+      <span className="flex flex-wrap items-center gap-2">
+        <Badge tone="red">PRIVATE — ONLY YOU</Badge>
+        <span className="text-sm font-semibold text-[var(--dim)]">My Emergency Card</span>
+      </span>
+      <span className="font-display mt-2 block text-xl font-bold text-[var(--text)]">
+        {contactCount > 0
+          ? `${contactCount} emergency contact${contactCount === 1 ? "" : "s"} on your card`
+          : "Set up your emergency card"}
+      </span>
+      <span className="mt-1 block text-sm text-[var(--dim)]">
+        Your emergency contacts with one-tap call buttons, your unit, blood type, allergies, and medications —
+        filled in by you, visible only to you. In a real emergency call 911 first.
+      </span>
+      <span className="mt-2 block text-sm font-bold text-[var(--accent-word)]">Open your card →</span>
+    </button>
+  );
+}
+
 /** Home entry point to My Binder, with the live saved-card count. */
 function HomeBinderButton({ go }: { go: (v: View) => void }) {
   const binder = useBinder();
@@ -2063,8 +6078,8 @@ function HomeBinderButton({ go }: { go: (v: View) => void }) {
       <span className="font-display block text-xl font-bold text-[var(--text)]">My Binder</span>
       <span className="mt-1 block text-sm text-[var(--dim)]">
         {count > 0
-          ? `${count} saved card${count === 1 ? "" : "s"} — the references you've starred across the app, grouped by section, all in one place.`
-          : "Star any reference card — the BDD card, your state's benefits, a pay table — and it collects here, grouped by section, all in one place."}
+          ? `${count} saved card${count === 1 ? "" : "s"} — the references you've saved across the app, grouped by section, all in one place.`
+          : "Tap Save to Binder on any reference card — the BDD card, your state's benefits, a pay table — and it collects here, grouped by section, all in one place."}
       </span>
     </button>
   );
@@ -2180,6 +6195,49 @@ function HomeMentorCard({ go }: { go: (v: View) => void }) {
   );
 }
 
+/**
+ * Home entry point to Find Your People. When connection requests are
+ * waiting on the member, the card leads with that count; otherwise it
+ * carries the plain invitation.
+ */
+function HomePeopleCard({ go }: { go: (v: View) => void }) {
+  const requestsQ = useQuery({
+    queryKey: ["peopleRequests"],
+    queryFn: () => api.listPeopleRequests({}),
+  });
+  const requests = requestsQ.data?.requests ?? [];
+  const waiting = requests.filter((r) => r.status === "pending" && !r.mine).length;
+  const connected = requests.filter((r) => r.status === "accepted").length;
+  return (
+    <button
+      type="button"
+      aria-label="Open Find Your People"
+      onClick={() => go("people")}
+      className="mt-3 block w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5 text-left"
+    >
+      <span className="font-display block text-xl font-bold text-[var(--text)]">Find Your People</span>
+      {waiting > 0 ? (
+        <span className="mt-1 block text-sm text-[var(--text)]">
+          <span className="font-bold">
+            {waiting} connection request{waiting === 1 ? "" : "s"} waiting
+          </span>{" "}
+          — someone who&apos;s been there wants to connect. Open the directory to read and answer them.
+        </span>
+      ) : connected > 0 ? (
+        <span className="mt-1 block text-sm text-[var(--dim)]">
+          You have {connected} active connection{connected === 1 ? "" : "s"} — private pairs in Check-In, all
+          contact inside the app.
+        </span>
+      ) : (
+        <span className="mt-1 block text-sm text-[var(--dim)]">
+          Past and current service members up for mentorship, workouts and rucks, hunting and fishing, work talk,
+          or just someone to talk to — opt in with a reviewed listing, connect by mutual accept.
+        </span>
+      )}
+    </button>
+  );
+}
+
 /* --------------------- This Day in Military History --------------------- */
 
 /** Stable DOM id for one calendar entry card in the full view. */
@@ -2217,7 +6275,7 @@ function ThisDayEntryCard({
       }`}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-bold text-[var(--accent)]">{dateLine}</span>
+        <span className="text-sm font-bold text-[var(--accent-word)]">{dateLine}</span>
         <span className="text-sm text-[var(--dim)]">{entry.yearLabel ?? entry.year}</span>
         {onThisDay ? <Badge tone="official">TODAY</Badge> : null}
       </div>
@@ -2233,7 +6291,7 @@ function ThisDayEntryCard({
           target="_blank"
           rel="noreferrer"
           aria-label={`Source for ${entry.title}: ${entry.source}`}
-          className="font-semibold text-[var(--accent)] underline"
+          className="font-semibold text-[var(--accent-word)] underline"
         >
           Source: {entry.source}
         </a>
@@ -2245,7 +6303,7 @@ function ThisDayEntryCard({
               target="_blank"
               rel="noreferrer"
               aria-label={`Second source for ${entry.title}: ${entry.sourceUrl2.label}`}
-              className="font-semibold text-[var(--accent)] underline"
+              className="font-semibold text-[var(--accent-word)] underline"
             >
               {entry.sourceUrl2.label}
             </a>
@@ -2258,7 +6316,7 @@ function ThisDayEntryCard({
           type="button"
           aria-label={`See also in Battle Book: ${entry.appLink.label} (from ${entry.title})`}
           onClick={() => openAppLink(entry.appLink!)}
-          className="mt-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent)]"
+          className="mt-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent-word)]"
         >
           See also in Battle Book: {entry.appLink.label} →
         </button>
@@ -2295,7 +6353,7 @@ function BranchRoutesList() {
                   target="_blank"
                   rel="noreferrer"
                   aria-label={`${l.label} (official history entry point)`}
-                  className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+                  className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
                 >
                   {l.label}
                 </a>
@@ -2378,7 +6436,7 @@ function HomeThisDayCard({
         type="button"
         aria-label="Open the full This Day in Military History calendar"
         onClick={() => go("thisday")}
-        className="mt-4 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base font-bold text-[var(--accent)]"
+        className="mt-4 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base font-bold text-[var(--accent-word)]"
       >
         Browse the full calendar — all {THIS_DAY_ENTRIES.length} entries →
       </button>
@@ -2618,7 +6676,7 @@ function ContributionForm({
         </div>
       </div>
       {submit.isSuccess ? (
-        <p className="text-sm font-semibold text-[var(--accent)]">Submitted. It's in the Review Queue as PENDING — not public until a reviewer approves it.</p>
+        <p className="text-sm font-semibold text-[var(--accent-word)]">Submitted. It's in the Review Queue as PENDING — not public until a reviewer approves it.</p>
       ) : null}
       {submit.isError ? <p className="text-sm text-[var(--red)]">Could not submit. Check the fields and try again.</p> : null}
       <div className="flex gap-2">
@@ -2651,7 +6709,7 @@ function FieldNotes({ targetId }: { targetId: string }) {
           </div>
           <p className="mt-1 text-sm text-[var(--text)]">{n.body}</p>
           {n.sourceUrl ? (
-            <a href={n.sourceUrl} target="_blank" rel="noreferrer" aria-label={`Source for ${n.title}`} className="mt-1 inline-block text-sm font-semibold text-[var(--accent)] underline">
+            <a href={n.sourceUrl} target="_blank" rel="noreferrer" aria-label={`Source for ${n.title}`} className="mt-1 inline-block text-sm font-semibold text-[var(--accent-word)] underline">
               Source
             </a>
           ) : null}
@@ -2765,7 +6823,35 @@ function DeckTopicSearch() {
   );
 }
 
-function MosDetail({ entry, onBack, onOpen }: { entry: MosEntry; onBack: () => void; onOpen: (e: MosEntry) => void }) {
+/**
+ * The public layer of a Library entry — the ONLY shape a future-member
+ * profile is ever served. The deep layer (duties detail, requirements,
+ * day-in-the-life, career path, extra sections, source decks, the deck
+ * topic index, the per-entry sources list, cross-links) is dropped
+ * here, at the data boundary, before the detail view ever sees the
+ * entry — not merely hidden in the render.
+ */
+function toPublicEntry(e: MosEntry): MosEntry {
+  return {
+    id: e.id,
+    code: e.code,
+    title: e.title,
+    branch: e.branch,
+    field: e.field,
+    level: e.level,
+    summary: e.summary,
+    duties: [],
+    school: e.school,
+    requirements: "",
+    civilian: "",
+    similar: [],
+    sourceName: e.sourceName,
+    sourceUrl: e.sourceUrl,
+    sourceOfficial: e.sourceOfficial,
+  };
+}
+
+function MosDetail({ entry, onBack, onOpen, publicOnly }: { entry: MosEntry; onBack: () => void; onOpen: (e: MosEntry) => void; publicOnly?: boolean }) {
   return (
     <div>
       <button type="button" aria-label="Back to MOS search results" onClick={onBack} className={`${btnGhost} mb-3`}>
@@ -2774,7 +6860,7 @@ function MosDetail({ entry, onBack, onOpen }: { entry: MosEntry; onBack: () => v
       <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={entry.sourceOfficial ? "official" : "plain"}>{entry.sourceOfficial ? "OFFICIAL SOURCE" : "PUBLIC SOURCE"}</Badge>
-          <Badge>{entry.level === "full" ? "FULL ENTRY" : "INDEX ENTRY"}</Badge>
+          {publicOnly ? <Badge tone="amber">PUBLIC LAYER</Badge> : <Badge>{entry.level === "full" ? "FULL ENTRY" : "INDEX ENTRY"}</Badge>}
           <Badge>{entry.branch}</Badge>
         </div>
         <h2 className="font-display mt-2 text-3xl font-bold text-[var(--text)]">{entry.code} — {entry.title}</h2>
@@ -2794,8 +6880,21 @@ function MosDetail({ entry, onBack, onOpen }: { entry: MosEntry; onBack: () => v
 
         <h3 className="font-display mt-5 text-lg font-bold text-[var(--text)]">School / training</h3>
         <p className="mt-1 text-base text-[var(--text)]">{entry.school}</p>
-        <h3 className="font-display mt-5 text-lg font-bold text-[var(--text)]">Requirements</h3>
-        <p className="mt-1 text-base text-[var(--text)]">{entry.requirements}</p>
+        {publicOnly ? (
+          <div className="mt-5 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+            <p className="font-display text-base font-bold text-[var(--text)]">Members only — the full job knowledge</p>
+            <p className="mt-1 text-sm text-[var(--text)]">
+              Full job knowledge unlocks once you&apos;re serving — members only. The day-to-day detail, what new
+              members should know, and this job&apos;s source material live on the member side of the app.
+            </p>
+          </div>
+        ) : null}
+        {!publicOnly ? (
+          <>
+            <h3 className="font-display mt-5 text-lg font-bold text-[var(--text)]">Requirements</h3>
+            <p className="mt-1 text-base text-[var(--text)]">{entry.requirements}</p>
+          </>
+        ) : null}
         {entry.dayInLife ? (
           <>
             <h3 className="font-display mt-5 text-lg font-bold text-[var(--text)]">Day in the life</h3>
@@ -2821,8 +6920,12 @@ function MosDetail({ entry, onBack, onOpen }: { entry: MosEntry; onBack: () => v
             ) : null}
           </div>
         ))}
-        <h3 className="font-display mt-5 text-lg font-bold text-[var(--text)]">Civilian transferable skills</h3>
-        <p className="mt-1 text-base text-[var(--text)]">{entry.civilian}</p>
+        {!publicOnly ? (
+          <>
+            <h3 className="font-display mt-5 text-lg font-bold text-[var(--text)]">Civilian transferable skills</h3>
+            <p className="mt-1 text-base text-[var(--text)]">{entry.civilian}</p>
+          </>
+        ) : null}
 
         {entry.sourceDecks && entry.sourceDecks.length > 0 ? (
           <>
@@ -2836,7 +6939,7 @@ function MosDetail({ entry, onBack, onOpen }: { entry: MosEntry; onBack: () => v
                     target="_blank"
                     rel="noreferrer"
                     aria-label={`Open deck ${i + 1}: ${d.title} in Google Slides`}
-                    className="font-semibold text-[var(--accent)] underline"
+                    className="font-semibold text-[var(--accent-word)] underline"
                   >
                     {i + 1}. {d.title}
                   </a>
@@ -2849,7 +6952,7 @@ function MosDetail({ entry, onBack, onOpen }: { entry: MosEntry; onBack: () => v
           </>
         ) : null}
 
-        {entry.id === "usmc-1371" ? <DeckTopicSearch /> : null}
+        {entry.id === "usmc-1371" && !publicOnly ? <DeckTopicSearch /> : null}
 
         {entry.sourceLinks && entry.sourceLinks.length > 0 ? (
           <>
@@ -2862,7 +6965,7 @@ function MosDetail({ entry, onBack, onOpen }: { entry: MosEntry; onBack: () => v
                     target="_blank"
                     rel="noreferrer"
                     aria-label={`Open source: ${s.label} for ${entry.code} ${entry.title}`}
-                    className="text-base font-semibold text-[var(--accent)] underline"
+                    className="text-base font-semibold text-[var(--accent-word)] underline"
                   >
                     {s.label}
                   </a>
@@ -2891,7 +6994,7 @@ function MosDetail({ entry, onBack, onOpen }: { entry: MosEntry; onBack: () => v
 
         <p className="mt-5 border-t border-[var(--border)] pt-3 text-sm text-[var(--dim)]">
           Source:{" "}
-          <a href={entry.sourceUrl} target="_blank" rel="noreferrer" aria-label={`Open source for ${entry.code} ${entry.title}`} className="font-semibold text-[var(--accent)] underline">
+          <a href={entry.sourceUrl} target="_blank" rel="noreferrer" aria-label={`Open source for ${entry.code} ${entry.title}`} className="font-semibold text-[var(--accent-word)] underline">
             {entry.sourceName}
           </a>
         </p>
@@ -2906,13 +7009,15 @@ function MosDetail({ entry, onBack, onOpen }: { entry: MosEntry; onBack: () => v
         />
       </article>
 
-      <section aria-label="Field notes" className="mt-4">
-        <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">Field Notes — verified member additions</h3>
-        <FieldNotes targetId={entry.id} />
-        <div className="mt-3">
-          <ContributionForm targetType="mos" targetId={entry.id} targetLabel={`${entry.code} ${entry.title}`} />
-        </div>
-      </section>
+      {!publicOnly ? (
+        <section aria-label="Field notes" className="mt-4">
+          <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">Field Notes — verified member additions</h3>
+          <FieldNotes targetId={entry.id} />
+          <div className="mt-3">
+            <ContributionForm targetType="mos" targetId={entry.id} targetLabel={`${entry.code} ${entry.title}`} />
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -2920,18 +7025,56 @@ function MosDetail({ entry, onBack, onOpen }: { entry: MosEntry; onBack: () => v
 function MosView({
   profile,
   goReview,
+  goPartners,
   focusId,
   focusNonce,
   onFocusHandled,
 }: {
   profile: Profile;
   goReview: () => void;
+  goPartners: () => void;
   focusId: string | null;
   focusNonce: number;
   onFocusHandled: () => void;
 }) {
+  const publicOnly = profile.track === "future";
+  // Rules 2 + A.2.1: the Library defaults to My branch with your job
+  // pinned first; My MOS narrows to your job + your field in your
+  // branch + your job's own similar list. Future members keep the
+  // public layer untouched (the scope is never applicable to them).
+  const scope = useSectionScope("mos");
+  const myJob = profile.mosCode
+    ? ALL_MOS_ENTRIES.find((e) => e.branch === profile.branch && e.code.toUpperCase() === profile.mosCode.toUpperCase())
+    : undefined;
+  const scopedBase = (() => {
+    if (!scope.applicable || scope.scope === "all") return null;
+    if (scope.scope === "mos" && myJob) {
+      const seen = new Set<string>();
+      const out: typeof ALL_MOS_ENTRIES = [];
+      for (const e of [
+        myJob,
+        ...ALL_MOS_ENTRIES.filter((x) => x.branch === myJob.branch && x.field === myJob.field),
+        ...(myJob.similar ?? []).map((id) => ALL_MOS_ENTRIES.find((x) => x.id === id)).filter((x): x is (typeof ALL_MOS_ENTRIES)[number] => Boolean(x)),
+      ]) {
+        if (!seen.has(e.id)) {
+          seen.add(e.id);
+          out.push(e);
+        }
+      }
+      return out;
+    }
+    if (scope.scope === "mine" && profile.branch) {
+      const mine = ALL_MOS_ENTRIES.filter((e) => e.branch === profile.branch);
+      return myJob ? [myJob, ...mine.filter((e) => e.id !== myJob.id)] : mine;
+    }
+    return null;
+  })();
+  const mosHeldBack = scopedBase ? ALL_MOS_ENTRIES.length - scopedBase.length : 0;
+  const showChips = !scope.applicable || scope.scope === "all";
   const [query, setQuery] = useState("");
-  const [branch, setBranch] = useState<string>(profile.branch || "All");
+  const [branch, setBranch] = useState<string>(() =>
+    (BRANCHES as readonly string[]).includes(profile.branch) ? profile.branch : "All",
+  );
   const [limit, setLimit] = useState(60);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -2947,22 +7090,49 @@ function MosView({
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return ALL_MOS_ENTRIES.filter((e) => (branch === "All" ? true : e.branch === branch)).filter((e) =>
-      q ? `${e.code} ${e.title} ${e.field} ${e.branch}`.toLowerCase().includes(q) : true,
-    );
-  }, [query, branch]);
+    const base = scopedBase ?? ALL_MOS_ENTRIES.filter((e) => (branch === "All" ? true : e.branch === branch));
+    return base.filter((e) => (q ? `${e.code} ${e.title} ${e.field} ${e.branch}`.toLowerCase().includes(q) : true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, branch, scope.scope, scope.applicable]);
 
-  const selected = selectedId ? ALL_MOS_ENTRIES.find((e) => e.id === selectedId) : undefined;
+  const rawSelected = selectedId ? ALL_MOS_ENTRIES.find((e) => e.id === selectedId) : undefined;
+  // Future-member profiles are served the public layer only — the entry
+  // is stripped at this boundary (see toPublicEntry), so the deep
+  // content never reaches the detail view for their track.
+  const selected = rawSelected && publicOnly ? toPublicEntry(rawSelected) : rawSelected;
   if (selected) {
-    return <MosDetail entry={selected} onBack={() => setSelectedId(null)} onOpen={(e) => setSelectedId(e.id)} />;
+    return <MosDetail entry={selected} publicOnly={publicOnly} onBack={() => setSelectedId(null)} onOpen={(e) => setSelectedId(e.id)} />;
   }
 
   return (
     <div>
       <SectionHead
-        title="MOS Library"
-        sub={`${ALL_MOS_ENTRIES.length} jobs across all six branches, from official public sources. Deep entries are marked FULL; every other code carries its official title, field, a plain-language orientation, and a verify-on-official-source note where the source doesn't state a fact.`}
+        title={publicOnly ? "Explore Jobs" : "MOS Library"}
+        sub={
+          publicOnly
+            ? `Every job in every branch — ${ALL_MOS_ENTRIES.length} of them — at the public layer: what the job is and how its training pipeline runs. The full job knowledge (day-to-day detail, what new members should know, source material) unlocks once you're serving.`
+            : `${ALL_MOS_ENTRIES.length} jobs across all six branches, from official public sources. Deep entries are marked FULL; every other code carries its official title, field, a plain-language orientation, and a verify-on-official-source note where the source doesn't state a fact.`
+        }
       />
+      <button
+        type="button"
+        aria-label="Open Partner Forces — allied and partner ranks"
+        onClick={goPartners}
+        className="mb-4 flex w-full items-center gap-3 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4 text-left"
+      >
+        <span className="shrink-0 text-[var(--accent-word)]">
+          <NavIcon name="flag" size={30} />
+        </span>
+        <span>
+          <span className="font-display block text-lg font-bold leading-tight text-[var(--text)]">Partner Forces — the allies&apos; library</span>
+          <span className="mt-0.5 block text-sm leading-snug text-[var(--dim)]">
+            Working alongside a partner force? The NATO grade codes (OF/OR) with the U.S. correspondence, plus
+            17 allied and partner rank profiles — Germany, Norway, Canada, the UK, Japan, and the rest — from
+            each country&apos;s own official pages.
+          </span>
+        </span>
+      </button>
+      <ScopeToggle sectionKey="mos" itemNoun="jobs" heldBack={mosHeldBack} hasMos />
       <div className="space-y-3">
         <div>
           <label htmlFor="mos-search" className={labelCls}>Search by code, title, or field</label>
@@ -2978,6 +7148,7 @@ function MosView({
             placeholder="Try 1371, medic, cyber, boatswain…"
           />
         </div>
+        {showChips ? (
         <div>
           <span className={labelCls} id="mos-branch-label">Branch</span>
           <div role="group" aria-labelledby="mos-branch-label" className="flex flex-wrap gap-2">
@@ -3002,6 +7173,7 @@ function MosView({
             ))}
           </div>
         </div>
+        ) : null}
       </div>
       <p className="mt-3 text-sm text-[var(--dim)]" role="status">
         {results.length} matching job{results.length === 1 ? "" : "s"}
@@ -3018,7 +7190,7 @@ function MosView({
           >
             <span className="flex flex-wrap items-center gap-2">
               <span className="font-display text-lg font-bold text-[var(--text)]">{e.code} — {e.title}</span>
-              {e.level === "full" ? <Badge tone="official">FULL</Badge> : <Badge>INDEX</Badge>}
+              {publicOnly ? null : e.level === "full" ? <Badge tone="official">FULL</Badge> : <Badge>INDEX</Badge>}
               {profile.mosCode && e.code.toUpperCase() === profile.mosCode.toUpperCase() && e.branch === profile.branch ? <Badge tone="amber">YOUR JOB</Badge> : null}
             </span>
             <span className="mt-0.5 block text-sm text-[var(--dim)]">{e.branch} · {e.field}</span>
@@ -3031,12 +7203,26 @@ function MosView({
           Show more ({results.length - limit} remaining)
         </button>
       ) : null}
-      {results.length === 0 ? (
+      {results.length === 0 && scopedBase ? (
+        <div className="mt-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+          <p className="text-base text-[var(--text)]">
+            No matches in your {scope.scope === "mos" ? "My MOS" : "My branch"} view — {mosHeldBack} more jobs in the other views.
+          </p>
+          <button type="button" aria-label="Search all branches instead" onClick={() => scope.setScope("all")} className={`${btnGhost} mt-3`}>
+            Search all branches instead
+          </button>
+        </div>
+      ) : null}
+      {results.length === 0 && !scopedBase ? (
         <div className="mt-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
           <p className="text-base text-[var(--text)]">No match in the library yet. This job may be a newer or redesignated code.</p>
-          <button type="button" aria-label="Go to review queue" onClick={goReview} className={`${btnGhost} mt-3`}>
-            Open the Review Queue
-          </button>
+          {publicOnly ? (
+            <p className="mt-2 text-sm text-[var(--dim)]">Try a different code, title, or branch.</p>
+          ) : (
+            <button type="button" aria-label="Go to review queue" onClick={goReview} className={`${btnGhost} mt-3`}>
+              Open the Review Queue
+            </button>
+          )}
         </div>
       ) : null}
     </div>
@@ -3093,7 +7279,7 @@ function ReviewView({ goBack }: { goBack: () => void }) {
             <p className="font-display mt-2 text-lg font-bold text-[var(--text)]">{c.title}</p>
             <p className="mt-1 text-base text-[var(--text)]">{c.body}</p>
             {c.sourceUrl ? (
-              <a href={c.sourceUrl} target="_blank" rel="noreferrer" aria-label={`Open submitted source for ${c.title}`} className="mt-1 inline-block text-sm font-semibold text-[var(--accent)] underline">
+              <a href={c.sourceUrl} target="_blank" rel="noreferrer" aria-label={`Open submitted source for ${c.title}`} className="mt-1 inline-block text-sm font-semibold text-[var(--accent-word)] underline">
                 Submitted source
               </a>
             ) : null}
@@ -3108,9 +7294,12 @@ function ReviewView({ goBack }: { goBack: () => void }) {
           </article>
         ))}
       </div>
+      <EntryFlagQueue />
       <WarStoryQueue />
       <TributeQueue />
       <MentorQueue />
+      <PeopleQueue />
+      <SpouseQueue />
       {decided.length > 0 ? (
         <>
           <h3 className="font-display mb-2 mt-6 text-xl font-bold text-[var(--text)]">Decided</h3>
@@ -3127,6 +7316,48 @@ function ReviewView({ goBack }: { goBack: () => void }) {
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+/* ------------------- Entry flags review queue --------------------- */
+// Entry flags arrive through the EXISTING feedback plumbing: a flag
+// is a feedback row of type "flag" (entry identifier + the member's
+// note), listed here from the same listFeedback surface the Feedback
+// Inbox uses. Reviewing a flag means checking the entry and fixing
+// the content — there is nothing to publish, so there are no
+// approve/reject buttons and no public counts.
+
+function EntryFlagQueue() {
+  const inboxQ = useQuery({ queryKey: ["feedback"], queryFn: () => api.listFeedback({}) });
+  const flags = (inboxQ.data?.feedback ?? []).filter((f) => f.type === "flag");
+  return (
+    <div className="mt-8">
+      <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">Flagged entries — awaiting review</h3>
+      {inboxQ.isPending ? <p className="text-base text-[var(--dim)]">Loading flagged entries…</p> : null}
+      {!inboxQ.isPending && flags.length === 0 ? (
+        <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+          No entries are flagged. Use “Flag this entry” on any reference card and it will land here for review.
+        </p>
+      ) : null}
+      <div className="space-y-3">
+        {flags.map((f) => (
+          <article key={f.id} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="amber">FLAGGED ENTRY</Badge>
+              {f.entryId ? <Badge>{f.entryId}</Badge> : null}
+              {f.mine ? <Badge tone="official">YOURS</Badge> : null}
+            </div>
+            <p className="mt-2 whitespace-pre-wrap text-base text-[var(--text)]">{f.body}</p>
+            <p className="mt-2 text-sm text-[var(--dim)]">
+              Flagged by {f.submitter}
+              {f.branch ? ` · ${f.branch}` : ""}
+              {" · "}
+              {new Date(f.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            </p>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }
@@ -3437,7 +7668,17 @@ function ReportedRequestCard({ request }: { request: MemberMentorRequest }) {
 
 /* ------------------------------ Rank Charts ------------------------------ */
 
-function RankTable({ rows, branch, category }: { rows: RankRow[]; branch: string; category: RankCategory }) {
+function RankTable({
+  rows,
+  branch,
+  category,
+  onOpenRow,
+}: {
+  rows: RankRow[];
+  branch: string;
+  category: RankCategory;
+  onOpenRow?: (row: RankRow) => void;
+}) {
   return (
     <div className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)]">
       <table className="w-full border-collapse text-left">
@@ -3454,7 +7695,7 @@ function RankTable({ rows, branch, category }: { rows: RankRow[]; branch: string
             const ins = insigniaFor(branch, category, r.grade, r.abbr);
             return (
               <tr key={`${r.grade}-${r.abbr}-${i}`} className="border-t border-[var(--border)] align-top">
-                <td className="px-2 py-2.5 text-sm font-bold text-[var(--accent)]">{r.grade}</td>
+                <td className="px-2 py-2.5 text-sm font-bold text-[var(--accent-word)]">{r.grade}</td>
                 <td className="w-24 px-2 py-2.5">
                   {ins ? (
                     <>
@@ -3465,7 +7706,20 @@ function RankTable({ rows, branch, category }: { rows: RankRow[]; branch: string
                   ) : null}
                 </td>
                 <td className="px-2 py-2.5">
-                  <span className="block text-base font-semibold text-[var(--text)]">{r.title}</span>
+                  {onOpenRow ? (
+                    <button
+                      type="button"
+                      aria-label={`Open promotion details for ${r.grade} ${r.title}, ${branch}`}
+                      onClick={() => onOpenRow(r)}
+                      className="block min-h-11 text-left"
+                    >
+                      <span className="block text-base font-semibold text-[var(--text)]">
+                        {r.title} <span aria-hidden="true" className="font-bold text-[var(--accent-word)]">›</span>
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="block text-base font-semibold text-[var(--text)]">{r.title}</span>
+                  )}
                   {r.note ? <span className="mt-0.5 block text-sm text-[var(--dim)]">{r.note}</span> : null}
                 </td>
                 <td className="whitespace-nowrap px-2 py-2.5 text-sm font-semibold text-[var(--text)]">{r.abbr}</td>
@@ -3478,10 +7732,331 @@ function RankTable({ rows, branch, category }: { rows: RankRow[]; branch: string
   );
 }
 
-function RankChartsView() {
-  const [branch, setBranch] = useState("Marine Corps");
+/* ------------------------------- Uniforms -------------------------------- */
+
+function UniformsView({
+  focusAnchor,
+  focusCard,
+}: {
+  focusAnchor?: string | null;
+  focusCard?: string | null;
+}) {
+  // Hub of tiles: one per branch. A global-search deep link anchors
+  // to "Uniforms — {branch}"; a Binder card's title is
+  // "{branch} — {uniform}" — both open that branch's tile.
+  const [tile, setTile] = useState<string | null>(() => {
+    if (focusAnchor) {
+      const slug = anchorSlug(focusAnchor);
+      const group = UNIFORM_GROUPS.find((g) => anchorSlug(`Uniforms — ${g.branch}`) === slug);
+      if (group) return group.branch;
+    }
+    if (focusCard) {
+      const group = UNIFORM_GROUPS.find((g) => focusCard.startsWith(`${g.branch} — `));
+      if (group) return group.branch;
+    }
+    return null;
+  });
+  const [tileQuery, setTileQuery] = useState("");
+  // Rule 4: the hub defaults to your branch's tile alone; one tap
+  // shows all six. A deep link into another branch's tile still
+  // opens it (the open lookup below always uses the full groups).
+  const uniScope = useSectionScope("uniforms");
+  const uniBranch = uniScope.profile?.branch ?? "";
+  const visibleGroups =
+    uniScope.applicable && uniScope.scope !== "all" && uniBranch
+      ? UNIFORM_GROUPS.filter((g) => g.branch === uniBranch)
+      : UNIFORM_GROUPS;
+  const uniHeldBack = UNIFORM_COUNT - visibleGroups.reduce((n, g) => n + g.uniforms.length, 0);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [tile]);
+  const openGroup = tile ? UNIFORM_GROUPS.find((g) => g.branch === tile) : undefined;
+  const tq = tileQuery.trim().toLowerCase();
+  const shownUniforms = openGroup
+    ? tq
+      ? openGroup.uniforms.filter((u) => `${u.name} ${u.worn}`.toLowerCase().includes(tq))
+      : openGroup.uniforms
+    : [];
+
+  return (
+    <div>
+      <SectionHead
+        title="Uniforms"
+        sub={`All ${UNIFORM_COUNT} standard uniforms across the six branches — what each one is, when it's worn, a labeled front-view diagram, and the component list in wear order as an assembly checklist.`}
+      />
+      <div className="mb-6 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+        <p className="text-base font-semibold text-[var(--text)]">{UNIFORMS_STANDING_NOTE}</p>
+      </div>
+
+      <ScopeToggle sectionKey="uniforms" itemNoun="uniforms" heldBack={uniHeldBack} />
+
+      {tile === null ? (
+        <>
+          <HubTileGrid
+            label="Uniforms by branch"
+            onOpen={(key) => {
+              setTileQuery("");
+              setTile(key);
+            }}
+            tiles={visibleGroups.map((g) => ({
+              key: g.branch,
+              label: g.branch,
+              sub: `${g.uniforms.length} uniforms`,
+            }))}
+          />
+          <section aria-label="Not covered here" className="mb-8 mt-8 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <h3 className="font-display mb-1 text-lg font-bold text-[var(--text)]">Not covered here</h3>
+            <p className="text-sm text-[var(--text)]">{UNIFORMS_NOT_COVERED}</p>
+          </section>
+        </>
+      ) : null}
+
+      {openGroup ? (
+        <section aria-label={`Uniforms — ${openGroup.branch}`} className="mb-8">
+          <HubBackButton
+            ariaLabel="Back to all uniform branches"
+            text="All branches"
+            onBack={() => setTile(null)}
+          />
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <h3 className="font-display text-xl font-bold text-[var(--text)]">{openGroup.branch}</h3>
+            <Badge tone="official">{openGroup.regulation}</Badge>
+          </div>
+          {openGroup.note ? (
+            <p className="mb-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3 text-sm text-[var(--text)]">
+              {openGroup.note}
+            </p>
+          ) : null}
+          {openGroup.sources.length > 0 ? (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {openGroup.sources.map((l) => (
+                <a
+                  key={l.url}
+                  href={l.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`${openGroup.branch} uniforms — ${l.label} (opens in new tab)`}
+                  className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
+                >
+                  {l.label} ↗
+                </a>
+              ))}
+            </div>
+          ) : null}
+          <HubSearch
+            id="uniforms-tile-search"
+            label={`Search ${openGroup.branch} uniforms`}
+            ariaLabel={`Search ${openGroup.branch} uniforms by name or wear`}
+            value={tileQuery}
+            onChange={setTileQuery}
+            placeholder="Search this branch's uniforms…"
+          />
+          {shownUniforms.length === 0 ? (
+            <p className="text-sm text-[var(--dim)]">
+              No {openGroup.branch} uniform matches “{tileQuery.trim()}”.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {shownUniforms.map((u) => (
+                <UniformCard key={u.id} entry={u} branch={openGroup.branch} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function UniformCard({ entry, branch }: { entry: UniformEntry; branch: string }) {
+  const [open, setOpen] = useState(false);
+  // Assembly checklist state lives only while this card is on screen —
+  // tick items off while putting the uniform together; nothing is saved.
+  const [done, setDone] = useState<Record<number, boolean>>({});
+  const doneCount = entry.components.filter((_, i) => done[i]).length;
+  const linkCls =
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <button
+        type="button"
+        aria-label={open ? `Close ${entry.name}` : `Open ${entry.name}`}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="block w-full text-left"
+      >
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-display text-lg font-bold text-[var(--text)]">{entry.name}</span>
+          <Badge>{entry.regulation}</Badge>
+          {entry.flags && entry.flags.length > 0 ? <Badge tone="amber">STATUS NOTE</Badge> : null}
+        </span>
+        <span className="mt-1 block text-sm text-[var(--dim)]">
+          {entry.worn.length > 180 ? `${entry.worn.slice(0, 180)}…` : entry.worn}
+        </span>
+        <span className="mt-2 block text-sm font-bold text-[var(--accent-word)]">
+          {open ? "Close ▴" : "Diagram + assembly checklist ▾"}
+        </span>
+      </button>
+      {open ? (
+        <div className="mt-3 border-t border-[var(--border)] pt-3">
+          <p className="text-base text-[var(--text)]">
+            <span className="font-bold">When it&apos;s worn: </span>
+            {entry.worn}
+          </p>
+          {entry.variants ? (
+            <p className="mt-2 text-sm text-[var(--dim)]">
+              <span className="font-bold text-[var(--text)]">Variants: </span>
+              {entry.variants}
+            </p>
+          ) : null}
+          {entry.flags?.map((f) => (
+            <p key={f.slice(0, 48)} className="mt-2 rounded bg-[var(--amber-bg)] p-2 text-sm font-semibold text-[var(--amber)]">
+              {f.startsWith("⚠") ? f : `⚠ ${f}`}
+            </p>
+          ))}
+
+          <figure className="mt-3">
+            <UniformDiagram spec={entry.figure} name={`${branch} — ${entry.name}`} />
+            <figcaption className="mt-1 text-center text-xs italic text-[var(--dim)]">
+              Illustrated guide — front view, not to scale. Exact placement per {entry.regulation}.
+              {entry.diagramNote ? ` ${entry.diagramNote}` : ""}
+            </figcaption>
+          </figure>
+
+          <h4 className="font-display mt-4 text-base font-bold text-[var(--text)]">
+            Assembly checklist — in wear order
+          </h4>
+          <p className="text-sm text-[var(--dim)]">
+            {doneCount} of {entry.components.length} on. Tick each item off as you put it on — the list resets
+            when you leave this section.
+          </p>
+          <ol className="mt-2 space-y-2">
+            {entry.components.map((component, i) => (
+              <li key={i}>
+                <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3">
+                  <input
+                    type="checkbox"
+                    checked={!!done[i]}
+                    onChange={(e) => setDone((d) => ({ ...d, [i]: e.target.checked }))}
+                    aria-label={`Component ${i + 1} of the ${entry.name} checklist`}
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]"
+                  />
+                  <span className={`text-sm ${done[i] ? "text-[var(--dim)] line-through" : "text-[var(--text)]"}`}>
+                    <span className="font-bold">{i + 1}. </span>
+                    {component}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ol>
+
+          {entry.assemblyNotes ? (
+            <p className="mt-3 text-sm text-[var(--text)]">
+              <span className="font-bold">Assembly notes: </span>
+              {entry.assemblyNotes}
+            </p>
+          ) : null}
+
+          <p className="mt-3 text-sm text-[var(--dim)]">
+            <span className="font-bold text-[var(--text)]">Governing regulation: </span>
+            {entry.regulation}
+          </p>
+          {entry.sources.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {entry.sources.map((l) => (
+                <a
+                  key={l.url}
+                  href={l.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`${entry.name} — ${l.label} (opens in new tab)`}
+                  className={linkCls}
+                >
+                  {l.label} ↗
+                </a>
+              ))}
+            </div>
+          ) : null}
+          <CardTools
+            cardRef={{
+              section: "uniforms",
+              itemKey: entry.id,
+              title: `${branch} — ${entry.name}`,
+              summary: entry.worn,
+              source: entry.regulation,
+            }}
+          />
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function RankChartsView({
+  rankFocus,
+  onRankFocusHandled,
+  onDrill,
+}: {
+  rankFocus?: { key: string; n: number } | null;
+  onRankFocusHandled?: () => void;
+  /** Practice Trainers entry point — lands in the Rank Insignia Trainer. */
+  onDrill?: () => void;
+}) {
+  // Rule 48: the charts open on the member's own branch.
+  const rankProfile = useScopeProfile();
+  const [branch, setBranch] = useState(() =>
+    rankProfile?.branch && RANK_CHARTS.some((c) => c.branch === rankProfile.branch) ? rankProfile.branch : "Marine Corps",
+  );
+  const [sheetRow, setSheetRow] = useState<{
+    branch: string;
+    category: RankCategory;
+    row: RankRow;
+  } | null>(null);
+
+  // Deep link (Global Search / My Binder): open the sheet named by
+  // the focus key (branch|category|grade|abbr from rankdetail.ts).
+  useEffect(() => {
+    if (!rankFocus) return;
+    const [b, cat, grade, abbr] = rankFocus.key.split("|");
+    const chartForKey = RANK_CHARTS.find((c) => c.branch === b);
+    const rowsForKey =
+      cat === "enlisted" ? chartForKey?.enlisted : cat === "warrant" ? chartForKey?.warrant : chartForKey?.officers;
+    const rowForKey = rowsForKey?.find((r) => r.grade === grade && r.abbr === abbr);
+    if (chartForKey && rowForKey && (cat === "enlisted" || cat === "warrant" || cat === "officers")) {
+      setBranch(chartForKey.branch);
+      setSheetRow({ branch: chartForKey.branch, category: cat, row: rowForKey });
+    }
+    onRankFocusHandled?.();
+  }, [rankFocus, onRankFocusHandled]);
+
+  useEffect(() => {
+    if (sheetRow) window.scrollTo(0, 0);
+  }, [sheetRow]);
+
   const chart = RANK_CHARTS.find((c) => c.branch === branch) ?? RANK_CHARTS[0];
   if (!chart) return null;
+
+  if (sheetRow) {
+    const sheet = sheetFor(sheetRow.branch, sheetRow.category, sheetRow.row.grade, sheetRow.row.abbr) ?? null;
+    const ins = insigniaFor(sheetRow.branch, sheetRow.category, sheetRow.row.grade, sheetRow.row.abbr);
+    return (
+      <div>
+        <SectionHead
+          title="Rank Charts"
+          sub="Pay grades are the shared DoD ladder — E = enlisted, W = warrant officer, O = commissioned officer — so the same pay grade compares across branches even when the titles differ."
+        />
+        <RankSheetPanel
+          sheet={sheet}
+          title={`${sheetRow.branch} ${sheetRow.row.grade} — ${sheetRow.row.title}`}
+          insignia={ins ? <InsigniaArt art={ins.art} /> : undefined}
+          onBack={() => setSheetRow(null)}
+        />
+      </div>
+    );
+  }
+
+  const openRow = (category: RankCategory) => (row: RankRow) =>
+    setSheetRow({ branch: chart.branch, category, row });
 
   return (
     <div>
@@ -3489,6 +8064,20 @@ function RankChartsView() {
         title="Rank Charts"
         sub="Pay grades are the shared DoD ladder — E = enlisted, W = warrant officer, O = commissioned officer — so the same pay grade compares across branches even when the titles differ."
       />
+      <p className="mb-4 text-sm font-semibold text-[var(--text)]">
+        Tap any rank to open its detail sheet — typical and minimum time in service and in grade, the PME for the
+        grade (with its requirement tag), and how promotion to that grade works.
+      </p>
+      {onDrill ? (
+        <button
+          type="button"
+          aria-label="Drill this in the Rank Insignia Trainer"
+          onClick={onDrill}
+          className="mb-4 block w-full rounded-[var(--radius)] bg-[var(--accent)] px-4 py-3 text-base font-bold text-[var(--accent-text)]"
+        >
+          Drill this — Rank Insignia Trainer
+        </button>
+      ) : null}
       <div className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--amber-bg)] p-4">
         <p className="text-sm text-[var(--text)]">
           <span className="font-bold">Five-star grades: </span>
@@ -3519,14 +8108,14 @@ function RankChartsView() {
 
       <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">Enlisted</h3>
       <div className="mb-6">
-        <RankTable rows={chart.enlisted} branch={chart.branch} category="enlisted" />
+        <RankTable rows={chart.enlisted} branch={chart.branch} category="enlisted" onOpenRow={openRow("enlisted")} />
       </div>
 
       <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">Warrant Officers</h3>
       <div className="mb-6">
         {chart.warrant ? (
           <>
-            <RankTable rows={chart.warrant} branch={chart.branch} category="warrant" />
+            <RankTable rows={chart.warrant} branch={chart.branch} category="warrant" onOpenRow={openRow("warrant")} />
             {chart.warrantNote ? <p className="mt-2 text-sm text-[var(--dim)]">{chart.warrantNote}</p> : null}
             {WARRANT_EXTRA_NOTES[chart.branch] ? (
               <p className="mt-2 text-sm text-[var(--dim)]">{WARRANT_EXTRA_NOTES[chart.branch]}</p>
@@ -3541,7 +8130,7 @@ function RankChartsView() {
 
       <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">Commissioned Officers</h3>
       <div className="mb-6">
-        <RankTable rows={chart.officers} branch={chart.branch} category="officers" />
+        <RankTable rows={chart.officers} branch={chart.branch} category="officers" onOpenRow={openRow("officers")} />
       </div>
 
       {UNIFORM_NOTES[chart.branch] ? (
@@ -3557,7 +8146,7 @@ function RankChartsView() {
           <li>
             {chart.branch} source:{" "}
             {chart.sourceUrl ? (
-              <a href={chart.sourceUrl} target="_blank" rel="noreferrer" className="font-semibold text-[var(--accent)] underline">
+              <a href={chart.sourceUrl} target="_blank" rel="noreferrer" className="font-semibold text-[var(--accent-word)] underline">
                 {chart.sourceLabel}
               </a>
             ) : (
@@ -3566,7 +8155,7 @@ function RankChartsView() {
           </li>
           <li>
             Cross-service reference:{" "}
-            <a href={DOD_INSIGNIA_URL} target="_blank" rel="noreferrer" className="font-semibold text-[var(--accent)] underline">
+            <a href={DOD_INSIGNIA_URL} target="_blank" rel="noreferrer" className="font-semibold text-[var(--accent-word)] underline">
               {DOD_INSIGNIA_LABEL}
             </a>
           </li>
@@ -3598,7 +8187,7 @@ function BenefitCard({ item }: { item: BenefitItem }) {
             target="_blank"
             rel="noreferrer"
             aria-label={`${item.name} — ${l.label} (official page, opens in new tab)`}
-            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
           >
             {l.label} ↗
           </a>
@@ -3617,11 +8206,51 @@ function BenefitCard({ item }: { item: BenefitItem }) {
   );
 }
 
-function BenefitsView({ profile }: { profile: Profile }) {
+function BenefitsView({ profile, focusAnchor, focusCard }: { profile: Profile; focusAnchor?: string | null; focusCard?: string | null }) {
   const [branch, setBranch] = useState(
     () => BRANCH_BENEFITS.find((b) => b.branch === profile.branch)?.branch ?? BRANCH_BENEFITS[0]!.branch,
   );
-  const branchData = BRANCH_BENEFITS.find((b) => b.branch === branch) ?? BRANCH_BENEFITS[0];
+  // Rule 1 (the acceptance section): with a branch on the profile,
+  // Benefits defaults to My branch — the universal categories plus
+  // your branch's own four programs, the picker put away; one tap on
+  // All branches restores the full six-branch picker exactly as it
+  // was. Future members never get the toggle (H-4): their Benefits
+  // keeps the picker. A spouse sees the MEMBER's branch (H-3) because
+  // the spouse profile's branch IS the member's branch.
+  const scope = useSectionScope("benefits");
+  const mineMode = scope.applicable && scope.scope !== "all";
+  const myBranchData = BRANCH_BENEFITS.find((b) => b.branch === profile.branch);
+  // Household scope (red-team round 2, F-1): when a partner branch is
+  // on the profile, the My-household state shows BOTH branches'
+  // programs and the held-back count is computed against the
+  // household. A single-branch profile computes exactly as before.
+  const partnerBranchData =
+    profile.partnerBranch && profile.partnerBranch !== profile.branch
+      ? BRANCH_BENEFITS.find((b) => b.branch === profile.partnerBranch)
+      : undefined;
+  const householdData = mineMode && partnerBranchData ? [myBranchData, partnerBranchData].filter(Boolean) : null;
+  const totalBranchItems = BRANCH_BENEFITS.reduce((n, b) => n + b.items.length, 0);
+  const heldBack = myBranchData
+    ? totalBranchItems - myBranchData.items.length - (householdData && partnerBranchData ? partnerBranchData.items.length : 0)
+    : 0;
+  const branchData = mineMode && myBranchData ? myBranchData : (BRANCH_BENEFITS.find((b) => b.branch === branch) ?? BRANCH_BENEFITS[0]);
+  // Hub migration (§B.2): the five universal categories are tiles;
+  // a deep link opens its category directly.
+  const slugify = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const [catTile, setCatTile] = useState<string | null>(() => {
+    if (focusCard) {
+      const cat = UNIVERSAL_BENEFITS.find((c) => c.items.some((i) => i.name === focusCard));
+      if (cat) return cat.title;
+    }
+    if (focusAnchor) {
+      const want = slugify(focusAnchor);
+      const byTitle = UNIVERSAL_BENEFITS.find((c) => slugify(c.title) === want);
+      if (byTitle) return byTitle.title;
+      const byItem = UNIVERSAL_BENEFITS.find((c) => c.items.some((i) => slugify(i.name) === want));
+      if (byItem) return byItem.title;
+    }
+    return null;
+  });
   if (!branchData) return null;
 
   return (
@@ -3634,22 +8263,36 @@ function BenefitsView({ profile }: { profile: Profile }) {
         <p className="text-base font-semibold text-[var(--text)]">{BENEFITS_STANDING_NOTE}</p>
       </div>
 
+      <ScopeToggle sectionKey="benefits" itemNoun="benefits" heldBack={heldBack} />
+
       <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">For everyone (VA &amp; DoD)</h3>
-      {UNIVERSAL_BENEFITS.map((cat) => (
-        <section key={cat.title} aria-label={cat.title} className="mb-6">
-          <h4 className="font-display mb-2 text-base font-bold tracking-wide text-[var(--dim)]">{cat.title.toUpperCase()}</h4>
-          <div className="space-y-3">
-            {cat.items.map((item) => (
-              <BenefitCard key={item.name} item={item} />
-            ))}
-          </div>
-        </section>
-      ))}
+      {catTile === null ? (
+        <HubTileGrid
+          tiles={UNIVERSAL_BENEFITS.map((cat) => ({ key: cat.title, label: cat.title, sub: `${cat.items.length} benefits` }))}
+          onOpen={setCatTile}
+          label="benefit categories"
+        />
+      ) : (
+        <div>
+          <HubBackButton ariaLabel="Back to all benefit categories" text="All categories" onBack={() => setCatTile(null)} />
+          {UNIVERSAL_BENEFITS.filter((cat) => cat.title === catTile).map((cat) => (
+            <section key={cat.title} aria-label={cat.title} className="mb-6">
+              <h4 className="font-display mb-2 text-base font-bold tracking-wide text-[var(--dim)]">{cat.title.toUpperCase()}</h4>
+              <div className="space-y-3">
+                {cat.items.map((item) => (
+                  <BenefitCard key={item.name} item={item} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
 
       <h3 className="font-display mb-3 mt-8 text-xl font-bold text-[var(--text)]">By branch</h3>
       <div className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
         <p className="text-sm text-[var(--text)]">{BRANCH_STANDING_NOTE}</p>
       </div>
+      {mineMode ? null : (
       <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Benefits branch picker">
         {BRANCH_BENEFITS.map((b) => (
           <button
@@ -3664,16 +8307,42 @@ function BenefitsView({ profile }: { profile: Profile }) {
           </button>
         ))}
       </div>
-      {branchData.note ? (
-        <div className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--amber-bg)] p-4">
-          <p className="text-sm text-[var(--text)]">{branchData.note}</p>
-        </div>
-      ) : null}
-      <div className="space-y-3">
-        {branchData.items.map((item) => (
-          <BenefitCard key={item.name} item={item} />
-        ))}
-      </div>
+      )}
+      {householdData ? (
+        householdData.map((bd) =>
+          bd ? (
+            <div key={bd.branch} className="mb-6">
+              <h4 className="font-display mb-2 text-base font-bold tracking-wide text-[var(--dim)]">
+                {bd.branch === profile.branch ? "YOUR BRANCH" : "PARTNER'S BRANCH"} — {bd.branch.toUpperCase()}
+              </h4>
+              {bd.note ? (
+                <div className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--amber-bg)] p-4">
+                  <p className="text-sm text-[var(--text)]">{bd.note}</p>
+                </div>
+              ) : null}
+              <div className="space-y-3">
+                {bd.items.map((item) => (
+                  <BenefitCard key={item.name} item={item} />
+                ))}
+              </div>
+            </div>
+          ) : null,
+        )
+      ) : (
+        <>
+          {branchData.note ? (
+            <div className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--amber-bg)] p-4">
+              <p className="text-sm text-[var(--text)]">{branchData.note}</p>
+            </div>
+          ) : null}
+          <div className="space-y-3">
+            {branchData.items.map((item) => (
+              <BenefitCard key={item.name} item={item} />
+            ))}
+          </div>
+        </>
+      )}
+      <ShowEverythingFooter sectionKey="benefits" heldBack={heldBack} />
 
       <h3 className="font-display mb-3 mt-8 text-xl font-bold text-[var(--text)]">State benefits</h3>
       <BenefitCard item={STATE_BENEFIT} />
@@ -3683,7 +8352,36 @@ function BenefitsView({ profile }: { profile: Profile }) {
 
 /* --------------------------- Deals & Discounts --------------------------- */
 
-function DealsView() {
+function DealsView({ focusAnchor, focusCard }: { focusAnchor?: string | null; focusCard?: string | null }) {
+  // Rule 30 (ordering-only): nothing hides — in the My branch view
+  // your branch's on-base group leads the on-base tiles.
+  const scope = useSectionScope("deals");
+  const profile = scope.profile;
+  const slugify = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const orderedOnbase =
+    scope.scope !== "all" && profile?.branch
+      ? [...ONBASE_GROUPS].sort(
+          (a, b) =>
+            (branchNamedIn(a.title) === profile.branch ? 0 : 1) - (branchNamedIn(b.title) === profile.branch ? 0 : 1),
+        )
+      : ONBASE_GROUPS;
+  // Hub migration (§B.2): Platforms / Find near you / the on-base
+  // groups are the tiles; a deep link opens its tile directly.
+  const [tile, setTile] = useState<string | null>(() => {
+    const want = focusCard ?? focusAnchor;
+    if (!want) return null;
+    const w = slugify(want);
+    if (DEAL_PLATFORMS.some((pl) => slugify(pl.name) === w) || STANDING_PROGRAMS.some((pl) => slugify(pl.name) === w)) return "platforms";
+    const g = ONBASE_GROUPS.find((g) => slugify(g.title) === w || g.entries.some((e) => slugify(e.name) === w));
+    if (g) return `onbase:${g.title}`;
+    if (w === "find near you") return "finder";
+    return null;
+  });
+  const dealTiles = [
+    { key: "platforms", label: "Deal apps & platforms", sub: `${DEAL_PLATFORMS.length + STANDING_PROGRAMS.length} programs` },
+    { key: "finder", label: "Find near you", sub: "the place finder" },
+    ...orderedOnbase.map((g) => ({ key: `onbase:${g.title}`, label: g.title, sub: `${g.entries.length} cards` })),
+  ];
   return (
     <div>
       <SectionHead
@@ -3691,6 +8389,22 @@ function DealsView() {
         sub="The apps and programs that actually save military and veteran households money — who each one is for, how it verifies you, and the official link. Then a finder that points you at the right source for your place, and the on-base programs (MCCS, MWR, SMP, ITT) most people never use."
       />
 
+      <ScopeToggle
+        sectionKey="deals"
+        itemNoun="cards"
+        heldBack={0}
+        mineLine="Everything is shown — your branch's on-base group leads the on-base tiles."
+        allLine="Everything is shown, in the book's order."
+      />
+
+      {tile === null ? (
+        <HubTileGrid tiles={dealTiles} onOpen={setTile} label="deal topics" />
+      ) : (
+        <HubBackButton ariaLabel="Back to all deal topics" text="All deal topics" onBack={() => setTile(null)} />
+      )}
+
+      {tile === "platforms" ? (
+      <div>
       <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Deal apps &amp; platforms</h3>
       <div className="space-y-3">
         {DEAL_PLATFORMS.map((p) => (
@@ -3714,7 +8428,7 @@ function DealsView() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label={`${p.name} — official site (opens in new tab)`}
-                className="inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+                className="inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
               >
                 {p.link.label} ↗
               </a>
@@ -3746,7 +8460,7 @@ function DealsView() {
                     target="_blank"
                     rel="noreferrer"
                     aria-label={`${s.name} — program page (opens in new tab)`}
-                    className="font-semibold text-[var(--accent)] underline"
+                    className="font-semibold text-[var(--accent-word)] underline"
                   >
                     program page ↗
                   </a>
@@ -3767,10 +8481,15 @@ function DealsView() {
         ))}
       </div>
 
-      <DealsFinder />
+      </div>
+      ) : null}
 
+      {tile === "finder" ? <DealsFinder /> : null}
+
+      {tile !== null && tile.startsWith("onbase:") ? (
+      <div>
       <h3 className="font-display mb-3 mt-8 text-xl font-bold text-[var(--text)]">On-base life &amp; travel help</h3>
-      {ONBASE_GROUPS.map((group) => (
+      {orderedOnbase.filter((group) => `onbase:${group.title}` === tile).map((group) => (
         <section key={group.title} aria-label={group.title} className="mb-6">
           <h4 className="font-display mb-2 text-base font-bold tracking-wide text-[var(--dim)]">{group.title.toUpperCase()}</h4>
           {group.intro ? (
@@ -3785,6 +8504,8 @@ function DealsView() {
           </div>
         </section>
       ))}
+      </div>
+      ) : null}
     </div>
   );
 }
@@ -3813,7 +8534,7 @@ function OnBaseCard({ entry }: { entry: OnBaseEntry }) {
               target="_blank"
               rel="noreferrer"
               aria-label={`${entry.name} — ${l.label} (opens in new tab)`}
-              className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+              className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
             >
               {l.label} ↗
             </a>
@@ -3924,7 +8645,7 @@ function FinderCard({
               target="_blank"
               rel="noreferrer"
               aria-label={`Eventbrite events near ${place} (opens in new tab)`}
-              className="inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+              className="inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
             >
               Eventbrite near {place} ↗
             </a>
@@ -3940,7 +8661,7 @@ function FinderCard({
             target="_blank"
             rel="noreferrer"
             aria-label={`${source.name} — open and search (opens in new tab)`}
-            className="inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+            className="inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
           >
             {source.urlLabel ?? source.name} ↗
           </a>
@@ -3961,9 +8682,3210 @@ function FinderCard({
   );
 }
 
+/* ------------------------------ Gear Search ------------------------------ */
+
+function GearView() {
+  const [term, setTerm] = useState("");
+  const trimmed = term.trim();
+  const verifiedCount = GEAR_STORES.filter((s) => s.searchUrl).length;
+  const homepageCount = GEAR_STORES.length - verifiedCount;
+  return (
+    <div>
+      <SectionHead
+        title="Gear Search"
+        sub="One search box, every store in the router — each row opens that store's own live results or homepage, so prices are always the store's current ones. Below it, ten buying guides on what to look for before you spend."
+      />
+      <div className="mb-6 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+        <p className="text-base font-semibold text-[var(--text)]">{GEAR_STANDING_NOTE}</p>
+      </div>
+
+      <HonestyLine />
+
+      <section aria-label="Store router" className="mb-8">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Store router</h3>
+        <div className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+          <p className="mb-3 text-sm text-[var(--text)]">{GEAR_ROUTER_FRAMING}</p>
+          <label htmlFor="gear-term" className={labelCls}>
+            What gear are you looking for?
+          </label>
+          <input
+            id="gear-term"
+            aria-label="Gear to search for"
+            type="text"
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder="e.g., Belleville boots, medium ruck, woobie"
+            className={inputCls}
+            autoComplete="off"
+          />
+          <p className="mt-2 text-sm text-[var(--dim)]" role="status">
+            {trimmed
+              ? `Routing “${trimmed}”: ${verifiedCount} stores build a live search for it; ${homepageCount} open their homepage — search on their site.`
+              : "Type what you're looking for and the verified stores' rows build a live search for it. Every row also works right now as a plain store link."}
+          </p>
+        </div>
+        <div className="space-y-3">
+          {GEAR_STORES.map((s) => (
+            <GearStoreRow key={s.id} store={s} term={trimmed} />
+          ))}
+        </div>
+        <div className="mt-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+          <h4 className="font-display mb-1 text-base font-bold text-[var(--text)]">Before you compare prices</h4>
+          <p className="text-sm text-[var(--text)]">{GEAR_PRICE_DISCIPLINE}</p>
+        </div>
+      </section>
+
+      <section aria-label="Buying guides">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Buying guides</h3>
+        <div className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+          <p className="text-sm text-[var(--text)]">{GEAR_GUIDES_FRAMING}</p>
+        </div>
+        {GEAR_GUIDE_GROUPS.map((group) => (
+          <section key={group.title} aria-label={`Gear guides — ${group.title}`} className="mb-6">
+            <h4 className="font-display mb-2 text-base font-bold tracking-wide text-[var(--dim)]">
+              {group.title.toUpperCase()}
+            </h4>
+            <div className="space-y-3">
+              {group.guides.map((g) => (
+                <GearGuideCard key={g.id} guide={g} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function GearStoreRow({ store, term }: { store: GearStore; term: string }) {
+  const verified = Boolean(store.searchUrl);
+  const linkCls =
+    "inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-display text-lg font-bold text-[var(--text)]">{store.name}</h4>
+        <Badge>{store.kind}</Badge>
+        {verified ? (
+          <Badge tone="official">SEARCH VERIFIED</Badge>
+        ) : (
+          <Badge>SEARCH ON THEIR SITE</Badge>
+        )}
+      </div>
+      <p className="mt-1 text-sm text-[var(--dim)]">
+        <span className="font-bold text-[var(--text)]">Who can buy: </span>
+        {store.eligibility}
+      </p>
+      <p className="mt-1 text-sm text-[var(--text)]">{store.note}</p>
+      {verified && store.patternLabel ? (
+        <p className="mt-1 text-xs font-semibold text-[var(--dim)]">{store.patternLabel} — prices are the store's own live ones.</p>
+      ) : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {verified && store.searchUrl ? (
+          term ? (
+            <a
+              href={store.searchUrl(term)}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Search ${store.name} for ${term} (opens in new tab)`}
+              className={linkCls}
+            >
+              Search {store.name} for “{term}” ↗
+            </a>
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled
+                aria-label={`Search ${store.name} — type what you're looking for first`}
+                className="inline-block cursor-not-allowed rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--dim)] opacity-60"
+              >
+                Search {store.name}
+              </button>
+              <span className="text-sm font-semibold text-[var(--dim)]">
+                Type what you&apos;re looking for above to build this search.
+              </span>
+            </>
+          )
+        ) : null}
+        {store.homepages.map((h) => (
+          <a
+            key={h.url}
+            href={h.url}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={
+              verified
+                ? `Open ${store.name} homepage (opens in new tab)`
+                : `Open ${h.siteName ?? store.name} — search on their site (opens in new tab)`
+            }
+            className={linkCls}
+          >
+            {verified ? `${h.label} — store home ↗` : `${h.label} — search on their site ↗`}
+          </a>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function GearGuideCard({ guide, defaultOpen }: { guide: GearGuide; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(Boolean(defaultOpen));
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <button
+        type="button"
+        aria-label={open ? `Close guide: ${guide.title}` : `Open guide: ${guide.title}`}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="block w-full text-left"
+      >
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-display text-lg font-bold text-[var(--text)]">
+            Guide {guide.num} — {guide.title}
+          </span>
+          {guide.id === "eye-protection-gloves" ? <Badge tone="red">APEL — SAFETY</Badge> : null}
+          {guide.id === "watches" ? <Badge tone="amber">SECURE-AREA CAUTION</Badge> : null}
+          {guide.id === "before-you-ship" ? <Badge tone="official">OPEN TO FUTURE MEMBERS</Badge> : null}
+        </span>
+        <span className="mt-1 block text-sm text-[var(--dim)]">{guide.summary}</span>
+        <span className="mt-2 block text-sm font-bold text-[var(--accent-word)]">{open ? "Close ▴" : "Read the guide ▾"}</span>
+      </button>
+      {open ? (
+        <div className="mt-3 border-t border-[var(--border)] pt-3">
+          {guide.sections.map((s) => (
+            <div key={s.heading}>
+              <h5 className="font-display mt-4 text-base font-bold text-[var(--text)]">{s.heading}</h5>
+              {s.body ? <p className="mt-1 text-base text-[var(--text)]">{s.body}</p> : null}
+              {s.bullets && s.bullets.length > 0 ? (
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-base text-[var(--text)]">
+                  {s.bullets.map((b) => (
+                    <li key={b.slice(0, 60)}>{b}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ))}
+          {guide.routerPairing ? (
+            <p className="mt-4 rounded bg-[var(--surface2)] p-3 text-sm text-[var(--text)]">
+              <span className="font-bold">Router pairing: </span>
+              {guide.routerPairing}
+            </p>
+          ) : null}
+          <CardTools
+            cardRef={{
+              section: "gear",
+              itemKey: guide.id,
+              title: `Guide ${guide.num} — ${guide.title}`,
+              summary: guide.summary,
+              source: guide.source,
+            }}
+          />
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+/**
+ * Future-member Gear Search: ONLY the Before You Ship guide renders —
+ * the store router and the other nine guides are member content and are
+ * never part of what a future profile is served. The locked remainder
+ * is named, not hidden silently.
+ */
+function FutureGearView() {
+  return (
+    <div>
+      <SectionHead
+        title="Before You Ship"
+        sub="The one Gear Search guide open to future members. It teaches that nearly everything is issued at entry training and routes you to your branch's official what-to-bring list — deliberately, there is no shopping list here."
+      />
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Badge tone="amber">FUTURE MEMBER — NOT VERIFIED</Badge>
+        <Badge>GUIDE 10 OF GEAR SEARCH</Badge>
+      </div>
+      <GearGuideCard guide={BEFORE_YOU_SHIP} defaultOpen />
+      <div className="mt-4 rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--surface2)] p-4">
+        <span className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-display text-base font-bold text-[var(--dim)]">Gear Search — store router &amp; Guides 1–9</span>
+          <Badge>LOCKED</Badge>
+        </span>
+        <span className="mt-1 block text-sm text-[var(--dim)]">
+          Members area — the store router and the buying guides for boots, rucks, uniforms, weather gear, sleep,
+          eye pro, tools, and watches unlock when you&apos;re serving. They&apos;re written for after graduation,
+          when your clothing allowance pays for replacements.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------- Medical Training & Certs ----------------------- */
+
+function MedicalView() {
+  // Rule 11: the "Medical Training by Branch" group narrows to your
+  // branch in the My branch view — for a Marine the Navy-corpsman
+  // entry IS the Marine entry (it carries that explanation) and
+  // stays. Everything else in the section is every branch's.
+  const scope = useSectionScope("medical");
+  const profile = scope.profile;
+  const medBranchGroup = MEDICAL_GROUPS.find((g) => g.title === "Medical Training by Branch");
+  // Guard: a branch with no entry of its own in the group (Space
+  // Force has none) never filters the group to empty — the toggle
+  // then reports nothing held back.
+  const medHidden = new Set(
+    scope.scope !== "all" && profile?.branch && medBranchGroup
+      ? (() => {
+          const visible = medBranchGroup.entries.filter((e) => visibleForProfile(e.name, profile));
+          return visible.length > 0 ? medBranchGroup.entries.filter((e) => !visible.includes(e)) : [];
+        })()
+      : [],
+  );
+  const medHeldBack = medHidden.size;
+  return (
+    <div>
+      <SectionHead
+        title="Medical Training & Certs"
+        sub="What the military's medical training and certifications are — the TCCC tiers, the life-support certs and who runs them, how the medic pipelines connect to civilian EMT certification, Stop the Bleed, each branch's own medical training, and the CPR/AED courses meant for everyone else."
+      />
+      <div className="mb-4 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+        <p className="text-base font-semibold text-[var(--text)]">{MEDICAL_STANDING_NOTE}</p>
+      </div>
+      <div className="mb-6 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+        <p className="text-sm text-[var(--text)]">{MEDICAL_ENROLLMENT_NOTE}</p>
+      </div>
+
+      <ScopeToggle sectionKey="medical" itemNoun="cards" heldBack={medHeldBack} />
+
+      {MEDICAL_GROUPS.map((group) => (
+        <section key={group.title} aria-label={group.title} className="mb-8">
+          <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
+          {group.note ? (
+            <p className="mb-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3 text-sm text-[var(--text)]">
+              {group.note}
+            </p>
+          ) : null}
+          <div className="space-y-3">
+            {(group.title === "Medical Training by Branch" ? group.entries.filter((e) => !medHidden.has(e)) : group.entries).map((entry) => (
+              <MedicalCard key={entry.id} entry={entry} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function MedicalCard({ entry }: { entry: MedicalEntry }) {
+  const linkCls =
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-display text-lg font-bold text-[var(--text)]">{entry.name}</h4>
+        <Badge>{entry.kind}</Badge>
+      </div>
+      <p className="mt-1 text-base text-[var(--text)]">{entry.summary}</p>
+      {entry.details?.map((d) => (
+        <p key={d.slice(0, 40)} className="mt-2 text-base text-[var(--text)]">
+          {d}
+        </p>
+      ))}
+      {entry.who ? (
+        <p className="mt-2 text-sm text-[var(--dim)]">
+          <span className="font-bold text-[var(--text)]">Who it&apos;s for / when: </span>
+          {entry.who}
+        </p>
+      ) : null}
+      {entry.flag ? (
+        <p className="mt-2 rounded bg-[var(--amber-bg)] p-2 text-sm font-semibold text-[var(--amber)]">
+          {entry.flag.startsWith("⚠") ? entry.flag : `⚠ ${entry.flag}`}
+        </p>
+      ) : null}
+      {entry.links.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {entry.links.map((l) => (
+            <a
+              key={`${l.label}-${l.url}`}
+              href={l.url}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`${entry.name} — ${l.label} (opens in new tab)`}
+              className={linkCls}
+            >
+              {l.label} ↗
+            </a>
+          ))}
+        </div>
+      ) : null}
+      <CardTools
+        cardRef={{
+          section: "medical",
+          itemKey: entry.id,
+          title: entry.name,
+          summary: entry.summary,
+          source: sourceFromLinks(entry.links),
+        }}
+      />
+    </article>
+  );
+}
+
+/* --------------------------------- Lingo --------------------------------- */
+// The family-facing dictionary, open to every track. The phonetic
+// alphabet (FAA AIM Table 4-2-2, cross-checked against NATO's chart)
+// headlines the section; the 172 entries follow in the pack's 7
+// groups, each card trust-stamped from its group's anchor sources.
+
+function PhoneticGrid({ rows }: { rows: PhoneticRow[] }) {
+  return (
+    <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+      {rows.map((r) => (
+        <div key={r.symbol} className="rounded bg-[var(--surface2)] px-3 py-2">
+          <p className="text-base text-[var(--text)]">
+            <strong className="font-display">{r.symbol}</strong> —{" "}
+            <span className="font-display font-bold">{r.word}</span>
+          </p>
+          <p className="text-sm text-[var(--dim)]">{r.pronunciation}</p>
+          {r.flag ? (
+            <p className="mt-1 text-sm font-semibold text-[var(--amber)]">⚠ {r.flag}</p>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LingoCard({ entry, group }: { entry: LingoEntry; group: LingoGroup }) {
+  return (
+    <article
+      aria-label={entry.term}
+      className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-display text-lg font-bold text-[var(--text)]">{entry.term}</h4>
+        {entry.slang ? <Badge tone="red">SLANG</Badge> : null}
+        {entry.note ? <span className="text-sm text-[var(--dim)]">({entry.note})</span> : null}
+      </div>
+      {entry.expansion ? (
+        <p className="mt-0.5 text-base font-semibold text-[var(--text)]">{entry.expansion}</p>
+      ) : null}
+      <p className="mt-1 text-base text-[var(--text)]">{entry.definition}</p>
+      {entry.flag ? (
+        <p className="mt-2 rounded bg-[var(--amber-bg)] p-2 text-sm font-semibold text-[var(--amber)]">
+          {entry.flag.startsWith("⚠") ? entry.flag : `⚠ ${entry.flag}`}
+        </p>
+      ) : null}
+      <CardTools
+        cardRef={{
+          section: "lingo",
+          itemKey: entry.id,
+          title: entry.expansion ? `${entry.term} — ${entry.expansion}` : entry.term,
+          summary: entry.definition,
+          source: group.source,
+        }}
+      />
+    </article>
+  );
+}
+
+function LingoView({
+  focusAnchor,
+  focusCard,
+}: {
+  focusAnchor?: string | null;
+  focusCard?: string | null;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const searching = q.length > 0;
+  // Hub of tiles: one per dictionary group, plus the Phonetic
+  // Alphabet tile. The cross-dictionary search stays on the hub
+  // screen; each dictionary tile also carries its own search bar.
+  // Deep links (global search anchors name the group; Binder cards
+  // name the entry) open the tile that holds the target.
+  const [tile, setTile] = useState<string | null>(() => {
+    if (focusAnchor) {
+      const slug = anchorSlug(focusAnchor);
+      if (slug === anchorSlug("Phonetic alphabet")) return "phonetic";
+      const group = LINGO_GROUPS.find((g) => anchorSlug(g.title) === slug);
+      if (group) return group.title;
+    }
+    if (focusCard) {
+      if (focusCard === "Phonetic alphabet") return "phonetic";
+      const entry = ALL_LINGO_ENTRIES.find(
+        (e) => (e.expansion ? `${e.term} — ${e.expansion}` : e.term) === focusCard,
+      );
+      if (entry) return entry.group;
+    }
+    return null;
+  });
+  const [tileQuery, setTileQuery] = useState("");
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [tile]);
+  const matches = (e: LingoEntry): boolean => {
+    const hay = `${e.term} ${e.expansion ?? ""} ${e.note ?? ""} ${e.definition}`.toLowerCase();
+    return q.split(/\s+/).every((t) => hay.includes(t));
+  };
+  const resultCount = searching ? ALL_LINGO_ENTRIES.filter(matches).length : 0;
+  const linkCls =
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
+  const openGroup = tile && tile !== "phonetic" ? LINGO_GROUPS.find((g) => g.title === tile) : undefined;
+  const tq = tileQuery.trim().toLowerCase();
+  const tileEntries = openGroup
+    ? tq
+      ? openGroup.entries.filter((e) => {
+          const hay = `${e.term} ${e.expansion ?? ""} ${e.note ?? ""} ${e.definition}`.toLowerCase();
+          return tq.split(/\s+/).every((t) => hay.includes(t));
+        })
+      : openGroup.entries
+    : [];
+  const backBtn = (
+    <HubBackButton ariaLabel="Back to all Lingo areas" text="All Lingo areas" onBack={() => setTile(null)} />
+  );
+
+  return (
+    <div>
+      <SectionHead
+        title="Lingo"
+        sub="The plain-English military dictionary — for spouses, parents, recruits, and brand-new members. Open to everyone, in every track."
+      />
+      <p className="mb-4 text-base text-[var(--text)]">{LINGO_INTRO}</p>
+      <HonestyLine />
+
+      {tile === null ? (
+        <div className="mb-6">
+          <label className={labelCls} htmlFor="lingo-search">
+            Search the dictionary
+          </label>
+          <input
+            id="lingo-search"
+            aria-label="Search the dictionary by word, expansion, or meaning"
+            className={inputCls}
+            type="search"
+            value={query}
+            placeholder="Try BAH, scuttlebutt, DITY, or “housing”"
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {searching ? (
+            <p className="mt-2 text-sm text-[var(--dim)]" role="status">
+              {resultCount} {resultCount === 1 ? "entry" : "entries"} match “{query.trim()}”
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {searching ? (
+        resultCount > 0 ? (
+          <div className="space-y-3">
+            {LINGO_GROUPS.map((group) => {
+              const hits = group.entries.filter(matches);
+              if (hits.length === 0) return null;
+              return (
+                <section key={group.title} aria-label={`${group.title} matches`} className="space-y-3">
+                  <h3 className="font-display text-lg font-bold text-[var(--text)]">{group.title}</h3>
+                  {hits.map((entry) => (
+                    <LingoCard key={entry.id} entry={entry} group={group} />
+                  ))}
+                </section>
+              );
+            })}
+          </div>
+        ) : (
+          <section aria-label="No matches" className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+            <p className="text-base text-[var(--text)]">
+              Nothing in the dictionary matches “{query.trim()}”. Try the word itself, its abbreviation, or a
+              word from its meaning — the dictionary covers pay &amp; paperwork, people &amp; roles, daily
+              life, orders &amp; moves, medical &amp; benefits, field &amp; radio words, and labeled slang.
+            </p>
+          </section>
+        )
+      ) : tile === null ? (
+        <HubTileGrid
+          label="Lingo areas"
+          onOpen={(key) => {
+            setTileQuery("");
+            setTile(key);
+          }}
+          tiles={[
+            { key: "phonetic", label: "Phonetic Alphabet", sub: "The 26 letters + digit pronunciations" },
+            ...LINGO_GROUPS.map((g) => ({
+              key: g.title,
+              label: g.title,
+              sub: `${g.entries.length} entries`,
+            })),
+          ]}
+        />
+      ) : tile === "phonetic" ? (
+        <>
+          {backBtn}
+          <section aria-label="Phonetic alphabet" className="mb-8 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+            <h3 className="font-display text-xl font-bold text-[var(--text)]">The Phonetic Alphabet</h3>
+            <p className="mt-1 text-sm text-[var(--dim)]">{PHONETIC_SOURCE_NOTE}</p>
+            <p className="mt-2 text-base text-[var(--text)]">{PHONETIC_WHY}</p>
+            <h4 className="font-display mt-4 text-lg font-bold text-[var(--text)]">Letters</h4>
+            <PhoneticGrid rows={PHONETIC_LETTERS} />
+            <h4 className="font-display mt-5 text-lg font-bold text-[var(--text)]">Digits — how numbers are said on the radio</h4>
+            <p className="mt-1 text-sm text-[var(--text)]">{PHONETIC_DIGITS_NOTE}</p>
+            <PhoneticGrid rows={PHONETIC_DIGITS} />
+            <div className="mt-4 flex flex-wrap gap-2">
+              {PHONETIC_LINKS.map((l) => (
+                <a
+                  key={l.url}
+                  href={l.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`${l.label} (opens in new tab)`}
+                  className={linkCls}
+                >
+                  {l.label} ↗
+                </a>
+              ))}
+            </div>
+            <CardTools
+              cardRef={{
+                section: "lingo",
+                itemKey: "phonetic-alphabet",
+                title: "Phonetic alphabet",
+                summary: PHONETIC_WHY,
+                source: PHONETIC_SOURCE_LABEL,
+              }}
+            />
+          </section>
+        </>
+      ) : openGroup ? (
+        <section aria-label={openGroup.title} className="mb-8">
+          {backBtn}
+          <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">{openGroup.title}</h3>
+          <p className="mb-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3 text-sm text-[var(--text)]">
+            {openGroup.note}
+          </p>
+          {openGroup.links.length > 0 ? (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {openGroup.links.map((l) => (
+                <a
+                  key={`${l.label}-${l.url}`}
+                  href={l.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`${openGroup.title} anchor source — ${l.label} (opens in new tab)`}
+                  className={linkCls}
+                >
+                  {l.label} ↗
+                </a>
+              ))}
+            </div>
+          ) : null}
+          <HubSearch
+            id="lingo-tile-search"
+            label={`Search ${openGroup.title}`}
+            ariaLabel={`Search ${openGroup.title} by word, expansion, or meaning`}
+            value={tileQuery}
+            onChange={setTileQuery}
+            placeholder="Search this group…"
+          />
+          {tileEntries.length === 0 ? (
+            <p className="text-sm text-[var(--dim)]">
+              Nothing in {openGroup.title} matches “{tileQuery.trim()}”.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {tileEntries.map((entry) => (
+                <LingoCard key={entry.id} entry={entry} group={openGroup} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+/* ---------------------------- Trails & Camping ---------------------------- */
+// The family/leisure finder, open to every track. One place field; the
+// cards below build outbound links ONLY from the pack's verified
+// patterns — Recreation.gov, The Dyrt, Hiking Project (search), NPS
+// state pages and Campendium state browse (state inputs only) — plus
+// the verified official routes with no pattern (state park finders,
+// USFS, BLM). The six platforms whose search patterns never verified
+// (AllTrails, ReserveAmerica, Hipcamp, iOverlander, park4night, Gaia
+// GPS — re-probed at build time, still unverified) route to their
+// homepage/search page, honestly labeled "search on their site." No
+// trail or campground data lives in the app.
+
+const trailLinkCls =
+  "inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
+
+function trailClip(s: string, n = 220): string {
+  const t = s.replace(/\s+/g, " ").trim();
+  return t.length > n ? `${t.slice(0, n)}…` : t;
+}
+
+function TrailExtLink({ link, label }: { link: TrailLink; label?: string }) {
+  return (
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`${label ?? link.label} (opens in new tab)`}
+      className={trailLinkCls}
+    >
+      {link.label} ↗
+    </a>
+  );
+}
+
+function PlatformFacts({ coverage, lists, tier }: { coverage: string; lists: string; tier?: string }) {
+  return (
+    <dl className="mt-2 space-y-1.5 text-base text-[var(--text)]">
+      <div>
+        <dt className="inline font-bold">Coverage: </dt>
+        <dd className="inline">{coverage}</dd>
+      </div>
+      <div>
+        <dt className="inline font-bold">What it lists: </dt>
+        <dd className="inline">{lists}</dd>
+      </div>
+      {tier ? (
+        <div>
+          <dt className="inline font-bold">Cost: </dt>
+          <dd className="inline">{tier}</dd>
+        </div>
+      ) : null}
+    </dl>
+  );
+}
+
+function SearchPlatformCard({ platform, place }: { platform: SearchPlatform; place: string }) {
+  const href = place ? platform.pattern.replace("{place}", encodeURIComponent(place)) : null;
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-display text-lg font-bold text-[var(--text)]">{platform.name}</h4>
+        <Badge tone="official">{platform.badge}</Badge>
+        <Badge>VERIFIED SEARCH LINK</Badge>
+      </div>
+      <PlatformFacts coverage={platform.coverage} lists={platform.lists} tier={platform.tier} />
+      <div className="mt-3">
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Search ${platform.name} for ${place} (opens in new tab)`}
+            className={btnPrimary}
+          >
+            Search {platform.name} for “{place}” ↗
+          </a>
+        ) : (
+          <p className="text-sm text-[var(--dim)]">
+            Type a place above — this card builds {platform.name}&apos;s own verified search link for it.
+          </p>
+        )}
+      </div>
+      <CardTools
+        cardRef={{
+          section: "trails",
+          itemKey: platform.id,
+          title: platform.name,
+          summary: trailClip(platform.lists),
+          source: platform.source,
+        }}
+      />
+    </article>
+  );
+}
+
+function RoutePlatformCard({ platform }: { platform: RoutePlatform }) {
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-display text-lg font-bold text-[var(--text)]">{platform.name}</h4>
+        <Badge>{platform.badge}</Badge>
+        <Badge tone="amber">SEARCH ON THEIR SITE</Badge>
+      </div>
+      <PlatformFacts coverage={platform.coverage} lists={platform.lists} tier={platform.tier} />
+      <p className="mt-2 rounded bg-[var(--amber-bg)] p-2 text-sm font-semibold text-[var(--amber)]">
+        {platform.status}
+      </p>
+      <div className="mt-3">
+        <TrailExtLink link={platform.route} />
+      </div>
+      <CardTools
+        cardRef={{
+          section: "trails",
+          itemKey: platform.id,
+          title: platform.name,
+          summary: trailClip(platform.lists),
+          source: platform.source,
+        }}
+      />
+    </article>
+  );
+}
+
+/* ---------------------------- My Installation ---------------------------- */
+// The router the research pack designed: the member (or spouse, for
+// their family) sets their installation once — from the
+// MilitaryINSTALLATIONS directory's own list, slug stored verbatim —
+// and this page assembles the official routes for it. NOTHING
+// installation-specific is stored or printed here (no hours, phones,
+// or building numbers): every service link below is either the
+// verified overview / in-depth pattern built from the stored slug, a
+// sub-page link HARVESTED from that installation's own overview page
+// at build time (never constructed), or a national locator the pack
+// verified. See client/src/installation.ts for the full provenance.
+
+function InstExtLink({ link, primary }: { link: LocatorLink; primary?: boolean }) {
+  return (
+    <span className="inline-block">
+      <a
+        href={link.url}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`${link.label} (opens in new tab)`}
+        className={primary ? btnPrimary : trailLinkCls}
+        style={primary ? { display: "inline-block" } : undefined}
+      >
+        {link.label} ↗
+      </a>
+      {link.note ? <span className="mt-1 block text-sm text-[var(--dim)]">{link.note}</span> : null}
+    </span>
+  );
+}
+
+function InstallationPicker({
+  onPick,
+  currentSlug,
+  pending,
+}: {
+  onPick: (e: InstallationEntry) => void;
+  currentSlug: string;
+  pending: boolean;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? INSTALLATIONS.filter(
+        (i) => i.name.toLowerCase().includes(q) || i.region.toLowerCase().includes(q) || i.slug.includes(q),
+      )
+    : INSTALLATIONS;
+  const conus = matches.filter((i) => !i.oconus);
+  const oconus = matches.filter((i) => i.oconus);
+  const renderGroup = (list: InstallationEntry[]) => {
+    const byRegion = new Map<string, InstallationEntry[]>();
+    for (const e of list) {
+      const arr = byRegion.get(e.region) ?? [];
+      arr.push(e);
+      byRegion.set(e.region, arr);
+    }
+    return [...byRegion.entries()].map(([region, items]) => (
+      <div key={region} className="mt-3">
+        <h5 className="text-sm font-bold tracking-wide text-[var(--dim)]">{region}</h5>
+        <div className="mt-1 flex flex-wrap gap-2">
+          {items.map((e) => (
+            <button
+              key={e.slug}
+              type="button"
+              disabled={pending}
+              aria-label={`Set installation to ${e.name}`}
+              aria-current={e.slug === currentSlug ? "true" : undefined}
+              onClick={() => onPick(e)}
+              className={`rounded-[var(--radius)] border px-3 py-2 text-sm font-semibold disabled:opacity-50 ${
+                e.slug === currentSlug
+                  ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-text)]"
+                  : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
+              }`}
+            >
+              {e.name}
+            </button>
+          ))}
+        </div>
+      </div>
+    ));
+  };
+  return (
+    <div>
+      <label className={labelCls} htmlFor="installation-search">
+        Search the directory&apos;s list — name, state, or country
+      </label>
+      <input
+        id="installation-search"
+        aria-label="Search installations by name, state, or country"
+        className={inputCls}
+        type="search"
+        value={query}
+        placeholder="Try Lejeune, Hood, Ramstein, Yokota, or Germany"
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      <p className="mt-2 text-sm text-[var(--dim)]" role="status">
+        {matches.length} of {INSTALLATIONS.length} directory listings
+        {q ? ` match “${query.trim()}”` : ""}. This list is the directory&apos;s own — names and spellings are
+        exactly as MilitaryINSTALLATIONS prints them (it still lists Fort Hood, not Cavazos).
+      </p>
+      {matches.length === 0 ? (
+        <p className="mt-3 text-base text-[var(--text)]">
+          Nothing in the directory&apos;s list matches that. The directory adds, renames, and retires listings —
+          search the directory itself below.
+        </p>
+      ) : (
+        <>
+          {conus.length > 0 ? (
+            <div>
+              <h4 className="font-display mt-4 text-lg font-bold text-[var(--text)]">United States</h4>
+              {renderGroup(conus)}
+            </div>
+          ) : null}
+          {oconus.length > 0 ? (
+            <div>
+              <h4 className="font-display mt-4 text-lg font-bold text-[var(--text)]">
+                Overseas — as the directory lists them (incl. Alaska, Hawaii &amp; territories)
+              </h4>
+              {renderGroup(oconus)}
+            </div>
+          ) : null}
+        </>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <InstExtLink link={{ label: "Search the MilitaryINSTALLATIONS directory itself", url: DIRECTORY_HOME_URL }} />
+        <InstExtLink link={{ label: "View all installations in the directory", url: DIRECTORY_VIEW_ALL_URL }} />
+      </div>
+    </div>
+  );
+}
+
+function OnBaseCategoryCard({
+  category,
+  entry,
+  harvestedKeys,
+}: {
+  category: OnBaseCategory;
+  entry: InstallationEntry;
+  harvestedKeys: Set<string>;
+}) {
+  const topicLinks: { def: (typeof TOPIC_DICT)[number]; url: string }[] = [];
+  for (const i of category.topics) {
+    const def = TOPIC_DICT[i];
+    if (def && harvestedKeys.has(`${def.segment}/${def.topic}`)) {
+      topicLinks.push({ def, url: topicUrl(entry.slug, def) });
+    }
+  }
+  const seen = new Set<string>();
+  const links = topicLinks.filter((l) => (seen.has(l.url) ? false : (seen.add(l.url), true)));
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-display text-lg font-bold text-[var(--text)]">{category.name}</h4>
+        {links.length > 0 ? (
+          <Badge tone="official">
+            {links.length} {entry.name} page{links.length === 1 ? "" : "s"}
+          </Badge>
+        ) : null}
+      </div>
+      <p className="mt-1 text-base text-[var(--text)]">{category.blurb}</p>
+      {links.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {links.map((l) => (
+            <InstExtLink
+              key={l.url}
+              link={{ label: `${entry.name} — ${l.def.label}`, url: l.url }}
+            />
+          ))}
+        </div>
+      ) : null}
+      {category.locators.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {category.locators.map((l) => (
+            <InstExtLink key={l.url} link={l} />
+          ))}
+        </div>
+      ) : null}
+      {links.length === 0 ? (
+        <p className="mt-2 text-sm text-[var(--dim)]">
+          {category.overviewNote}{" "}
+          <a
+            href={overviewUrl(entry.slug)}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`${entry.name} overview on MilitaryINSTALLATIONS (opens in new tab)`}
+            className="font-bold text-[var(--accent-word)] underline"
+          >
+            Open the {entry.name} overview ↗
+          </a>
+        </p>
+      ) : null}
+      <CardTools
+        cardRef={{
+          section: "installation",
+          itemKey: category.id,
+          title: `${category.name} — ${entry.name}`,
+          summary: trailClip(category.blurb),
+          source: "MilitaryINSTALLATIONS",
+        }}
+      />
+    </article>
+  );
+}
+
+/* Apps & Getting Around (installationApps.ts): Layer 1 universal
+ * official-app cards, the myPay warning, Layer 2 harvested topic
+ * cards, and Layer 3 OCONUS hub cards. Rendered inside My
+ * Installation only — full block on the installation detail page,
+ * compact block + hub cards on the landing. */
+
+function UniversalAppCard({ app }: { app: UniversalApp }) {
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h4 className="font-display text-lg font-bold text-[var(--text)]">{app.name}</h4>
+        <div className="flex flex-wrap gap-1">
+          {app.legacy ? <Badge tone="amber">LEGACY</Badge> : null}
+          {app.oconusOnly ? <Badge tone="official">OCONUS ONLY</Badge> : null}
+        </div>
+      </div>
+      <p className="mt-1 text-base text-[var(--text)]">{app.what}</p>
+      <p className="mt-2 text-sm text-[var(--dim)]">
+        Publisher: {app.publisher}
+        {app.storeDeveloper ? (
+          <>
+            {" "}
+            · Store developer: <span className="font-semibold text-[var(--text)]">{app.storeDeveloper}</span>
+          </>
+        ) : null}
+      </p>
+      <p className="text-sm text-[var(--dim)]">
+        {app.platforms} · {app.cost} · {app.basis}
+      </p>
+      {app.statusNote ? (
+        <p
+          className={`mt-2 rounded-[var(--radius)] px-3 py-2 text-sm text-[var(--text)] ${
+            app.legacy ? "bg-[var(--amber-bg)]" : "bg-[var(--surface2)]"
+          }`}
+        >
+          {app.statusNote}
+        </p>
+      ) : null}
+      <div className="mt-3">
+        <InstExtLink link={{ label: app.routeLabel, url: app.routeUrl }} />
+      </div>
+      <CardTools
+        cardRef={{
+          section: "installation",
+          itemKey: `app-${app.id}`,
+          title: app.name,
+          summary: trailClip(app.what),
+          source: app.routeLabel,
+        }}
+      />
+    </article>
+  );
+}
+
+function MyPayWarningCard() {
+  return (
+    <article className="rounded-[var(--radius)] border-2 border-[var(--red)] bg-[var(--red-bg)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-display text-lg font-bold text-[var(--text)]">{MYPAY_WARNING.title}</h4>
+        <Badge tone="red">WARNING</Badge>
+      </div>
+      <p className="mt-1 text-base text-[var(--text)]">{MYPAY_WARNING.body}</p>
+      <div className="mt-3">
+        <InstExtLink link={{ label: MYPAY_WARNING.routeLabel, url: MYPAY_WARNING.routeUrl }} />
+      </div>
+      <CardTools
+        cardRef={{
+          section: "installation",
+          itemKey: "app-mypay-warning",
+          title: "myPay — no official app (warning)",
+          summary: trailClip(MYPAY_WARNING.body),
+          source: "DFAS — mypay.dfas.mil (browser only)",
+        }}
+      />
+    </article>
+  );
+}
+
+function HarvestTopicCard({ entry, topicId }: { entry: InstallationEntry; topicId: HarvestTopicId }) {
+  const topic = HARVEST_TOPICS.find((t) => t.id === topicId);
+  const links = APP_HARVEST[entry.slug]?.[topicId];
+  if (!topic || !links?.length) return null;
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <h4 className="font-display text-lg font-bold text-[var(--text)]">
+        {topic.name} — {entry.name}
+      </h4>
+      <p className="mt-1 text-sm text-[var(--dim)]">{topic.blurb}</p>
+      <div className="mt-3 space-y-3">
+        {links.map((l) => (
+          <div key={l.url}>
+            <InstExtLink link={{ label: l.label, url: l.url }} />
+            <p className="mt-1 text-sm text-[var(--text)]">{l.note}</p>
+          </div>
+        ))}
+      </div>
+      <CardTools
+        cardRef={{
+          section: "installation",
+          itemKey: `topic-${entry.slug}-${topic.id}`,
+          title: `${topic.name} — ${entry.name}`,
+          summary: trailClip(topic.blurb),
+          source: `Harvested from ${entry.name}'s own official pages`,
+        }}
+      />
+    </article>
+  );
+}
+
+function HubCard({ hub }: { hub: Hub }) {
+  return (
+    <article
+      aria-label={hubAriaLabel(hub)}
+      className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-display text-lg font-bold text-[var(--text)]">Apps &amp; Getting Around — {hub.title}</h4>
+        <Badge tone="official">OCONUS HUB</Badge>
+      </div>
+      <p className="mt-1 text-sm font-semibold text-[var(--dim)]">{hub.area}</p>
+      <p className="mt-1 text-base text-[var(--text)]">{hub.intro}</p>
+      <div>
+        {hub.entries.map((e) => {
+          const token = /^\[[^\]]+\]/.exec(e.basis)?.[0] ?? "";
+          return (
+            <div key={e.name} className="border-t border-[var(--border)] py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <h5 className="font-display text-base font-bold text-[var(--text)]">{e.name}</h5>
+                <Badge>{e.category.toUpperCase()}</Badge>
+                {token ? <Badge tone="official">{token}</Badge> : null}
+              </div>
+              <p className="mt-1 text-base text-[var(--text)]">{e.what}</p>
+              <p className="mt-1 text-sm text-[var(--dim)]">
+                {[`Publisher: ${e.publisher}`, e.platforms, e.cost].filter(Boolean).join(" · ")}
+              </p>
+              <p className="text-sm text-[var(--dim)]">Basis: {e.basis}</p>
+              {e.note ? (
+                <p className="mt-1 rounded-[var(--radius)] bg-[var(--surface2)] px-3 py-2 text-sm text-[var(--text)]">
+                  {e.note}
+                </p>
+              ) : null}
+              {e.routeUrl ? (
+                <div className="mt-2">
+                  <InstExtLink link={{ label: e.routeLabel ?? e.name, url: e.routeUrl }} />
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      <CardTools
+        cardRef={{
+          section: "installation",
+          itemKey: `hub-${hub.id}`,
+          title: `Apps & Getting Around — ${hub.title}`,
+          summary: trailClip(hub.intro),
+          source: "Hand-curated hub — every entry carries its sourcing-basis label",
+        }}
+      />
+      <HubPhraseCards hubId={hub.id} />
+    </article>
+  );
+}
+
+function AppsBlock({ entry }: { entry: InstallationEntry }) {
+  const hub = hubForSlug(entry.slug);
+  const apps = UNIVERSAL_APPS.filter((a) => !a.oconusOnly || entry.oconus);
+  const coverage = harvestCoverage();
+  const covLine = HARVEST_TOPICS.map((t) => {
+    const n = coverage.find((c) => c.topic === t.id)?.installations ?? 0;
+    return `${t.name.toLowerCase()} at ${n}`;
+  }).join(" · ");
+  return (
+    <section aria-label="Apps & Getting Around" className="mb-8">
+      <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">
+        Apps &amp; Getting Around — {entry.name}
+      </h3>
+      <p className="mb-3 text-sm text-[var(--dim)]">
+        The apps and pages that help you at {entry.name} — food ordering, shuttles and buses, things to do — plus the
+        official apps that work at every installation. Every route below lands on the owner&apos;s own official page;
+        nothing here deep-links an app store.
+      </p>
+      <div className="space-y-3">
+        <article className="rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+          <h4 className="font-display text-lg font-bold text-[var(--text)]">Before you install anything</h4>
+          <p className="mt-1 text-base text-[var(--text)]">{INSTALL_RULE}</p>
+        </article>
+        <MyPayWarningCard />
+        <div className="grid gap-3 lg:grid-cols-2">
+          {apps.map((a) => (
+            <UniversalAppCard key={a.id} app={a} />
+          ))}
+        </div>
+        {HARVEST_TOPICS.map((t) => (
+          <HarvestTopicCard key={t.id} entry={entry} topicId={t.id} />
+        ))}
+        {hub ? <HubCard hub={hub} /> : null}
+        <p className="text-sm text-[var(--dim)]">
+          {BASIS_LEGEND} Per-installation links under the three topics are harvested from each installation&apos;s own
+          official pages, never constructed — currently live: {covLine}, out of {INSTALLATIONS.length} installations.
+          Everywhere else, the service apps above are the route.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function AppsLanding() {
+  return (
+    <>
+      <section aria-label="Apps & Getting Around" className="mb-8">
+        <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">Apps &amp; Getting Around</h3>
+        <p className="mb-3 text-sm text-[var(--dim)]">
+          The official apps that work everywhere. Once you set your installation above, that installation&apos;s own
+          shuttle, food-ordering, and newcomer-app links join this block on its page — and the OCONUS hub cards below
+          appear there too.
+        </p>
+        <div className="space-y-3">
+          <article className="rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+            <h4 className="font-display text-lg font-bold text-[var(--text)]">Before you install anything</h4>
+            <p className="mt-1 text-base text-[var(--text)]">{INSTALL_RULE}</p>
+          </article>
+          <MyPayWarningCard />
+          <div className="grid gap-2 sm:grid-cols-2">
+            {UNIVERSAL_APPS.map((a) => (
+              <div key={a.id} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-display text-base font-bold text-[var(--text)]">{a.name}</span>
+                  {a.legacy ? <Badge tone="amber">LEGACY</Badge> : null}
+                  {a.oconusOnly ? <Badge tone="official">OCONUS ONLY</Badge> : null}
+                </div>
+                <p className="mt-0.5 text-sm text-[var(--dim)]">
+                  {a.platforms} · {a.cost} — {a.publisher}
+                </p>
+                <div className="mt-2">
+                  <InstExtLink link={{ label: a.routeLabel, url: a.routeUrl }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-sm text-[var(--dim)]">{BASIS_LEGEND}</p>
+        </div>
+      </section>
+      <section aria-label="OCONUS apps hubs" className="mb-8">
+        <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">
+          OCONUS Hubs — Apps &amp; Getting Around
+        </h3>
+        <p className="mb-3 text-sm text-[var(--dim)]">
+          Hand-curated for the four hubs below; the same card appears on its installations&apos; pages.
+        </p>
+        <div className="space-y-3">
+          {HUBS.map((h) => (
+            <HubCard key={h.id} hub={h} />
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function InstallationView({ profile, go }: { profile: Profile; go: (v: View) => void }) {
+  const queryClient = useQueryClient();
+  const [changing, setChanging] = useState(false);
+  const spouse = profile.track === "spouse";
+  const entry = profile.installationSlug ? findInstallation(profile.installationSlug) : undefined;
+  const setMut = useMutation({
+    mutationFn: (e: InstallationEntry | null) =>
+      api.setInstallation({ slug: e?.slug ?? "", name: e?.name ?? "" }),
+    onSuccess: () => {
+      setChanging(false);
+      void queryClient.invalidateQueries();
+    },
+  });
+
+  if (profile.track === "future") {
+    return (
+      <div>
+        <SectionHead
+          title="My Installation"
+          sub="Your installation's own guide — on-base services by category from its official directory pages, the national locators, and what's off base around it."
+        />
+        <section aria-label="My Installation is locked for future members" className="rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-5">
+          <h3 className="font-display text-xl font-bold text-[var(--text)]">Locked until you&apos;re serving</h3>
+          <p className="mt-2 text-base text-[var(--text)]">
+            My Installation is set from a real duty station, so it opens with a member or spouse profile. When you
+            ship and get your first station, set it there and this page becomes that installation&apos;s guide.
+          </p>
+        </section>
+      </div>
+    );
+  }
+
+  const harvested = entry ? harvestedTopics(entry.slug) : [];
+  const harvestedKeys = new Set(harvested.map((t) => `${t.segment}/${t.topic}`));
+  const showPicker = !entry || changing;
+  const first30Link = (
+    <section aria-label="First 30 Days — arriving at this installation" className="mb-6 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4">
+      <h3 className="font-display text-lg font-bold text-[var(--text)]">Arriving here? Walk the First 30 Days</h3>
+      <p className="mt-1 text-base text-[var(--text)]">
+        The guided newcomer path sequences the universal arrival tasks — sponsor, in-processing, voucher,
+        housing, DEERS/TRICARE, orientation — and points back here for this installation's own check-in
+        procedures, housing windows, and contacts, which are the ones that govern.
+      </p>
+      <button type="button" aria-label="Open First 30 Days from My Installation" onClick={() => go("first30")} className="mt-3 rounded-[var(--radius)] bg-[var(--accent)] px-4 py-3 text-base font-bold text-[var(--accent-text)]">
+        Open First 30 Days →
+      </button>
+    </section>
+  );
+
+  return (
+    <div>
+      <SectionHead
+        title="My Installation"
+        sub={
+          spouse
+            ? "Your family's installation, routed properly: its on-base services by category from its own official directory pages, the national locators, and the off-base guide around it. Hours, phone numbers, and building numbers live on the installation's own pages — this page routes, it doesn't copy."
+            : "Your installation, routed properly: its on-base services by category from its own official directory pages, the national locators, and the off-base guide around it. Hours, phone numbers, and building numbers live on the installation's own pages — this page routes, it doesn't copy."
+        }
+      />
+
+      {first30Link}
+
+      {entry && !changing ? (
+        <section aria-label={`Your installation: ${entry.name}`} className="mb-6 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="official">{spouse ? "YOUR FAMILY'S INSTALLATION" : "YOUR INSTALLATION"}</Badge>
+            {entry.oconus ? <Badge>OCONUS</Badge> : <Badge>{entry.region.toUpperCase()}</Badge>}
+            {harvested.length > 0 ? (
+              <Badge>
+                {harvested.length} service page{harvested.length === 1 ? "" : "s"} from its overview
+              </Badge>
+            ) : null}
+          </div>
+          <h3 className="font-display mt-2 text-2xl font-bold text-[var(--text)]">{entry.name}</h3>
+          <p className="mt-1 text-base text-[var(--dim)]">
+            {entry.oconus ? `Overseas — ${entry.region}` : entry.region} · Listed in the MilitaryINSTALLATIONS
+            directory, whose installations update and verify their own pages — that&apos;s why every route below
+            lands on the directory or the service&apos;s own locator, never on a copy here.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <InstExtLink
+              primary
+              link={{ label: `${entry.name} — directory overview`, url: overviewUrl(entry.slug) }}
+            />
+            <InstExtLink link={{ label: `${entry.name} — in-depth overview`, url: inDepthUrl(entry.slug) }} />
+          </div>
+          <p className="mt-2 text-sm text-[var(--dim)]">
+            The overview carries the installation&apos;s own website link, its main contacts, and the printable
+            Installation Booklet.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" aria-label="Change installation" onClick={() => setChanging(true)} className={btnGhost}>
+              Change installation
+            </button>
+            <button
+              type="button"
+              aria-label="Clear installation"
+              disabled={setMut.isPending}
+              onClick={() => setMut.mutate(null)}
+              className={btnGhost}
+            >
+              Clear
+            </button>
+          </div>
+          {setMut.isError ? (
+            <p role="alert" className="mt-2 text-sm font-semibold text-[var(--red)]">
+              That didn&apos;t save — try again. {setMut.error instanceof Error ? setMut.error.message : ""}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {showPicker ? (
+        <section aria-label="Pick your installation" className="mb-6 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+          <h3 className="font-display text-xl font-bold text-[var(--text)]">
+            {entry ? "Change your installation" : spouse ? "Set your family's installation" : "Set your installation"}
+          </h3>
+          <p className="mt-1 text-base text-[var(--text)]">
+            Pick from the MilitaryINSTALLATIONS directory&apos;s own list — all {INSTALLATIONS.length} listings,
+            worldwide. Your pick is saved on your profile only, and it drives the whole guide below.
+          </p>
+          <div className="mt-3">
+            <InstallationPicker
+              onPick={(e) => setMut.mutate(e)}
+              currentSlug={profile.installationSlug}
+              pending={setMut.isPending}
+            />
+          </div>
+          {setMut.isError ? (
+            <p role="alert" className="mt-2 text-sm font-semibold text-[var(--red)]">
+              That didn&apos;t save — try again. {setMut.error instanceof Error ? setMut.error.message : ""}
+            </p>
+          ) : null}
+          {entry ? (
+            <button type="button" aria-label="Cancel changing installation" onClick={() => setChanging(false)} className={`${btnGhost} mt-3`}>
+              Cancel
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+
+      {entry && !changing ? (
+        <>
+          <AppsBlock entry={entry} />
+          <section aria-label="On-base guide" className="mb-8">
+            <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">On-Base Guide — {entry.name}</h3>
+            <p className="mb-3 text-sm text-[var(--dim)]">
+              {harvested.length > 0
+                ? `Every “${entry.name} page” link below was harvested from ${entry.name}'s own directory overview page — the app never constructs a service-page link it didn't find there. Where a category has no harvested page, the card routes to the overview or the national locator instead.`
+                : `${entry.name}'s directory page doesn't publish the standard service-topic links (small units often don't), so its categories route to its overview page — which carries its contacts and links — and to the national locators.`}
+            </p>
+            <div className="space-y-3">
+              {ON_BASE_CATEGORIES.map((c) => (
+                <OnBaseCategoryCard key={c.id} category={c} entry={entry} harvestedKeys={harvestedKeys} />
+              ))}
+            </div>
+          </section>
+
+          {harvested.length > 0 ? (
+            <section aria-label="More on base" className="mb-8">
+              <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">More on Base</h3>
+              <p className="mb-3 text-sm text-[var(--dim)]">
+                The rest of {entry.name}&apos;s directory categories — every link its overview page publishes for
+                them.
+              </p>
+              <div className="space-y-3">
+                {MORE_ON_BASE_GROUPS.map((g) => {
+                  const links = g.topics
+                    .map((i) => TOPIC_DICT[i])
+                    .filter((d): d is TopicDef => !!d && harvestedKeys.has(`${d.segment}/${d.topic}`));
+                  if (links.length === 0) return null;
+                  return (
+                    <article key={g.name} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+                      <h4 className="font-display text-lg font-bold text-[var(--text)]">{g.name}</h4>
+                      <p className="mt-1 text-base text-[var(--text)]">{g.blurb}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {links.map((d) => (
+                          <InstExtLink
+                            key={`${d.segment}/${d.topic}`}
+                            link={{ label: `${entry.name} — ${d.label}`, url: topicUrl(entry.slug, d) }}
+                          />
+                        ))}
+                      </div>
+                      <CardTools
+                        cardRef={{
+                          section: "installation",
+                          itemKey: `more-${g.name}`,
+                          title: `${g.name} — ${entry.name}`,
+                          summary: trailClip(g.blurb),
+                          source: "MilitaryINSTALLATIONS",
+                        }}
+                      />
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
+          <section aria-label="ID cards and your branch directory" className="mb-8">
+            <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">ID Cards &amp; Your Branch&apos;s Directory</h3>
+            <div className="space-y-3">
+              <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+                <h4 className="font-display text-lg font-bold text-[var(--text)]">ID Card Office</h4>
+                <p className="mt-1 text-base text-[var(--text)]">
+                  ID cards, DEERS, and RAPIDS appointments run through ID Card Office Online — find the site
+                  nearest {entry.name} in the locator and book there.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <InstExtLink link={IDCO_PORTAL} />
+                  <InstExtLink link={IDCO_LOCATOR} />
+                </div>
+                <CardTools
+                  cardRef={{
+                    section: "installation",
+                    itemKey: "id-card-office",
+                    title: "ID Card Office",
+                    summary: "ID Card Office Online (IDCO): the portal and the RAPIDS Site Locator & Appointments. Sign-in is myAuth, which replaced DS Logon on May 20, 2025.",
+                    source: "ID Card Office Online (DMDC)",
+                  }}
+                />
+              </article>
+              {(() => {
+                const bd = branchDirectoryFor(profile.branch);
+                if (!bd) return null;
+                return (
+                  <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+                    <h4 className="font-display text-lg font-bold text-[var(--text)]">
+                      {profile.branch} Installation Directory
+                    </h4>
+                    <p className="mt-1 text-base text-[var(--text)]">{bd.note}</p>
+                    {bd.links.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {bd.links.map((l) => (
+                          <InstExtLink key={l.url} link={l} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-3">
+                        <InstExtLink link={{ label: `${entry.name} — directory overview`, url: overviewUrl(entry.slug) }} />
+                      </div>
+                    )}
+                    <CardTools
+                      cardRef={{
+                        section: "installation",
+                        itemKey: `branch-directory-${profile.branch}`,
+                        title: `${profile.branch} Installation Directory`,
+                        summary: trailClip(bd.note),
+                        source: bd.links[0]?.label ?? "MilitaryINSTALLATIONS",
+                      }}
+                    />
+                  </article>
+                );
+              })()}
+            </div>
+          </section>
+
+          <section aria-label="Off-base guide" className="mb-8">
+            <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">Off-Base Guide — Around {entry.name}</h3>
+            <p className="mb-3 text-sm text-[var(--dim)]">{MAPS_ROUTE_NOTE}</p>
+            <div className="space-y-3">
+              {OFF_BASE_CATEGORIES.map((c) => (
+                <article key={c.id} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="font-display text-lg font-bold text-[var(--text)]">{c.name}</h4>
+                    <Badge tone="amber">SEARCH ON THEIR SITE</Badge>
+                  </div>
+                  <p className="mt-1 text-base text-[var(--text)]">
+                    Search Google Maps for:{" "}
+                    <span className="font-bold">
+                      “{c.phrase} near {entry.name}, {entry.region}”
+                    </span>{" "}
+                    — then set the map&apos;s distance filter to about 50 miles.
+                  </p>
+                  <div className="mt-3">
+                    <a
+                      href={MAPS_HOME_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`Open Google Maps to search for ${c.name.toLowerCase()} near ${entry.name} (opens in new tab)`}
+                      className={trailLinkCls}
+                    >
+                      Open Google Maps ↗
+                    </a>
+                  </div>
+                </article>
+              ))}
+              <article className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4">
+                <h4 className="font-display text-lg font-bold text-[var(--text)]">Deals near {entry.name}</h4>
+                <p className="mt-1 text-base text-[var(--text)]">
+                  The Deals &amp; Discounts finder covers the same area — military deal platforms, the near-you
+                  finder, and the on-base programs (MWR, ITT, Space-A, commissary) most people never use.
+                </p>
+                <button
+                  type="button"
+                  aria-label={`Open Deals and Discounts for the ${entry.name} area`}
+                  onClick={() => go("deals")}
+                  className={`${btnPrimary} mt-3`}
+                >
+                  Open Deals &amp; Discounts
+                </button>
+              </article>
+            </div>
+          </section>
+        </>
+      ) : null}
+      {!entry ? <AppsLanding /> : null}
+    </div>
+  );
+}
+
+function TrailsView({
+  go,
+  dealsOpen,
+  focusCard,
+}: {
+  go: (v: View) => void;
+  dealsOpen: boolean;
+  focusCard?: string | null;
+}) {
+  const [place, setPlace] = useState("");
+  const trimmed = place.trim();
+  const state = resolveState(trimmed);
+  // Hub of tiles: Find Trails & Campsites (the place finder and its
+  // platform routes), Military Camping, and Guides. A My Binder card
+  // deep link opens the tile that holds the card.
+  const [tile, setTile] = useState<"find" | "camping" | "guides" | null>(() => {
+    if (focusCard) {
+      const findNames = [
+        ...VERIFIED_SEARCH_PLATFORMS.map((p) => p.name),
+        ...ROUTE_ONLY_PLATFORMS.map((p) => p.name),
+        NPS_CARD.name,
+        CAMPENDIUM_CARD.name,
+        STATE_PARKS_CARD.name,
+        USFS_CARD.name,
+        BLM_CARD.name,
+      ];
+      const campingNames = [FAMCAMPS.name, AFRC_ENTRY.name, ODR_ENTRY.name, UNOFFICIAL_DIRECTORY.name];
+      const guideNames = [GUIDE_DISPERSED.name, GUIDE_BASE_TRAILS.name, GUIDE_OCONUS.name, GUIDE_LNT.name];
+      if (findNames.includes(focusCard)) return "find";
+      if (campingNames.includes(focusCard)) return "camping";
+      if (guideNames.includes(focusCard)) return "guides";
+    }
+    return null;
+  });
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [tile]);
+  const backBtn = (
+    <HubBackButton ariaLabel="Back to Trails & Camping areas" text="All areas" onBack={() => setTile(null)} />
+  );
+  return (
+    <div>
+      <SectionHead
+        title="Trails & Camping"
+        sub="The finder for trails, campsites, and military camping — for members, spouses, and future members alike. The platforms hold the live data; this section routes you to them honestly."
+      />
+      <p className="mb-4 text-base text-[var(--text)]">{TRAILS_INTRO}</p>
+      <HonestyLine />
+
+      {tile === null ? (
+        <HubTileGrid
+          label="Trails & Camping areas"
+          onOpen={(key) => setTile(key as "find" | "camping" | "guides")}
+          tiles={[
+            { key: "find", label: "Find Trails & Campsites", sub: "The place finder + platform routes" },
+            { key: "camping", label: "Military Camping", sub: "FamCamps, resorts, outdoor rec" },
+            { key: "guides", label: "Guides", sub: "The rules the platforms don't carry" },
+          ]}
+        />
+      ) : null}
+
+      {tile === "find" ? (
+        <>
+          {backBtn}
+      <section aria-label="The finder" className="mb-8 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+        <h3 className="font-display text-xl font-bold text-[var(--text)]">The Finder</h3>
+        <div className="mt-3">
+          <label className={labelCls} htmlFor="trails-place">
+            Place — a base, city, state, or country
+          </label>
+          <input
+            id="trails-place"
+            aria-label="Place to search for trails and camping: a base, city, state, or country"
+            className={inputCls}
+            type="search"
+            value={place}
+            placeholder="Try Jacksonville NC, Camp Lejeune, Denver CO, or North Carolina"
+            onChange={(e) => setPlace(e.target.value)}
+          />
+          {trimmed ? (
+            <p className="mt-2 text-sm text-[var(--dim)]" role="status">
+              {state
+                ? `“${state.name}” is a U.S. state — the verified search links are built for it, and the state-page routes (NPS, Campendium) are open for it below.`
+                : `Search links below are built for “${trimmed}”. The NPS state page and Campendium state browse open only when the place is a U.S. state.`}
+            </p>
+          ) : null}
+        </div>
+      </section>
+
+      <section aria-label="Verified search links" className="mb-8">
+        <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">Verified Search Links</h3>
+        <p className="mb-3 text-sm text-[var(--dim)]">
+          These platforms&apos; search links were verified live with a sample place — the button opens their own
+          real results for your place.
+        </p>
+        <div className="space-y-3">
+          {VERIFIED_SEARCH_PLATFORMS.map((p) => (
+            <SearchPlatformCard key={p.id} platform={p} place={trimmed} />
+          ))}
+        </div>
+      </section>
+
+      <section aria-label="Official routes" className="mb-8">
+        <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">Official Routes</h3>
+        <p className="mb-3 text-sm text-[var(--dim)]">
+          Official sources whose structure is the route — state pages and per-forest gateways, verified as routes
+          rather than search patterns.
+        </p>
+        <div className="space-y-3">
+          <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{NPS_CARD.name}</h4>
+              <Badge tone="official">{NPS_CARD.badge}</Badge>
+            </div>
+            <PlatformFacts coverage={NPS_CARD.coverage} lists={NPS_CARD.lists} tier={NPS_CARD.tier} />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <TrailExtLink link={NPS_CARD.findapark} />
+              {state ? (
+                <a
+                  href={NPS_CARD.stateUrl(state.code)}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`National Park Service — ${state.name} parks page (opens in new tab)`}
+                  className={trailLinkCls}
+                >
+                  NPS in {state.name} — every park unit in the state ↗
+                </a>
+              ) : null}
+            </div>
+            {!state ? (
+              <p className="mt-2 text-sm text-[var(--dim)]">
+                Enter a U.S. state above (for example, North Carolina) and this card adds that state&apos;s NPS
+                page — every park unit in the state.
+              </p>
+            ) : null}
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: NPS_CARD.id,
+                title: NPS_CARD.name,
+                summary: trailClip(NPS_CARD.lists),
+                source: NPS_CARD.source,
+              }}
+            />
+          </article>
+
+          <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{CAMPENDIUM_CARD.name}</h4>
+              <Badge>{CAMPENDIUM_CARD.badge}</Badge>
+              {state ? <Badge>VERIFIED STATE BROWSE</Badge> : <Badge tone="amber">SEARCH ON THEIR SITE</Badge>}
+            </div>
+            <PlatformFacts coverage={CAMPENDIUM_CARD.coverage} lists={CAMPENDIUM_CARD.lists} tier={CAMPENDIUM_CARD.tier} />
+            <p className="mt-2 text-base text-[var(--text)]">{CAMPENDIUM_CARD.note}</p>
+            <div className="mt-3">
+              {state ? (
+                <a
+                  href={CAMPENDIUM_CARD.stateUrl(state.slug)}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`Browse Campendium campgrounds in ${state.name} (opens in new tab)`}
+                  className={btnPrimary}
+                >
+                  Browse Campendium — {state.name} ↗
+                </a>
+              ) : (
+                <TrailExtLink link={CAMPENDIUM_CARD.home} />
+              )}
+            </div>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: CAMPENDIUM_CARD.id,
+                title: CAMPENDIUM_CARD.name,
+                summary: trailClip(CAMPENDIUM_CARD.lists),
+                source: CAMPENDIUM_CARD.source,
+              }}
+            />
+          </article>
+
+          <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{STATE_PARKS_CARD.name}</h4>
+              <Badge tone="official">{STATE_PARKS_CARD.badge}</Badge>
+            </div>
+            <PlatformFacts coverage={STATE_PARKS_CARD.coverage} lists={STATE_PARKS_CARD.lists} />
+            <p className="mt-2 text-base text-[var(--text)]">{STATE_PARKS_CARD.body}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {STATE_PARKS_CARD.links.map((l) => (
+                <TrailExtLink key={l.url} link={l} />
+              ))}
+            </div>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: STATE_PARKS_CARD.id,
+                title: STATE_PARKS_CARD.name,
+                summary: trailClip(STATE_PARKS_CARD.body),
+                source: STATE_PARKS_CARD.source,
+              }}
+            />
+          </article>
+
+          <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{USFS_CARD.name}</h4>
+              <Badge tone="official">{USFS_CARD.badge}</Badge>
+            </div>
+            <PlatformFacts coverage={USFS_CARD.coverage} lists={USFS_CARD.lists} tier={USFS_CARD.tier} />
+            <p className="mt-2 text-base text-[var(--text)]">{USFS_CARD.body}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {USFS_CARD.links.map((l) => (
+                <TrailExtLink key={l.url} link={l} />
+              ))}
+            </div>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: USFS_CARD.id,
+                title: USFS_CARD.name,
+                summary: trailClip(USFS_CARD.lists),
+                source: USFS_CARD.source,
+              }}
+            />
+          </article>
+
+          <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{BLM_CARD.name}</h4>
+              <Badge tone="official">{BLM_CARD.badge}</Badge>
+            </div>
+            <PlatformFacts coverage={BLM_CARD.coverage} lists={BLM_CARD.lists} tier={BLM_CARD.tier} />
+            <p className="mt-2 text-base text-[var(--text)]">{BLM_CARD.body}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {BLM_CARD.links.map((l) => (
+                <TrailExtLink key={l.url} link={l} />
+              ))}
+            </div>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: BLM_CARD.id,
+                title: BLM_CARD.name,
+                summary: trailClip(BLM_CARD.lists),
+                source: BLM_CARD.source,
+              }}
+            />
+          </article>
+        </div>
+      </section>
+
+      <section aria-label="Search on their site" className="mb-8">
+        <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">Search on Their Site</h3>
+        <p className="mb-3 text-sm text-[var(--dim)]">
+          These platforms are worth using — but their search links could not be verified, so the app will not
+          pretend to build one. Each card opens the platform and says why, and the search happens on their site.
+        </p>
+        <div className="space-y-3">
+          {ROUTE_ONLY_PLATFORMS.map((p) => (
+            <RoutePlatformCard key={p.id} platform={p} />
+          ))}
+        </div>
+      </section>
+
+        </>
+      ) : null}
+
+      {tile === "camping" ? (
+        <>
+          {backBtn}
+      <section aria-label="Military camping" className="mb-8">
+        <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">Military Camping</h3>
+        <p className="mb-3 text-sm text-[var(--dim)]">
+          The on-base side: installation campgrounds, gear rentals, and the one unofficial directory members
+          actually use — labeled as what it is.
+        </p>
+        <div className="space-y-3">
+          <article className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{FAMCAMPS.name}</h4>
+              <Badge tone="official">{FAMCAMPS.badge}</Badge>
+            </div>
+            <p className="mt-2 text-base text-[var(--text)]">{FAMCAMPS.what}</p>
+            <h5 className="font-display mt-3 text-base font-bold text-[var(--text)]">Eligibility — as DoD publishes it</h5>
+            <p className="mt-1 text-base text-[var(--text)]">{FAMCAMPS.eligibility}</p>
+            <p className="mt-3 rounded bg-[var(--amber-bg)] p-3 text-base font-semibold text-[var(--amber)]">
+              {FAMCAMPS.caution}
+            </p>
+            <h5 className="font-display mt-3 text-base font-bold text-[var(--text)]">The route to a specific base&apos;s campground</h5>
+            <p className="mt-1 text-base text-[var(--text)]">{FAMCAMPS.route}</p>
+            <div className="mt-3">
+              <TrailExtLink link={MILITARY_INSTALLATIONS_LINK} />
+            </div>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: FAMCAMPS.id,
+                title: FAMCAMPS.name,
+                summary: trailClip(FAMCAMPS.eligibility),
+                source: FAMCAMPS.source,
+              }}
+            />
+          </article>
+
+          <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{AFRC_ENTRY.name}</h4>
+              <Badge>{AFRC_ENTRY.badge}</Badge>
+            </div>
+            <p className="mt-2 text-base text-[var(--text)]">{AFRC_ENTRY.body}</p>
+            <div className="mt-3">
+              {dealsOpen ? (
+                <button type="button" aria-label="Open Deals & Discounts" onClick={() => go("deals")} className={btnGhost}>
+                  Open Deals &amp; Discounts
+                </button>
+              ) : (
+                <p className="text-sm text-[var(--dim)]">
+                  Deals &amp; Discounts is a member area — it opens on a member or spouse profile.
+                </p>
+              )}
+            </div>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: AFRC_ENTRY.id,
+                title: AFRC_ENTRY.name,
+                summary: trailClip(AFRC_ENTRY.body),
+                source: AFRC_ENTRY.source,
+              }}
+            />
+          </article>
+
+          <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{ODR_ENTRY.name}</h4>
+              <Badge tone="official">{ODR_ENTRY.badge}</Badge>
+            </div>
+            <p className="mt-2 text-base text-[var(--text)]">{ODR_ENTRY.body}</p>
+            <p className="mt-2 text-base text-[var(--text)]">{ODR_ENTRY.eligibility}</p>
+            <p className="mt-2 text-base text-[var(--text)]">{ODR_ENTRY.route}</p>
+            <div className="mt-3">
+              <TrailExtLink link={MILITARY_INSTALLATIONS_LINK} />
+            </div>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: ODR_ENTRY.id,
+                title: ODR_ENTRY.name,
+                summary: trailClip(ODR_ENTRY.body),
+                source: ODR_ENTRY.source,
+              }}
+            />
+          </article>
+
+          <article className="rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--surface)] p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{UNOFFICIAL_DIRECTORY.name}</h4>
+              <Badge tone="amber">{UNOFFICIAL_DIRECTORY.badge}</Badge>
+            </div>
+            <p className="mt-2 text-base text-[var(--text)]">{UNOFFICIAL_DIRECTORY.body}</p>
+            <p className="mt-3 rounded bg-[var(--amber-bg)] p-3 text-base font-semibold text-[var(--amber)]">
+              {UNOFFICIAL_DIRECTORY.rule}
+            </p>
+            <div className="mt-3">
+              <TrailExtLink link={UNOFFICIAL_DIRECTORY.link} />
+            </div>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: UNOFFICIAL_DIRECTORY.id,
+                title: UNOFFICIAL_DIRECTORY.name,
+                summary: trailClip(UNOFFICIAL_DIRECTORY.body),
+                source: UNOFFICIAL_DIRECTORY.source,
+              }}
+            />
+          </article>
+        </div>
+      </section>
+
+        </>
+      ) : null}
+
+      {tile === "guides" ? (
+        <>
+          {backBtn}
+      <section aria-label="Guides" className="mb-8">
+        <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">Guides</h3>
+        <p className="mb-3 text-sm text-[var(--dim)]">
+          The rules and judgment the platforms don&apos;t carry — public-land camping, on-base trails, camping
+          overseas, and Leave No Trace.
+        </p>
+        <div className="space-y-3">
+          <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{GUIDE_DISPERSED.name}</h4>
+              <Badge>{GUIDE_DISPERSED.badge}</Badge>
+            </div>
+            <p className="mt-2 text-base text-[var(--text)]">{GUIDE_DISPERSED.intro}</p>
+            <div className="mt-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3">
+              <h5 className="font-display text-base font-bold text-[var(--text)]">{GUIDE_DISPERSED.blmTitle}</h5>
+              <p className="mt-1 text-base text-[var(--text)]">{GUIDE_DISPERSED.blm}</p>
+            </div>
+            <div className="mt-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3">
+              <h5 className="font-display text-base font-bold text-[var(--text)]">{GUIDE_DISPERSED.usfsTitle}</h5>
+              <p className="mt-1 text-base text-[var(--text)]">{GUIDE_DISPERSED.usfs}</p>
+            </div>
+            <h5 className="font-display mt-3 text-base font-bold text-[var(--text)]">{GUIDE_DISPERSED.permitsTitle}</h5>
+            <p className="mt-1 text-base text-[var(--text)]">{GUIDE_DISPERSED.permits}</p>
+            <p className="mt-2 text-sm text-[var(--dim)]">{GUIDE_DISPERSED.never}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {GUIDE_DISPERSED.links.map((l) => (
+                <TrailExtLink key={l.url} link={l} />
+              ))}
+            </div>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: GUIDE_DISPERSED.id,
+                title: GUIDE_DISPERSED.name,
+                summary: trailClip(GUIDE_DISPERSED.intro),
+                source: GUIDE_DISPERSED.source,
+              }}
+            />
+          </article>
+
+          <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{GUIDE_BASE_TRAILS.name}</h4>
+              <Badge>{GUIDE_BASE_TRAILS.badge}</Badge>
+            </div>
+            <p className="mt-2 text-base text-[var(--text)]">{GUIDE_BASE_TRAILS.start}</p>
+            <p className="mt-3 rounded bg-[var(--red-bg)] p-3 text-base font-semibold text-[var(--red)]">
+              {GUIDE_BASE_TRAILS.safety}
+            </p>
+            <p className="mt-2 text-base text-[var(--text)]">{GUIDE_BASE_TRAILS.hunting}</p>
+            <div className="mt-3">
+              <TrailExtLink link={MILITARY_INSTALLATIONS_LINK} />
+            </div>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: GUIDE_BASE_TRAILS.id,
+                title: GUIDE_BASE_TRAILS.name,
+                summary: trailClip(GUIDE_BASE_TRAILS.start),
+                source: GUIDE_BASE_TRAILS.source,
+              }}
+            />
+          </article>
+
+          <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{GUIDE_OCONUS.name}</h4>
+              <Badge>{GUIDE_OCONUS.badge}</Badge>
+            </div>
+            <p className="mt-2 text-base text-[var(--text)]">{GUIDE_OCONUS.coverage}</p>
+            <p className="mt-2 text-base text-[var(--text)]">{GUIDE_OCONUS.legality}</p>
+            <p className="mt-2 text-base text-[var(--text)]">{GUIDE_OCONUS.military}</p>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: GUIDE_OCONUS.id,
+                title: GUIDE_OCONUS.name,
+                summary: trailClip(GUIDE_OCONUS.coverage),
+                source: GUIDE_OCONUS.source,
+              }}
+            />
+          </article>
+
+          <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">{GUIDE_LNT.name}</h4>
+              <Badge>{GUIDE_LNT.badge}</Badge>
+            </div>
+            <p className="mt-2 text-base text-[var(--text)]">{GUIDE_LNT.intro}</p>
+            <ol className="mt-3 space-y-2">
+              {GUIDE_LNT.principles.map((p, i) => (
+                <li key={p.title} className="rounded bg-[var(--surface2)] px-3 py-2 text-base text-[var(--text)]">
+                  <strong className="font-display">
+                    {i + 1}. {p.title}
+                  </strong>{" "}
+                  — {p.line}
+                </li>
+              ))}
+            </ol>
+            <div className="mt-3">
+              <TrailExtLink link={GUIDE_LNT.link} />
+            </div>
+            <CardTools
+              cardRef={{
+                section: "trails",
+                itemKey: GUIDE_LNT.id,
+                title: GUIDE_LNT.name,
+                summary: trailClip(GUIDE_LNT.intro),
+                source: GUIDE_LNT.source,
+              }}
+            />
+          </article>
+        </div>
+      </section>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/* ------------------------- Weapons & Qualification ------------------------- */
+// Hub of square tiles (the Nov 9, 2026 layout reorganization): the
+// branch safety-rule sets stay pinned at the top — they lead the
+// section — and three tiles open the parts: Weapons (the systems at
+// official fact-file level, with the operator basics, cycles of
+// operations, and manual-status material filed inside), Zeroing
+// (Zeroing & Fundamentals from the two Distribution A manuals), and
+// Qualifications (Annual Qualification, one page per branch). Each
+// tile carries its own search bar. Future members get the Weapons and
+// Qualifications tiles — the public layer — while Zeroing and the
+// operator material render locked, the same members-only line the
+// Library draws around deep job knowledge.
+
+function weaponClip(s: string, n = 220): string {
+  const t = s.replace(/\s+/g, " ").trim();
+  return t.length > n ? `${t.slice(0, n)}…` : t;
+}
+
+function weaponBlockText(b: WBlock): string {
+  return [
+    b.heading ?? "",
+    ...(b.paras ?? []),
+    ...(b.bullets ?? []),
+    ...(b.steps ?? []),
+    ...(b.bands ?? []).map((x) => `${x.label} ${x.value}`),
+    b.quote ?? "",
+    b.flag ?? "",
+    b.withheld ?? "",
+  ].join(" ");
+}
+
+function WeaponLinks({ links, label }: { links: { label: string; url: string }[]; label: string }) {
+  if (links.length === 0) return null;
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {links.map((l) => (
+        <a
+          key={`${l.label}-${l.url}`}
+          href={l.url}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`${label} — ${l.label} (opens in new tab)`}
+          className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
+        >
+          {l.label} ↗
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function WBlocks({ blocks }: { blocks: WBlock[] }) {
+  return (
+    <>
+      {blocks.map((b, i) => (
+        <div key={i} className={i > 0 ? "mt-4" : ""}>
+          {b.heading ? (
+            <h4 className="font-display text-lg font-bold text-[var(--text)]">{b.heading}</h4>
+          ) : null}
+          {b.flag ? (
+            <p className="mt-2 rounded bg-[var(--amber-bg)] p-3 text-sm font-semibold text-[var(--amber)]">
+              {b.flag.startsWith("⚠") ? b.flag : `⚠ ${b.flag}`}
+            </p>
+          ) : null}
+          {b.quote ? (
+            <blockquote className="mt-2 rounded-[var(--radius)] bg-[var(--surface2)] p-3 text-base italic text-[var(--text)]">
+              {b.quote}
+            </blockquote>
+          ) : null}
+          {(b.paras ?? []).map((p, j) => (
+            <p key={j} className="mt-2 text-base text-[var(--text)]">
+              {p}
+            </p>
+          ))}
+          {b.bullets && b.bullets.length > 0 ? (
+            <ul className="mt-2 list-disc space-y-1.5 pl-5 text-base text-[var(--text)]">
+              {b.bullets.map((x, j) => (
+                <li key={j}>{x}</li>
+              ))}
+            </ul>
+          ) : null}
+          {b.steps && b.steps.length > 0 ? (
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-base text-[var(--text)]">
+              {b.steps.map((x, j) => (
+                <li key={j}>{x}</li>
+              ))}
+            </ol>
+          ) : null}
+          {b.bands && b.bands.length > 0 ? (
+            <div className="mt-2 overflow-hidden rounded-[var(--radius)] border border-[var(--border)]">
+              {b.bands.map((row, j) => (
+                <div
+                  key={j}
+                  className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-3 py-2 ${j % 2 === 0 ? "bg-[var(--surface2)]" : "bg-[var(--surface)]"}`}
+                >
+                  <span className="font-display text-base font-bold text-[var(--text)]">{row.label}</span>
+                  <span className="text-base text-[var(--text)]">{row.value}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {b.withheld ? (
+            <p className="mt-2 rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--surface2)] p-3 text-sm font-semibold text-[var(--text)]">
+              {b.withheld}
+            </p>
+          ) : null}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function WeaponSystemCard({
+  system,
+  group,
+  onJump,
+}: {
+  system: WeaponSystem;
+  group: string;
+  onJump: (anchor: string) => void;
+}) {
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-display text-lg font-bold text-[var(--text)]">{system.name}</h4>
+        {system.factFile ? (
+          <Badge tone="official">OFFICIAL FACT FILE</Badge>
+        ) : (
+          <Badge tone="amber">NO OFFICIAL FACT FILE</Badge>
+        )}
+        {system.caliber ? <Badge>{system.caliber}</Badge> : null}
+      </div>
+      <p className="mt-1 text-sm font-semibold text-[var(--dim)]">{group}</p>
+      {!system.factFile ? (
+        <p className="mt-2 text-base font-semibold text-[var(--text)]">{NO_FACT_FILE_LINE}</p>
+      ) : null}
+      {system.typeLine ? <p className="mt-2 text-base text-[var(--text)]">{system.typeLine}</p> : null}
+      {system.maker ? (
+        <p className="mt-2 text-base text-[var(--text)]">
+          <strong className="font-display">Maker/origin:</strong> {system.maker}
+        </p>
+      ) : null}
+      <p className="mt-1 text-base text-[var(--text)]">
+        <strong className="font-display">Branches:</strong> {system.branches}
+      </p>
+      {(system.specs ?? []).map((block) => (
+        <div key={block.source} className="mt-3">
+          <p className="text-sm font-bold text-[var(--dim)]">Specifications — {block.source}</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-base text-[var(--text)]">
+            {block.lines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      {system.note ? <p className="mt-2 text-base text-[var(--text)]">{system.note}</p> : null}
+      {system.flag ? (
+        <p className="mt-2 rounded bg-[var(--amber-bg)] p-3 text-sm font-semibold text-[var(--amber)]">
+          {system.flag.startsWith("⚠") ? system.flag : `⚠ ${system.flag}`}
+        </p>
+      ) : null}
+      <WeaponLinks links={system.sources} label={system.name} />
+      {system.seeAlso && system.seeAlso.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {system.seeAlso.map((s) => (
+            <button
+              key={s.anchor}
+              type="button"
+              aria-label={`Go to ${s.label}`}
+              onClick={() => onJump(s.anchor)}
+              className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)]"
+            >
+              {s.label} ↓
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <CardTools
+        cardRef={{
+          section: "weapons",
+          itemKey: `sys-${system.id}`,
+          title: system.name,
+          summary: weaponClip(system.typeLine ?? system.note ?? system.branches),
+          source: system.factFile ? (system.specs?.[0]?.source ?? "Official fact file") : "No official fact file found",
+        }}
+      />
+    </article>
+  );
+}
+
+function ZeroingCard({ svc }: { svc: ZeroingService }) {
+  return (
+    <article aria-label={svc.ariaLabel} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="official">DISTRIBUTION A</Badge>
+        <Badge>{svc.service}</Badge>
+      </div>
+      <h3 className="font-display mt-2 text-2xl font-bold text-[var(--text)]">
+        {svc.service} — {svc.manual}
+      </h3>
+      <p className="mt-1 text-sm font-semibold text-[var(--dim)]">{svc.manualNote}</p>
+      <div className="mt-3">
+        <WBlocks blocks={svc.blocks} />
+      </div>
+      <WeaponLinks links={svc.sources} label={`${svc.service} zeroing`} />
+      <CardTools
+        cardRef={{
+          section: "weapons",
+          itemKey: `zero-${svc.key}`,
+          title: `Zeroing & fundamentals — ${svc.service}`,
+          summary: weaponClip(`${svc.manual}. ${svc.manualNote}`),
+          source: svc.sourceLabel,
+        }}
+      />
+    </article>
+  );
+}
+
+function QualCard({ branch }: { branch: QualBranch }) {
+  return (
+    <article aria-label={branch.ariaLabel} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+      <h3 className="font-display text-2xl font-bold text-[var(--text)]">{branch.branch}</h3>
+      <p className="mt-1 text-sm font-semibold text-[var(--dim)]">{branch.governing}</p>
+      <div className="mt-3">
+        <WBlocks blocks={branch.blocks} />
+      </div>
+      <WeaponLinks links={branch.sources} label={`${branch.branch} qualification`} />
+      <CardTools
+        cardRef={{
+          section: "weapons",
+          itemKey: `qual-${branch.key}`,
+          title: `Annual qualification — ${branch.branch}`,
+          summary: weaponClip(branch.governing),
+          source: branch.sourceLabel,
+        }}
+      />
+    </article>
+  );
+}
+
+function SafetyCard({ set }: { set: SafetySet }) {
+  return (
+    <article aria-label={set.ariaLabel} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+      <h3 className="font-display text-2xl font-bold text-[var(--text)]">{set.service} — weapons safety rules</h3>
+      {set.rules ? (
+        <>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-base font-semibold text-[var(--text)]">
+            {set.rules.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ol>
+          <p className="mt-3 text-sm text-[var(--dim)]">{set.attribution}</p>
+        </>
+      ) : (
+        <p className="mt-3 rounded bg-[var(--amber-bg)] p-3 text-sm font-semibold text-[var(--amber)]">
+          ⚠ {set.flagLine}
+        </p>
+      )}
+      {set.note ? <p className="mt-2 text-base text-[var(--text)]">{set.note}</p> : null}
+      <WeaponLinks links={set.sources} label={`${set.service} safety rules`} />
+      <CardTools
+        cardRef={{
+          section: "weapons",
+          itemKey: `safety-${set.service.toLowerCase().replace(/\s+/g, "-")}`,
+          title: `Weapons safety rules — ${set.service}`,
+          summary: weaponClip(set.rules ? set.rules.join(" ") : (set.flagLine ?? "")),
+          source: set.sourceLabel,
+        }}
+      />
+    </article>
+  );
+}
+
+function OperatorCard({ op }: { op: OperatorBasics }) {
+  return (
+    <article aria-label={op.ariaLabel} className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="official">PUBLIC MANUAL</Badge>
+        <Badge>OPERATOR BASICS</Badge>
+      </div>
+      <h3 className="font-display mt-2 text-2xl font-bold text-[var(--text)]">{op.name}</h3>
+      <p className="mt-1 text-sm font-semibold text-[var(--dim)]">{op.manual}</p>
+      {op.flag ? (
+        <p className="mt-2 rounded bg-[var(--amber-bg)] p-3 text-sm font-semibold text-[var(--amber)]">
+          {op.flag.startsWith("⚠") ? op.flag : `⚠ ${op.flag}`}
+        </p>
+      ) : null}
+      <div className="mt-3">
+        <WBlocks blocks={op.blocks} />
+      </div>
+      <WeaponLinks links={op.sources} label={`${op.name} operator basics`} />
+      <CardTools
+        cardRef={{
+          section: "weapons",
+          itemKey: `op-${op.systemId}`,
+          title: `Operator basics — ${op.name}`,
+          summary: weaponClip(op.manual),
+          source: op.sourceLabel,
+        }}
+      />
+    </article>
+  );
+}
+
+function CycleCard({ cycle }: { cycle: CycleEntry }) {
+  return (
+    <article
+      aria-label={cycle.ariaLabel}
+      className={`rounded-[var(--radius)] bg-[var(--surface)] p-5 ${
+        cycle.prominent ? "border-2 border-[var(--accent)]" : "border border-[var(--border)]"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="official">CYCLE OF OPERATIONS</Badge>
+        <Badge>{cycle.steps.length} STEPS AS PUBLISHED</Badge>
+        {cycle.prominent ? <Badge tone="amber">THE EIGHT STEPS, IN ORDER</Badge> : null}
+      </div>
+      <h3 className="font-display mt-2 text-2xl font-bold text-[var(--text)]">
+        {cycle.name} — cycle of operations
+      </h3>
+      <p className="mt-2 text-base text-[var(--text)]">
+        <strong className="font-display">Manual status:</strong> {cycle.manualStatus}
+      </p>
+      {cycle.note ? (
+        <p className="mt-2 rounded bg-[var(--amber-bg)] p-3 text-sm font-semibold text-[var(--amber)]">
+          ⚠ {cycle.note}
+        </p>
+      ) : null}
+      <ol className="mt-3 space-y-2.5">
+        {cycle.steps.map((s, i) => (
+          <li key={s.name} className="flex gap-3">
+            <span className="font-display flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-bold text-[var(--accent-text)]">
+              {i + 1}
+            </span>
+            <span className="text-base text-[var(--text)]">
+              <strong className="font-display">
+                {s.name}
+                {s.dagger ? " †" : ""}
+              </strong>{" "}
+              — {s.text}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <WeaponLinks links={cycle.sources} label={`${cycle.name} cycle of operations`} />
+      <CardTools
+        cardRef={{
+          section: "weapons",
+          itemKey: `cycle-${cycle.systemId}`,
+          title: `Cycle of operations — ${cycle.name}`,
+          summary: weaponClip(cycle.manualStatus),
+          source: cycle.sourceLabel,
+        }}
+      />
+    </article>
+  );
+}
+
+function WeaponsLockedPart({ title, blurb }: { title: string; blurb: string }) {
+  return (
+    <div className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--surface2)] p-5">
+      <span className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-display text-xl font-bold text-[var(--dim)]">{title}</span>
+        <Badge>LOCKED</Badge>
+      </span>
+      <p className="mt-2 text-base text-[var(--dim)]">{blurb}</p>
+    </div>
+  );
+}
+
+type WeaponsTile = "weapons" | "zeroing" | "quals";
+
+// Deep-link resolution for the Weapons hub: a global-search anchor (or
+// a system card's see-also anchor) names the element it targets; this
+// maps that anchor to the tile that contains it. Returns null for the
+// safety sets (pinned above the tiles, always on the hub screen) and
+// undefined when the anchor names nothing in this section.
+function weaponsTileForSlug(slug: string): WeaponsTile | null | undefined {
+  if (WEAPON_GROUPS.some((g) => anchorSlug(g.title) === slug)) return "weapons";
+  if (slug === anchorSlug("Zeroing and fundamentals")) return "zeroing";
+  if (ZEROING_SERVICES.some((s) => anchorSlug(s.ariaLabel) === slug)) return "zeroing";
+  if (QUAL_BRANCHES.some((b) => anchorSlug(b.ariaLabel) === slug)) return "quals";
+  if (OPERATOR_BASICS.some((o) => anchorSlug(o.ariaLabel) === slug)) return "weapons";
+  if (CYCLES.some((c) => anchorSlug(c.ariaLabel) === slug)) return "weapons";
+  if (slug === anchorSlug("Cycles — named only and not published")) return "weapons";
+  if (slug === anchorSlug("Operator manuals not confirmed public")) return "weapons";
+  if (SAFETY_SETS.some((s) => anchorSlug(s.ariaLabel) === slug)) return null;
+  return undefined;
+}
+
+// The same resolution from a My Binder card title (Binder deep links
+// carry the card's title, not an anchor).
+function weaponsTileForCardTitle(title: string): WeaponsTile | null | undefined {
+  if (ALL_WEAPON_SYSTEMS.some((s) => s.name === title)) return "weapons";
+  if (title.startsWith("Zeroing & fundamentals — ")) return "zeroing";
+  if (title.startsWith("Annual qualification — ")) return "quals";
+  if (title.startsWith("Operator basics — ") || title.startsWith("Cycle of operations — ")) return "weapons";
+  if (title === "Operator manuals not confirmed public") return "weapons";
+  if (title.startsWith("Weapons safety rules — ")) return null;
+  return undefined;
+}
+
+function WeaponsView({
+  track,
+  focusAnchor,
+  focusCard,
+}: {
+  track: "member" | "future";
+  focusAnchor?: string | null;
+  focusCard?: string | null;
+}) {
+  const memberOnly = track === "member";
+  // Hub of square tiles — Weapons / Zeroing / Qualifications — with
+  // the branch safety-rule sets pinned above them. A deep link (global
+  // search or My Binder) opens the tile that holds its target.
+  const [tile, setTile] = useState<WeaponsTile | null>(() => {
+    if (focusAnchor) {
+      const t = weaponsTileForSlug(anchorSlug(focusAnchor));
+      if (t !== undefined) return t;
+    }
+    if (focusCard) {
+      const t = weaponsTileForCardTitle(focusCard);
+      if (t !== undefined) return t;
+    }
+    return null;
+  });
+  const [weaponsQuery, setWeaponsQuery] = useState("");
+  const [zeroQuery, setZeroQuery] = useState("");
+  const [qualQuery, setQualQuery] = useState("");
+  // Opening a tile (or returning to the hub) starts at its top; a
+  // deep link's own scroll runs after this and still lands.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [tile]);
+
+  const matcher = (query: string) => {
+    const q = query.trim().toLowerCase();
+    return {
+      searching: q.length > 0,
+      matches: (hay: string): boolean =>
+        q.length === 0 || q.split(/\s+/).every((t) => hay.toLowerCase().includes(t)),
+    };
+  };
+  // Rule 9 (pinning, never hiding): your branch's safety set leads
+  // the pinned safety block, and your branch's qualification page
+  // leads the qualification jump nav. Every set stays on the page.
+  const weaponsProfile = useScopeProfile();
+  const orderedSafetySets = weaponsProfile?.branch
+    ? [...SAFETY_SETS].sort(
+        (a, b) =>
+          (a.service === weaponsProfile.branch ? 0 : 1) - (b.service === weaponsProfile.branch ? 0 : 1),
+      )
+    : SAFETY_SETS;
+  const orderedQualBranches = weaponsProfile?.branch
+    ? [...QUAL_BRANCHES].sort(
+        (a, b) =>
+          (a.branch === weaponsProfile.branch ? 0 : 1) - (b.branch === weaponsProfile.branch ? 0 : 1),
+      )
+    : QUAL_BRANCHES;
+  const wSearch = matcher(weaponsQuery);
+  const zSearch = matcher(zeroQuery);
+  const qSearch = matcher(qualQuery);
+
+  const scrollToLabel = (label: string): boolean => {
+    const slug = anchorSlug(label);
+    const els = Array.from(document.querySelectorAll("[aria-label]"));
+    for (const el of els) {
+      if (anchorSlug(el.getAttribute("aria-label") ?? "") === slug) {
+        el.scrollIntoView({ block: "start" });
+        return true;
+      }
+    }
+    return false;
+  };
+  const jump = (label: string) => {
+    if (scrollToLabel(label)) return;
+    // The target lives in another tile (a system's see-also can point
+    // at the zeroing tile) — open that tile, then scroll.
+    const t = weaponsTileForSlug(anchorSlug(label));
+    if (t) {
+      setTile(t);
+      window.setTimeout(() => scrollToLabel(label), 90);
+    }
+  };
+
+  /* ------------------------- Weapons tile data ------------------------- */
+  const systemHay = (s: WeaponSystem, group: string): string =>
+    `${s.name} ${group} ${s.caliber ?? ""} ${s.typeLine ?? ""} ${s.maker ?? ""} ${s.branches} ${s.note ?? ""} ${s.flag ?? ""} ${(s.specs ?? []).map((b) => `${b.source} ${b.lines.join(" ")}`).join(" ")}`;
+  const shownGroups = WEAPON_GROUPS.map((g) => ({
+    group: g,
+    systems: g.systems.filter((s) => wSearch.matches(systemHay(s, g.title))),
+  })).filter((x) => x.systems.length > 0);
+  const systemCount = shownGroups.reduce((n, x) => n + x.systems.length, 0);
+  const shownOperator = memberOnly
+    ? OPERATOR_BASICS.filter((op) =>
+        wSearch.matches(`${op.name} operator basics ${op.manual} ${op.flag ?? ""} ${op.blocks.map(weaponBlockText).join(" ")}`),
+      )
+    : [];
+  const shownCycles = memberOnly
+    ? CYCLES.filter((c) =>
+        wSearch.matches(
+          `${c.name} cycle of operations ${c.manualStatus} ${c.note ?? ""} ${c.steps.map((s) => `${s.name} ${s.text}`).join(" ")}`,
+        ),
+      )
+    : [];
+  const shownNamedOnly = memberOnly
+    ? [...CYCLE_NAMED_ONLY, ...CYCLE_NOT_PUBLISHED].filter((e) => wSearch.matches(`${e.name} ${e.text}`))
+    : [];
+  const shownManualRows = memberOnly
+    ? MANUAL_STATUS.filter((r) => wSearch.matches(`${r.system} ${r.manual} ${r.status}`))
+    : [];
+  const weaponsTotal =
+    systemCount + shownOperator.length + shownCycles.length + shownNamedOnly.length + shownManualRows.length;
+
+  /* ------------------------- Zeroing tile data ------------------------- */
+  const shownZeroing = memberOnly
+    ? ZEROING_SERVICES.filter((svc) =>
+        zSearch.matches(`${svc.service} ${svc.manual} ${svc.manualNote} ${svc.blocks.map(weaponBlockText).join(" ")}`),
+      )
+    : [];
+  const shownOtherServices =
+    memberOnly && zSearch.matches(`zeroing other services ${ZEROING_OTHER_SERVICES.map(weaponBlockText).join(" ")}`);
+  const zeroingTotal = shownZeroing.length + (shownOtherServices ? 1 : 0);
+
+  /* ----------------------- Qualifications tile data --------------------- */
+  const shownQual = QUAL_BRANCHES.filter((b) =>
+    qSearch.matches(`${b.branch} qualification ${b.governing} ${b.blocks.map(weaponBlockText).join(" ")}`),
+  );
+  const shownQualFlags = qSearch.matches(`source flags ${QUAL_FLAGS.map(weaponBlockText).join(" ")}`);
+
+  const partBtn =
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent-word)]";
+  const backBtn = (
+    <HubBackButton
+      ariaLabel="Back to Weapons & Qualification areas"
+      text="All areas"
+      onBack={() => setTile(null)}
+    />
+  );
+
+  return (
+    <div>
+      <SectionHead
+        title="Weapons & Qualification"
+        sub="Weapon systems at fact-file level, zeroing and fundamentals from the public manuals, every branch's annual qualification, and safety + operator basics — reference and fundamentals only."
+      />
+      <p className="mb-3 text-base text-[var(--text)]">{WEAPONS_INTRO}</p>
+      <p className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3 text-sm text-[var(--text)]">
+        {WEAPONS_SCOPE_NOTE}
+      </p>
+
+      {/* ------- Pinned above the tiles: the safety rules lead the
+           section's hub screen (deep links to a safety set land here,
+           on the hub). A tile sub-view starts with its own search. */}
+      {tile === null && memberOnly ? (
+        <section aria-label="Weapons safety rules" className="mb-8">
+          <h3 className="font-display mb-1 text-xl font-bold text-[var(--text)]">
+            The safety rules, as each service publishes them
+          </h3>
+          <p className="mb-4 text-base text-[var(--text)]">{SAFETY_INTRO}</p>
+          <div className="space-y-4">
+            {orderedSafetySets.map((set) => (
+              <SafetyCard key={set.service} set={set} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+      {tile === null && !memberOnly ? (
+        <div className="mb-8">
+          <WeaponsLockedPart
+            title="Safety & Operator Basics"
+            blurb="Members area — the published safety-rule sets, the operator basics for the three systems with public manuals, and the cycles of operations unlock when you're serving. Nothing here is searched or shown on a future-member profile."
+          />
+        </div>
+      ) : null}
+
+      {/* ------------------------------ Hub ------------------------------ */}
+      {tile === null ? (
+        <HubTileGrid
+          label="Weapons & Qualification areas"
+          onOpen={(key) => setTile(key as WeaponsTile)}
+          tiles={[
+            {
+              key: "weapons",
+              label: "Weapons",
+              sub: memberOnly
+                ? `${ALL_WEAPON_SYSTEMS.length} systems · operator basics · cycles`
+                : `${ALL_WEAPON_SYSTEMS.length} systems`,
+            },
+            { key: "zeroing", label: "Zeroing", sub: "TC 3-22.9 · MCRP 3-01A", locked: !memberOnly },
+            { key: "quals", label: "Qualifications", sub: "Every branch's annual qualification" },
+          ]}
+        />
+      ) : null}
+
+      {/* ------------------------- Weapons tile ------------------------- */}
+      {tile === "weapons" ? (
+        <section aria-label="Weapon Systems" className="mb-10">
+          {backBtn}
+          <h2 className="font-display mb-1 text-2xl font-bold text-[var(--text)]">Weapon Systems</h2>
+          <p className="mb-4 text-base text-[var(--text)]">
+            All {ALL_WEAPON_SYSTEMS.length} systems, grouped as the official sources group them. Specifications
+            print verbatim from the cited fact file where one exists; where none exists, the entry says so and
+            prints no specifications.
+          </p>
+          <HubSearch
+            id="weapons-search"
+            label="Search weapons"
+            ariaLabel="Search weapons by system name or designation"
+            value={weaponsQuery}
+            onChange={setWeaponsQuery}
+            placeholder="Try M240B, M4, Mk 19, cycle…"
+          />
+          {wSearch.searching ? (
+            <p className="-mt-3 mb-4 text-sm text-[var(--dim)]" role="status">
+              {weaponsTotal} {weaponsTotal === 1 ? "match" : "matches"} for “{weaponsQuery.trim()}”
+              {memberOnly ? "" : " — future-member search covers the systems; operator material is members-only"}
+            </p>
+          ) : null}
+          {wSearch.searching && weaponsTotal === 0 ? (
+            <section aria-label="No matches" className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+              <p className="text-base text-[var(--text)]">
+                Nothing in Weapons matches “{weaponsQuery.trim()}”. Try a system name or designation (M4, M240B,
+                Mk 19) or a term like “cycle”.
+                {memberOnly
+                  ? " If you're looking for a procedure, note that operator procedures are published only for the three systems whose manuals are public — every other system names its manual and its non-public status instead."
+                  : " Zeroing and operator material are members-only and are not searched on a future-member profile."}
+              </p>
+            </section>
+          ) : null}
+          {shownGroups.map(({ group, systems }) => (
+            <section key={group.title} aria-label={group.title} className="mb-8">
+              <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">{group.title}</h3>
+              {group.note ? (
+                <p className="mb-3 text-sm text-[var(--dim)]">{group.note}</p>
+              ) : null}
+              <div className="space-y-3">
+                {systems.map((s) => (
+                  <WeaponSystemCard key={s.id} system={s} group={group.title} onJump={jump} />
+                ))}
+              </div>
+            </section>
+          ))}
+
+          {memberOnly && (!wSearch.searching || shownOperator.length > 0) ? (
+            <>
+              <h3 className="font-display mb-1 mt-8 text-xl font-bold text-[var(--text)]">Operator basics</h3>
+              <p className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3 text-sm text-[var(--text)]">
+                {OPERATOR_GATE_NOTE}
+              </p>
+              <div className="space-y-4">
+                {shownOperator.map((op) => (
+                  <OperatorCard key={op.systemId} op={op} />
+                ))}
+              </div>
+            </>
+          ) : null}
+
+          {memberOnly && (!wSearch.searching || shownCycles.length > 0 || shownNamedOnly.length > 0) ? (
+            <>
+              <h3 className="font-display mb-1 mt-8 text-xl font-bold text-[var(--text)]">
+                Cycles of operations
+              </h3>
+              <p className="mb-4 text-base text-[var(--text)]">{CYCLES_INTRO}</p>
+              <div className="space-y-4">
+                {shownCycles.map((c) => (
+                  <CycleCard key={c.systemId} cycle={c} />
+                ))}
+              </div>
+              {shownNamedOnly.length > 0 ? (
+                <section aria-label="Cycles — named only and not published" className="mt-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+                  <h4 className="font-display text-lg font-bold text-[var(--text)]">
+                    Named only — and not published as such
+                  </h4>
+                  <p className="mt-1 text-sm text-[var(--dim)]">
+                    For these systems a cycle exists in an operator manual that is not confirmed public, or
+                    no cycle is published as such — so no steps are printed, only the status.
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    {shownNamedOnly.map((e) => (
+                      <div key={e.name}>
+                        <p className="font-display text-base font-bold text-[var(--text)]">{e.name}</p>
+                        <p className="mt-0.5 text-base text-[var(--text)]">{e.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </>
+          ) : null}
+
+          {memberOnly && (!wSearch.searching || shownManualRows.length > 0) ? (
+            <section aria-label="Operator manuals not confirmed public" className="mt-8 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+              <h4 className="font-display text-lg font-bold text-[var(--text)]">
+                Operator manuals not confirmed public — no procedures
+              </h4>
+              <p className="mt-1 text-base text-[var(--text)]">{MANUAL_STATUS_INTRO}</p>
+              <div className="mt-3 space-y-2">
+                {(wSearch.searching ? shownManualRows : MANUAL_STATUS).map((r) => (
+                  <div key={r.system} className="rounded bg-[var(--surface2)] px-3 py-2">
+                    <p className="text-base text-[var(--text)]">
+                      <strong className="font-display">{r.system}</strong> — {r.manual}
+                    </p>
+                    <p className="text-sm text-[var(--dim)]">{r.status}</p>
+                  </div>
+                ))}
+              </div>
+              <CardTools
+                cardRef={{
+                  section: "weapons",
+                  itemKey: "manual-status",
+                  title: "Operator manuals not confirmed public",
+                  summary: weaponClip(MANUAL_STATUS_INTRO),
+                  source: "Research pack Part D5 — manual distribution statements",
+                }}
+              />
+            </section>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* ------------------------- Zeroing tile ------------------------- */}
+      {tile === "zeroing" ? (
+        <section aria-label="Zeroing and fundamentals" className="mb-10">
+          {backBtn}
+          <h2 className="font-display mb-1 text-2xl font-bold text-[var(--text)]">Zeroing &amp; Fundamentals</h2>
+          {memberOnly ? (
+            <>
+              <HubSearch
+                id="weapons-zeroing-search"
+                label="Search zeroing & fundamentals"
+                ariaLabel="Search zeroing and fundamentals by service, manual, or term"
+                value={zeroQuery}
+                onChange={setZeroQuery}
+                placeholder="Try Army, Marine Corps, zero, group…"
+              />
+              {zSearch.searching ? (
+                <p className="-mt-3 mb-4 text-sm text-[var(--dim)]" role="status">
+                  {zeroingTotal} {zeroingTotal === 1 ? "match" : "matches"} for “{zeroQuery.trim()}”
+                </p>
+              ) : null}
+              <p className="mb-3 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4 text-base font-semibold text-[var(--text)]">
+                {ZEROING_FRAMING}
+              </p>
+              <p className="mb-4 rounded bg-[var(--amber-bg)] p-3 text-sm font-semibold text-[var(--amber)]">
+                ⚠ {ZEROING_DONT_BLEND}
+              </p>
+              {zSearch.searching && zeroingTotal === 0 ? (
+                <section aria-label="No matches" className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+                  <p className="text-base text-[var(--text)]">
+                    Nothing in Zeroing &amp; Fundamentals matches “{zeroQuery.trim()}”. Try a service (Army,
+                    Marine Corps) or a term like “zero” or “group”.
+                  </p>
+                </section>
+              ) : (
+                <div className="space-y-4">
+                  {shownZeroing.map((svc) => (
+                    <ZeroingCard key={svc.key} svc={svc} />
+                  ))}
+                  {shownOtherServices ? (
+                    <article aria-label="Zeroing — the other services" className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+                      <WBlocks blocks={ZEROING_OTHER_SERVICES} />
+                    </article>
+                  ) : null}
+                </div>
+              )}
+            </>
+          ) : (
+            <WeaponsLockedPart
+              title="Zeroing & Fundamentals"
+              blurb="Members area — the zeroing doctrine and marksmanship fundamentals (Army TC 3-22.9 and USMC MCRP 3-01A, as those public manuals teach them) unlock when you're serving, the same line the Library draws around deep job knowledge. The weapon-system fact files and the qualification standards are the public layer and stay open to you."
+            />
+          )}
+        </section>
+      ) : null}
+
+      {/* --------------------- Qualifications tile --------------------- */}
+      {tile === "quals" ? (
+        <section aria-label="Annual Qualification" className="mb-10">
+          {backBtn}
+          <h2 className="font-display mb-1 text-2xl font-bold text-[var(--text)]">Annual Qualification</h2>
+          <p className="mb-4 text-base text-[var(--text)]">{QUAL_INTRO}</p>
+          <HubSearch
+            id="weapons-qual-search"
+            label="Search qualification"
+            ariaLabel="Search qualification by branch or term"
+            value={qualQuery}
+            onChange={setQualQuery}
+            placeholder="Try Navy, Expert, table…"
+          />
+          {qSearch.searching ? (
+            <p className="-mt-3 mb-4 text-sm text-[var(--dim)]" role="status">
+              {shownQual.length} {shownQual.length === 1 ? "match" : "matches"} for “{qualQuery.trim()}”
+            </p>
+          ) : null}
+          {!qSearch.searching || shownQualFlags ? (
+            <div className="mb-4 space-y-2">
+              {QUAL_FLAGS.map((f, i) => (
+                <p key={i} className="rounded bg-[var(--amber-bg)] p-3 text-sm font-semibold text-[var(--amber)]">
+                  {f.flag && f.flag.startsWith("⚠") ? f.flag : `⚠ ${f.flag ?? ""}`}
+                </p>
+              ))}
+            </div>
+          ) : null}
+          {!qSearch.searching ? (
+            <nav aria-label="Qualification by branch" className="mb-4 flex flex-wrap gap-2">
+              {orderedQualBranches.map((b) => (
+                <button
+                  key={b.key}
+                  type="button"
+                  aria-label={`Jump to ${b.branch} qualification`}
+                  onClick={() => jump(b.ariaLabel)}
+                  className={partBtn}
+                >
+                  {b.branch}
+                </button>
+              ))}
+            </nav>
+          ) : null}
+          {qSearch.searching && shownQual.length === 0 ? (
+            <section aria-label="No matches" className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+              <p className="text-base text-[var(--text)]">
+                Nothing in Annual Qualification matches “{qualQuery.trim()}”. Try a branch name or a term like
+                “Expert”.
+              </p>
+            </section>
+          ) : (
+            <div className="space-y-4">
+              {shownQual.map((b) => (
+                <QualCard key={b.key} branch={b} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+/* ---------------------------- My Emergency Card ---------------------------- */
+// A private per-profile quick card. Owner-only by construction: the
+// actions resolve the signed-in profile server-side and only ever
+// touch that profile's row — nothing here accepts a profile id, and
+// there is no share, sync, or squad surface for the card anywhere.
+
+type EmergencyCardData = ApiResponse<typeof api, "getEmergencyCard">;
+type EmergencyContact = EmergencyCardData["contacts"][number];
+
+const EMERGENCY_HONESTY_LINE =
+  "Filled in by you — only as current as your last edit. In a real emergency call 911 / your local emergency number first.";
+
+function telHref(phone: string): string {
+  return `tel:${phone.replace(/[^0-9+]/g, "")}`;
+}
+
+function EmergencyCardView({ profile }: { profile: Profile }) {
+  const queryClient = useQueryClient();
+  const cardQ = useQuery({ queryKey: ["emergencyCard"], queryFn: () => api.getEmergencyCard({}) });
+  const [editing, setEditing] = useState(false);
+  const [contacts, setContacts] = useState<EmergencyContact[]>([]);
+  const [unitCommand, setUnitCommand] = useState("");
+  const [bloodType, setBloodType] = useState("");
+  const [allergies, setAllergies] = useState("");
+  const [medications, setMedications] = useState("");
+  const [note, setNote] = useState("");
+
+  const saveM = useMutation({
+    mutationFn: () =>
+      api.saveEmergencyCard({
+        contacts: contacts.map((c) => ({
+          name: c.name.slice(0, 80),
+          relationship: c.relationship.slice(0, 60),
+          phone: c.phone.slice(0, 40),
+        })),
+        unitCommand,
+        bloodType,
+        allergies,
+        medications,
+        note,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["emergencyCard"] });
+      setEditing(false);
+    },
+  });
+
+  if (profile.track === "future") {
+    return (
+      <div>
+        <SectionHead
+          title="My Emergency Card"
+          sub="A private quick card — your emergency contacts, unit, blood type, allergies, and medications, with one-tap call buttons."
+        />
+        <section aria-label="Emergency cards are locked for future members" className="rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-5">
+          <h3 className="font-display text-xl font-bold text-[var(--text)]">Emergency cards open with a member or spouse profile</h3>
+          <p className="mt-2 text-base text-[var(--text)]">
+            You&apos;re signed in on a future-member profile. The Emergency Card belongs to the person serving
+            (or their spouse) — it holds their own contacts and details, visible only to them — so it unlocks
+            when this profile becomes a member profile, or on a spouse profile.
+          </p>
+          <p className="mt-2 text-base text-[var(--text)]">
+            If there&apos;s a real emergency right now: <a href="tel:911" className="font-bold underline">call 911</a>.
+          </p>
+        </section>
+      </div>
+    );
+  }
+
+  const card = cardQ.data;
+  const filledContacts = (card?.contacts ?? []).filter((c) => c.name || c.phone);
+  const hasCard = Boolean(
+    card &&
+      (filledContacts.length > 0 || card.unitCommand || card.bloodType || card.allergies || card.medications || card.note),
+  );
+
+  const startEditing = () => {
+    const base = card?.contacts ?? [];
+    const slots: EmergencyContact[] = [0, 1, 2].map((i) => base[i] ?? { name: "", relationship: "", phone: "" });
+    setContacts(slots);
+    setUnitCommand(card?.unitCommand ?? "");
+    setBloodType(card?.bloodType ?? "");
+    setAllergies(card?.allergies ?? "");
+    setMedications(card?.medications ?? "");
+    setNote(card?.note ?? "");
+    setEditing(true);
+  };
+
+  const setContact = (i: number, patch: Partial<EmergencyContact>) => {
+    setContacts((prev) => prev.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  };
+
+  const onSave = (e: FormEvent) => {
+    e.preventDefault();
+    saveM.mutate();
+  };
+
+  return (
+    <div>
+      <SectionHead
+        title="My Emergency Card"
+        sub="Your private quick card. Only you can see or edit it — no other profile, squad member, or listing ever sees what's on it. There is no share or sync; that's deliberate."
+      />
+
+      <section aria-label="Your emergency card" className="rounded-[var(--radius)] border-2 border-[var(--red)] bg-[var(--surface)] p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-sm font-bold tracking-widest text-[var(--dim)]">
+              {(profile.branch || "MILITARY").toUpperCase()}
+              {profile.track === "spouse" ? " FAMILY" : ""}
+            </p>
+            <h3 className="font-display mt-1 text-2xl font-bold text-[var(--text)]">
+              {profile.rank ? `${profile.rank} ` : ""}
+              {profile.displayName || (profile.track === "spouse" ? "Military Spouse" : "Service Member")}
+            </h3>
+            {card?.unitCommand ? (
+              <p className="mt-1 text-base text-[var(--dim)]">{card.unitCommand}</p>
+            ) : null}
+          </div>
+          <Badge tone="red">PRIVATE — ONLY YOU</Badge>
+        </div>
+
+        {cardQ.isPending ? (
+          <p className="mt-4 text-base text-[var(--dim)]">Loading your card…</p>
+        ) : cardQ.error ? (
+          <p className="mt-4 text-base text-[var(--red)]">Could not load your card. Pull to retry, or reopen it.</p>
+        ) : editing ? null : hasCard ? (
+          <div className="mt-4 space-y-4">
+            {filledContacts.length > 0 ? (
+              <div>
+                <h4 className="font-display text-base font-bold text-[var(--text)]">Emergency contacts</h4>
+                <ul className="mt-2 space-y-2">
+                  {filledContacts.map((c, i) => (
+                    <li
+                      key={`${c.name}-${i}`}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] bg-[var(--surface2)] px-4 py-3"
+                    >
+                      <span>
+                        <span className="font-display block text-base font-bold text-[var(--text)]">{c.name || "Contact"}</span>
+                        <span className="block text-sm text-[var(--dim)]">
+                          {[c.relationship, c.phone].filter(Boolean).join(" · ")}
+                        </span>
+                      </span>
+                      {c.phone && c.phone.replace(/[^0-9+]/g, "") ? (
+                        <a
+                          href={telHref(c.phone)}
+                          aria-label={`Call ${c.name || "emergency contact"} at ${c.phone}`}
+                          className="rounded-[var(--radius)] bg-[var(--red)] px-4 py-2.5 font-display text-base font-bold text-white"
+                        >
+                          CALL
+                        </a>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <dl className="space-y-2">
+              <div className="rounded-[var(--radius)] bg-[var(--surface2)] px-4 py-3">
+                <dt className="text-sm font-bold text-[var(--dim)]">Blood type (self-reported)</dt>
+                <dd className="text-base text-[var(--text)]">{card?.bloodType || "Not filled in"}</dd>
+              </div>
+              <div className="rounded-[var(--radius)] bg-[var(--surface2)] px-4 py-3">
+                <dt className="text-sm font-bold text-[var(--dim)]">Allergies</dt>
+                <dd className="text-base text-[var(--text)]">{card?.allergies || "Not filled in"}</dd>
+              </div>
+              <div className="rounded-[var(--radius)] bg-[var(--surface2)] px-4 py-3">
+                <dt className="text-sm font-bold text-[var(--dim)]">Medications</dt>
+                <dd className="text-base text-[var(--text)]">{card?.medications || "Not filled in"}</dd>
+              </div>
+              {card?.note ? (
+                <div className="rounded-[var(--radius)] bg-[var(--surface2)] px-4 py-3">
+                  <dt className="text-sm font-bold text-[var(--dim)]">Note</dt>
+                  <dd className="text-base text-[var(--text)]">{card.note}</dd>
+                </div>
+              ) : null}
+            </dl>
+            {card?.updatedAt ? (
+              <p className="text-sm text-[var(--dim)]">
+                Last updated{" "}
+                {new Date(card.updatedAt).toLocaleString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-4 text-base text-[var(--text)]">
+            You haven&apos;t filled in your card yet. Everything is optional and self-entered — add the people
+            who should be called first, and anything a responder should know.
+          </p>
+        )}
+
+        {editing ? (
+          <form onSubmit={onSave} className="mt-4 space-y-5 border-t border-[var(--border)] pt-4">
+            {[0, 1, 2].map((i) => (
+              <fieldset key={i} className="space-y-2">
+                <legend className="font-display text-base font-bold text-[var(--text)]">
+                  Emergency contact {i + 1}
+                </legend>
+                <div>
+                  <label className={labelCls} htmlFor={`ec-name-${i}`}>Name</label>
+                  <input
+                    id={`ec-name-${i}`}
+                    aria-label={`Emergency contact ${i + 1} name`}
+                    className={inputCls}
+                    type="text"
+                    value={contacts[i]?.name ?? ""}
+                    maxLength={80}
+                    onChange={(e) => setContact(i, { name: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <label className={labelCls} htmlFor={`ec-rel-${i}`}>Relationship</label>
+                    <input
+                      id={`ec-rel-${i}`}
+                      aria-label={`Emergency contact ${i + 1} relationship`}
+                      className={inputCls}
+                      type="text"
+                      value={contacts[i]?.relationship ?? ""}
+                      maxLength={60}
+                      placeholder="Spouse, parent, friend…"
+                      onChange={(e) => setContact(i, { relationship: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls} htmlFor={`ec-phone-${i}`}>Phone</label>
+                    <input
+                      id={`ec-phone-${i}`}
+                      aria-label={`Emergency contact ${i + 1} phone`}
+                      className={inputCls}
+                      type="tel"
+                      value={contacts[i]?.phone ?? ""}
+                      maxLength={40}
+                      placeholder="555-010-1234"
+                      onChange={(e) => setContact(i, { phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </fieldset>
+            ))}
+            <div>
+              <label className={labelCls} htmlFor="ec-unit">Unit / command</label>
+              <input
+                id="ec-unit"
+                aria-label="Unit or command"
+                className={inputCls}
+                type="text"
+                value={unitCommand}
+                maxLength={120}
+                onChange={(e) => setUnitCommand(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className={labelCls} htmlFor="ec-blood">Blood type (self-reported)</label>
+              <input
+                id="ec-blood"
+                aria-label="Blood type, self-reported"
+                className={inputCls}
+                type="text"
+                value={bloodType}
+                maxLength={20}
+                placeholder="e.g. O positive"
+                onChange={(e) => setBloodType(e.target.value)}
+              />
+              <p className="mt-1 text-sm text-[var(--dim)]">
+                Exactly as you type it — the app doesn&apos;t verify it, and medical teams won&apos;t rely on it
+                without their own check.
+              </p>
+            </div>
+            <div>
+              <label className={labelCls} htmlFor="ec-allergies">Allergies</label>
+              <textarea
+                id="ec-allergies"
+                aria-label="Allergies"
+                className={inputCls}
+                rows={2}
+                value={allergies}
+                maxLength={500}
+                onChange={(e) => setAllergies(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className={labelCls} htmlFor="ec-meds">Medications note</label>
+              <textarea
+                id="ec-meds"
+                aria-label="Medications note"
+                className={inputCls}
+                rows={2}
+                value={medications}
+                maxLength={500}
+                onChange={(e) => setMedications(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className={labelCls} htmlFor="ec-note">Note</label>
+              <textarea
+                id="ec-note"
+                aria-label="Free note"
+                className={inputCls}
+                rows={2}
+                value={note}
+                maxLength={1000}
+                placeholder="Anything else a responder or your contacts should know"
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </div>
+            {saveM.error ? (
+              <p className="text-base text-[var(--red)]">Could not save your card. Check your connection and try again — what you typed is still here.</p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <button type="submit" aria-label="Save my emergency card" disabled={saveM.isPending} className={btnPrimary}>
+                {saveM.isPending ? "Saving…" : "Save card"}
+              </button>
+              <button type="button" aria-label="Cancel editing" onClick={() => setEditing(false)} className={btnGhost}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            <button type="button" aria-label={hasCard ? "Edit my emergency card" : "Fill in my emergency card"} onClick={startEditing} className={btnPrimary}>
+              {hasCard ? "Edit card" : "Fill in your card"}
+            </button>
+          </div>
+        )}
+
+        <p className="mt-4 rounded-[var(--radius)] bg-[var(--red-bg)] px-4 py-3 text-base font-semibold text-[var(--text)]">
+          {EMERGENCY_HONESTY_LINE}
+        </p>
+      </section>
+    </div>
+  );
+}
+
 /* --------------------------- Transition & Jobs --------------------------- */
 
-function TransitionView({ go }: { go: (v: View) => void }) {
+function TransitionView({ go, focusAnchor, focusCard }: { go: (v: View) => void; focusAnchor?: string | null; focusCard?: string | null }) {
   return (
     <div>
       <SectionHead
@@ -3990,7 +11912,37 @@ function TransitionView({ go }: { go: (v: View) => void }) {
         <p className="text-base font-semibold text-[var(--text)]">{TRANSITION_STANDING_NOTE}</p>
       </div>
 
-      {TRANSITION_GROUPS.map((group) => (
+      <section
+        aria-label="First Year Out — the guided transition path"
+        className="mb-6 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4"
+      >
+        <h3 className="font-display text-lg font-bold text-[var(--text)]">First Year Out — the guided path across the transition</h3>
+        <p className="mt-1 text-sm text-[var(--text)]">
+          The year, sequenced: 31 checkable tasks in five phases from 12 months before separation to 12 months
+          after — TAP, Capstone, and BDD deadlines, the TRICARE / TAMP / CHCBP clocks, VGLI&apos;s 240-day
+          window and final deadline, and the retiree final-move conflict printed both ways. This hub owns the
+          programs; the path owns the order.
+        </p>
+        <button
+          type="button"
+          aria-label="Open First Year Out"
+          onClick={() => go("firstyear")}
+          className="mt-3 rounded-[var(--radius)] bg-[var(--accent)] px-4 py-3 text-base font-bold text-[var(--accent-text)]"
+        >
+          Open First Year Out →
+        </button>
+      </section>
+
+      <HonestyLine />
+
+      <GroupedHub
+        groups={TRANSITION_GROUPS}
+        noun="topics"
+        focusAnchor={focusAnchor}
+        focusCard={focusCard}
+        renderGroup={(i) => {
+          const group = TRANSITION_GROUPS[i]!;
+          return (
         <section key={group.title} aria-label={group.title} className="mb-8">
           <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
           {group.framing ? (
@@ -4004,7 +11956,10 @@ function TransitionView({ go }: { go: (v: View) => void }) {
             ))}
           </div>
         </section>
-      ))}
+      
+          );
+        }}
+      />
     </div>
   );
 }
@@ -4032,7 +11987,7 @@ function TransitionCard({ entry, go }: { entry: TransitionEntry; go: (v: View) =
             target="_blank"
             rel="noreferrer"
             aria-label={`${entry.name} — ${l.label} (opens in new tab)`}
-            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
           >
             {l.label} ↗
           </a>
@@ -4042,7 +11997,7 @@ function TransitionCard({ entry, go }: { entry: TransitionEntry; go: (v: View) =
             type="button"
             aria-label="Open the VR&E entry in Benefits"
             onClick={() => go("benefits")}
-            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
           >
             Open the VR&amp;E entry in Benefits
           </button>
@@ -4063,7 +12018,16 @@ function TransitionCard({ entry, go }: { entry: TransitionEntry; go: (v: View) =
 
 /* ------------------------------- Education ------------------------------- */
 
-function EducationView({ go }: { go: (v: View) => void }) {
+function EducationView({ go, focusAnchor, focusCard }: { go: (v: View) => void; focusAnchor?: string | null; focusCard?: string | null }) {
+  // Rule 24: in Branch Programs, the other services' own degree
+  // programs step aside in the My branch view (a program that names
+  // several services including yours stays).
+  const scope = useSectionScope("education");
+  const profile = scope.profile;
+  const eduHeldBack =
+    scope.scope !== "all" && profile?.branch
+      ? EDUCATION_SECTIONS.reduce((n, g) => n + g.entries.filter((e) => !visibleForProfile(e.name, profile)).length, 0)
+      : 0;
   return (
     <div>
       <SectionHead
@@ -4075,7 +12039,20 @@ function EducationView({ go }: { go: (v: View) => void }) {
         <p className="text-base font-semibold text-[var(--text)]">{EDUCATION_STANDING_NOTE}</p>
       </div>
 
-      {EDUCATION_SECTIONS.map((section) => (
+      <ScopeToggle sectionKey="education" itemNoun="cards" heldBack={eduHeldBack} />
+
+      <GroupedHub
+        groups={EDUCATION_SECTIONS}
+        noun="topics"
+        focusAnchor={focusAnchor}
+        focusCard={focusCard}
+        renderGroup={(i) => {
+          const section = EDUCATION_SECTIONS[i]!;
+          const visibleEntries =
+            scope.scope !== "all" && profile?.branch
+              ? section.entries.filter((e) => visibleForProfile(e.name, profile))
+              : section.entries;
+          return (
         <section key={section.title} aria-label={section.title} className="mb-8">
           <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{section.title}</h3>
           {section.intro ? (
@@ -4087,7 +12064,7 @@ function EducationView({ go }: { go: (v: View) => void }) {
                   target="_blank"
                   rel="noreferrer"
                   aria-label={`DANTES homepage — ${section.introLink.label} (opens in new tab)`}
-                  className="mt-2 inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+                  className="mt-2 inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
                 >
                   {section.introLink.label} ↗
                 </a>
@@ -4095,19 +12072,23 @@ function EducationView({ go }: { go: (v: View) => void }) {
             </div>
           ) : null}
           <div className="space-y-3">
-            {section.entries.map((entry) => (
+            {visibleEntries.map((entry) => (
               <EducationCard key={entry.name} entry={entry} go={go} />
             ))}
           </div>
         </section>
-      ))}
+      
+          );
+        }}
+      />
+      <ShowEverythingFooter sectionKey="education" heldBack={eduHeldBack} />
     </div>
   );
 }
 
 function EducationCard({ entry, go }: { entry: EducationEntry; go: (v: View) => void }) {
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   return (
     <article
       className={`rounded-[var(--radius)] border bg-[var(--surface)] p-4 ${
@@ -4185,7 +12166,42 @@ function EducationCard({ entry, go }: { entry: EducationEntry; go: (v: View) => 
 
 /* ------------------------------- Pay & Money ------------------------------- */
 
-function MoneyView({ go }: { go: (v: View) => void }) {
+/** A Calculators-area tile placed inside its home hub (Retirement,
+ * VA Claims, PCS Move Center, Pay & Money). Opens the Calculators
+ * area straight onto that calculator when a goTo is available. */
+function CalcPointerCard({
+  tileLabel,
+  title,
+  text,
+  go,
+  goTo,
+}: {
+  tileLabel: string;
+  title: string;
+  text: string;
+  go: (v: View) => void;
+  goTo?: (v: View, anchor?: string) => void;
+}) {
+  return (
+    <section
+      aria-label={title}
+      className="mb-8 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4"
+    >
+      <h3 className="font-display text-xl font-bold text-[var(--text)]">{title}</h3>
+      <p className="mt-1 text-base text-[var(--text)]">{text}</p>
+      <button
+        type="button"
+        aria-label={`Open ${title} in Calculators`}
+        onClick={() => (goTo ? goTo("calculators", tileLabel) : go("calculators"))}
+        className={`${btnPrimary} mt-3`}
+      >
+        Open the calculator
+      </button>
+    </section>
+  );
+}
+
+function MoneyView({ go, goTo, focusAnchor, focusCard }: { go: (v: View) => void; goTo?: (v: View, anchor?: string) => void; focusAnchor?: string | null; focusCard?: string | null }) {
   return (
     <div>
       <SectionHead
@@ -4197,7 +12213,24 @@ function MoneyView({ go }: { go: (v: View) => void }) {
         <p className="text-base font-semibold text-[var(--text)]">{MONEY_STANDING_NOTE}</p>
       </div>
 
-      {MONEY_GROUPS.map((group) => (
+      <CalcPointerCard
+        tileLabel="Debt Payoff"
+        title="Debt Payoff Calculator"
+        text="Run your own numbers here: CFPB snowball vs avalanche on the stated monthly model, with a minimums-only baseline, payoff order and dates, and total interest under each method. SCRA 6% is modeled only as a user-confirmed cap or a clearly labeled what-if — never as an eligibility call. Education only, not personalized financial advice; the free counselor routes are on the calculator."
+        go={go}
+        goTo={goTo}
+      />
+
+      <HonestyLine />
+
+      <GroupedHub
+        groups={MONEY_GROUPS}
+        noun="topics"
+        focusAnchor={focusAnchor}
+        focusCard={focusCard}
+        renderGroup={(i) => {
+          const group = MONEY_GROUPS[i]!;
+          return (
         <section key={group.title} aria-label={group.title} className="mb-8">
           <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
           <div className="space-y-3">
@@ -4209,14 +12242,17 @@ function MoneyView({ go }: { go: (v: View) => void }) {
             <LesDecoder group={group} go={go} />
           ) : null}
         </section>
-      ))}
+      
+          );
+        }}
+      />
     </div>
   );
 }
 
 function MoneyCard({ entry, go }: { entry: MoneyEntry; go: (v: View) => void }) {
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   return (
     <article
       className={`rounded-[var(--radius)] border bg-[var(--surface)] p-4 ${
@@ -4325,7 +12361,7 @@ function LesDecoder({ group, go }: { group: MoneyGroup; go: (v: View) => void })
             {open ? "hide" : "expand"}.
           </span>
         </span>
-        <span aria-hidden="true" className="font-display text-2xl font-bold text-[var(--accent)]">
+        <span aria-hidden="true" className="font-display text-2xl font-bold text-[var(--accent-word)]">
           {open ? "−" : "+"}
         </span>
       </button>
@@ -4349,7 +12385,7 @@ function LesDecoder({ group, go }: { group: MoneyGroup; go: (v: View) => void })
             type="button"
             aria-label="Open Benefits for TSP and BRS details referenced by the LES decoder"
             onClick={() => go("benefits")}
-            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
           >
             TSP &amp; BRS details live in Benefits
           </button>
@@ -4359,9 +12395,70 @@ function LesDecoder({ group, go }: { group: MoneyGroup; go: (v: View) => void })
   );
 }
 
+
+/* --------------------------- Grouped hub --------------------------- */
+/**
+ * The hub-grammar migration shared by the formerly grouped-scroll
+ * sections (ux-reorg.md §B.2): the section's own groups become the
+ * hub tiles — nothing is lost, one tap opens the same group content
+ * the long scroll held — and a deep link (a group title, an entry
+ * name via focusAnchor, or a card name via focusCard) opens the
+ * right tile directly, so global-search and Binder deep-landing work
+ * exactly as they did on the scroll. Pinned cards and standing notes
+ * stay above the hub in each view (Care & Crisis keeps its 988 strip
+ * pinned above the tiles — H-1: it is never behind a tap).
+ */
+function GroupedHub({
+  groups,
+  noun,
+  focusAnchor,
+  focusCard,
+  renderGroup,
+}: {
+  groups: readonly { title: string; entries: readonly { name: string }[] }[];
+  noun: string;
+  focusAnchor?: string | null;
+  focusCard?: string | null;
+  renderGroup: (index: number) => ReactNode;
+}) {
+  const slugify = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const [tile, setTile] = useState<number | null>(() => {
+    if (focusCard) {
+      const byCard = groups.findIndex((g) => g.entries.some((e) => e.name === focusCard));
+      if (byCard >= 0) return byCard;
+    }
+    if (focusAnchor) {
+      const want = slugify(focusAnchor);
+      const byTitle = groups.findIndex((g) => slugify(g.title) === want);
+      if (byTitle >= 0) return byTitle;
+      const byEntry = groups.findIndex((g) => g.entries.some((e) => slugify(e.name) === want));
+      if (byEntry >= 0) return byEntry;
+    }
+    return null;
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  }, [tile]);
+  if (tile === null) {
+    return (
+      <HubTileGrid
+        tiles={groups.map((g, i) => ({ key: String(i), label: g.title, sub: `${g.entries.length} cards` }))}
+        onOpen={(key) => setTile(Number(key))}
+        label={noun}
+      />
+    );
+  }
+  return (
+    <div>
+      <HubBackButton ariaLabel={`Back to all ${noun}`} text={`All ${noun}`} onBack={() => setTile(null)} />
+      {renderGroup(tile)}
+    </div>
+  );
+}
+
 /* ---------------------------- PCS Move Center ---------------------------- */
 
-function PcsView({ go }: { go: (v: View) => void }) {
+function PcsView({ go, goTo, focusAnchor, focusCard }: { go: (v: View) => void; goTo?: (v: View, anchor?: string) => void; focusAnchor?: string | null; focusCard?: string | null }) {
   return (
     <div>
       <SectionHead
@@ -4374,7 +12471,36 @@ function PcsView({ go }: { go: (v: View) => void }) {
         <p className="mt-2 text-sm text-[var(--text)]">{PCS_FLAG_NOTE}</p>
       </div>
 
-      {PCS_GROUPS.map((group) => (
+      <CalcPointerCard
+        tileLabel="PCS Entitlements"
+        title="PCS Entitlements Calculator"
+        text="Your numbers from the JTR tables: Table 5-37 household-goods weight allowance, CY2026 primary DLA by grade and dependent status, TLE Table 5-17 percentages under the $290/day cap, PCS travel days, and Table 5-6 dependent percentages. Locality rates route to DTMO's Per Diem Rate Calculator — none are hard-coded — and PPM runs from a Government Constructed Cost your Transportation Office supplies."
+        go={go}
+        goTo={goTo}
+      />
+
+      <section aria-label="First 30 Days — the landing after the move" className="mb-6 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4">
+        <h3 className="font-display text-lg font-bold text-[var(--text)]">First 30 Days — the landing</h3>
+        <p className="mt-1 text-base text-[var(--text)]">
+          This center owns the move; the First 30 Days path owns the landing — report, in-process, get paid,
+          get housed, get covered, get the family settled, sequenced by the deadlines that actually fall,
+          with your progress checked off per phase.
+        </p>
+        <button type="button" aria-label="Open First 30 Days" onClick={() => go("first30")} className="mt-3 rounded-[var(--radius)] bg-[var(--accent)] px-4 py-3 text-base font-bold text-[var(--accent-text)]">
+          Open First 30 Days →
+        </button>
+      </section>
+
+      <HonestyLine />
+
+      <GroupedHub
+        groups={PCS_GROUPS}
+        noun="topics"
+        focusAnchor={focusAnchor}
+        focusCard={focusCard}
+        renderGroup={(i) => {
+          const group = PCS_GROUPS[i]!;
+          return (
         <section key={group.title} aria-label={group.title} className="mb-8">
           <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
           {group.note ? (
@@ -4406,14 +12532,17 @@ function PcsView({ go }: { go: (v: View) => void }) {
             </div>
           )}
         </section>
-      ))}
+      
+          );
+        }}
+      />
     </div>
   );
 }
 
 function PcsCard({ entry, phase, go }: { entry: PcsEntry; phase?: number; go: (v: View) => void }) {
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   return (
     <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -4476,7 +12605,17 @@ function PcsCard({ entry, phase, go }: { entry: PcsEntry; phase?: number; go: (v
 
 /* --------------------------- Family & Life Events --------------------------- */
 
-function FamilyView({ go }: { go: (v: View) => void }) {
+function FamilyView({ go, focusAnchor, focusCard }: { go: (v: View) => void; focusAnchor?: string | null; focusCard?: string | null }) {
+  // Rule 29: entries that belong to one service only (the Coast
+  // Guard's Special Needs Program, a service's own family-support
+  // names) step aside in the My branch view; everything else in this
+  // section is every family's.
+  const scope = useSectionScope("family");
+  const profile = scope.profile;
+  const famHeldBack =
+    scope.scope !== "all" && profile?.branch
+      ? FAMILY_GROUPS.reduce((n, g) => n + g.entries.filter((e) => !visibleForProfile(e.name, profile)).length, 0)
+      : 0;
   return (
     <div>
       <SectionHead
@@ -4488,7 +12627,20 @@ function FamilyView({ go }: { go: (v: View) => void }) {
         <p className="text-base font-semibold text-[var(--text)]">{FAMILY_STANDING_NOTE}</p>
       </div>
 
-      {FAMILY_GROUPS.map((group) => (
+      <ScopeToggle sectionKey="family" itemNoun="cards" heldBack={famHeldBack} />
+
+      <GroupedHub
+        groups={FAMILY_GROUPS}
+        noun="topics"
+        focusAnchor={focusAnchor}
+        focusCard={focusCard}
+        renderGroup={(i) => {
+          const group = FAMILY_GROUPS[i]!;
+          const visibleEntries =
+            scope.scope !== "all" && profile?.branch
+              ? group.entries.filter((e) => visibleForProfile(e.name, profile))
+              : group.entries;
+          return (
         <section key={group.title} aria-label={group.title} className="mb-8">
           <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
           {group.note ? (
@@ -4497,12 +12649,16 @@ function FamilyView({ go }: { go: (v: View) => void }) {
             </p>
           ) : null}
           <div className="space-y-3">
-            {group.entries.map((entry) => (
+            {visibleEntries.map((entry) => (
               <FamilyCard key={entry.name} entry={entry} go={go} />
             ))}
           </div>
         </section>
-      ))}
+      
+          );
+        }}
+      />
+      <ShowEverythingFooter sectionKey="family" heldBack={famHeldBack} />
     </div>
   );
 }
@@ -4510,7 +12666,7 @@ function FamilyView({ go }: { go: (v: View) => void }) {
 function FamilyCard({ entry, go }: { entry: FamilyEntry; go: (v: View) => void }) {
   const [done, setDone] = useState<Record<number, boolean>>({});
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   const renderLinks = (links: FamilyLink[]) => (
     <>
       {links.map((l) => (
@@ -4616,11 +12772,11 @@ function FamilyCard({ entry, go }: { entry: FamilyEntry; go: (v: View) => void }
 
 /* --------------------------- VA Claims & VSO ---------------------------- */
 
-function ClaimsView({ go }: { go: (v: View) => void }) {
+function ClaimsView({ go, goTo, focusAnchor, focusCard }: { go: (v: View) => void; goTo?: (v: View, anchor?: string) => void; focusAnchor?: string | null; focusCard?: string | null }) {
   return (
     <div>
       <SectionHead
-        title="VA Claims & VSO Guide"
+        title="VA Claims & Free Help"
         sub="How a VA disability claim actually moves — filing, the intent to file, BDD before you get out, the evidence VA decides on, ratings at concept level, the three review lanes after a decision, and where the free accredited help is — with VA's own warning about claim predators."
       />
 
@@ -4629,7 +12785,48 @@ function ClaimsView({ go }: { go: (v: View) => void }) {
         <p className="mt-2 text-sm text-[var(--text)]">{CLAIMS_FLAGS_NOTE}</p>
       </div>
 
-      {CLAIMS_GROUPS.map((group) => (
+      <section
+        aria-label="Your Claim Tracker"
+        className="mb-8 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4"
+      >
+        <h3 className="font-display text-xl font-bold text-[var(--text)]">Track your own claim</h3>
+        <p className="mt-1 text-base text-[var(--text)]">
+          This guide teaches the process — the Claim Tracker keeps <em>your</em> claim organized inside it: the
+          stage you&apos;re at, your intent-to-file, filing, and exam dates, the one-year intent-to-file
+          countdown, and an evidence checklist built from the categories below.
+        </p>
+        <p className="mt-2 text-sm text-[var(--dim)]">
+          Private to your profile — no one else sees your claims, and there&apos;s no review queue or sharing.
+          The tracker is an organizer, not VA claim status; the official status check stays on VA.gov.
+        </p>
+        <button
+          type="button"
+          aria-label="Open my Claim Tracker"
+          onClick={() => go("claimtracker")}
+          className={`${btnPrimary} mt-3`}
+        >
+          Open my Claim Tracker
+        </button>
+      </section>
+
+      <CalcPointerCard
+        tileLabel="VA Combined Ratings"
+        title="VA Combined Ratings Calculator"
+        text="Combine ratings with the regulation's own math: the full 38 CFR §4.25 Table I, the §4.26 bilateral factor in the regulation's order (including the §4.26(d) most-favorable comparison), one final conversion with 5s adjusted upward, and every step shown. It reproduces the regulation's math on ratings you enter — it is not a VA decision, and VA still decides service connection, evaluations, and bilateral status."
+        go={go}
+        goTo={goTo}
+      />
+
+      <HonestyLine />
+
+      <GroupedHub
+        groups={CLAIMS_GROUPS}
+        noun="topics"
+        focusAnchor={focusAnchor}
+        focusCard={focusCard}
+        renderGroup={(i) => {
+          const group = CLAIMS_GROUPS[i]!;
+          return (
         <section key={group.title} aria-label={group.title} className="mb-8">
           <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
           {group.note ? (
@@ -4643,14 +12840,17 @@ function ClaimsView({ go }: { go: (v: View) => void }) {
             ))}
           </div>
         </section>
-      ))}
+      
+          );
+        }}
+      />
     </div>
   );
 }
 
 function ClaimsCard({ entry, go }: { entry: ClaimsEntry; go: (v: View) => void }) {
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   const renderLinks = (links: ClaimsLink[]) => (
     <>
       {links.map((l) => (
@@ -4751,13 +12951,588 @@ function ClaimsCard({ entry, go }: { entry: ClaimsEntry; go: (v: View) => void }
   );
 }
 
-/* ------------------------- Readiness & Life Skills ------------------------ */
+/* --------------------------- VA Claim Tracker --------------------------- */
 
-function ReadinessView({ go }: { go: (v: View) => void }) {
+function ClaimTrackerView({
+  goTo,
+}: {
+  goTo: (v: View, anchor?: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const claimsQ = useQuery({ queryKey: ["myClaims"], queryFn: () => api.listMyClaims({}) });
+  const claims = claimsQ.data?.claims ?? [];
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<TrackedClaim | null>(null);
+
+  // A claim change can also change the Alerts center (a tracked claim's
+  // intent-to-file deadline), so both queries refresh together.
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ["myClaims"] });
+    void queryClient.invalidateQueries({ queryKey: ["alerts"] });
+  };
+
   return (
     <div>
       <SectionHead
-        title="Readiness & Life Skills"
+        title="VA Claim Tracker"
+        sub="Your own claims, organized: where each one sits in the lifecycle, its key dates, the one-year intent-to-file countdown, and an evidence checklist — kept under your profile, for your eyes only."
+      />
+
+      <div className="mb-5 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+        <p className="text-base font-semibold text-[var(--text)]">{CLAIM_TRACKER_HONESTY}</p>
+        <p className="mt-2 text-sm text-[var(--text)]">{CLAIM_TRACKER_PRIVACY}</p>
+        <p className="mt-2 text-sm text-[var(--text)]">{CLAIM_TRACKER_VSO_LINE}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <a
+            href={VA_CLAIM_STATUS_URL}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Check your official claim status on VA.gov (opens in new tab)"
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
+          >
+            VA.gov — Check your claim status ↗
+          </a>
+          <button
+            type="button"
+            aria-label="Find a free accredited VSO in the Claims guide"
+            onClick={() => goTo("claims", "Free Help: Accredited Representatives & VSOs")}
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
+          >
+            Find a free accredited VSO in the Claims guide
+          </button>
+        </div>
+      </div>
+
+      {claimsQ.isPending ? (
+        <p className="text-base text-[var(--dim)]">Loading your claims…</p>
+      ) : claimsQ.isError ? (
+        <p className="text-base text-[var(--red)]">Could not load your claims. Pull to retry, or reopen the app.</p>
+      ) : claims.length === 0 && !formOpen ? (
+        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h3 className="font-display text-lg font-bold text-[var(--text)]">No claims tracked yet</h3>
+          <p className="mt-1 text-sm text-[var(--dim)]">
+            Your tracker starts empty — nothing here is guessed or pulled from anywhere. Add a claim in your own
+            words, set where it sits, and the tracker keeps its dates, its intent-to-file countdown, and its
+            evidence checklist in one place.
+          </p>
+          <button
+            type="button"
+            aria-label="Add your first tracked claim"
+            onClick={() => setFormOpen(true)}
+            className={`${btnPrimary} mt-4 w-full`}
+          >
+            Add a claim
+          </button>
+        </div>
+      ) : (
+        <>
+          {!formOpen && !editing ? (
+            <div className="mb-4">
+              <button type="button" aria-label="Add a claim" onClick={() => setFormOpen(true)} className={btnPrimary}>
+                Add a claim
+              </button>
+            </div>
+          ) : null}
+
+          {formOpen && !editing ? (
+            <ClaimForm
+              onDone={() => {
+                setFormOpen(false);
+                invalidate();
+              }}
+              onCancel={() => setFormOpen(false)}
+            />
+          ) : null}
+
+          <div className="space-y-4">
+            {claims.map((claim) =>
+              editing?.id === claim.id ? (
+                <ClaimForm
+                  key={claim.id}
+                  claim={claim}
+                  onDone={() => {
+                    setEditing(null);
+                    invalidate();
+                  }}
+                  onCancel={() => setEditing(null)}
+                />
+              ) : (
+                <ClaimCard
+                  key={claim.id}
+                  claim={claim}
+                  goTo={goTo}
+                  onEdit={() => {
+                    setFormOpen(false);
+                    setEditing(claim);
+                  }}
+                  onChanged={invalidate}
+                />
+              ),
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ClaimCard({
+  claim,
+  goTo,
+  onEdit,
+  onChanged,
+}: {
+  claim: TrackedClaim;
+  goTo: (v: View, anchor?: string) => void;
+  onEdit: () => void;
+  onChanged: () => void;
+}) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const stageDef = claimStageDef(claim.stage);
+  const stageIdx = claimStageIndex(claim.stage);
+  const countdown = itfCountdown(claim.itfDate);
+
+  const save = useMutation({
+    mutationFn: (patch: Partial<TrackedClaim>) =>
+      api.updateClaim({
+        id: claim.id,
+        label: patch.label ?? claim.label,
+        claimType: patch.claimType ?? claim.claimType,
+        stage: patch.stage ?? claim.stage,
+        itfDate: patch.itfDate ?? claim.itfDate,
+        filedDate: patch.filedDate ?? claim.filedDate,
+        examDate: patch.examDate ?? claim.examDate,
+        evidence: patch.evidence ?? claim.evidence,
+        notes: patch.notes ?? claim.notes,
+      }),
+    onSuccess: onChanged,
+  });
+  const remove = useMutation({
+    mutationFn: () => api.deleteClaim({ id: claim.id }),
+    onSuccess: onChanged,
+  });
+
+  const toggleEvidence = (key: ClaimEvidenceKey) => {
+    const has = claim.evidence.includes(key);
+    const next = has ? claim.evidence.filter((k) => k !== key) : [...claim.evidence, key];
+    save.mutate({ evidence: next });
+  };
+
+  const linkCls =
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
+
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="font-display text-lg font-bold leading-snug text-[var(--text)]">{claim.label}</h3>
+        <Badge tone="official">{claimTypeLabel(claim.claimType)}</Badge>
+      </div>
+
+      {/* Progress strip across the lifecycle, derived from the stage. */}
+      <div
+        role="img"
+        aria-label={`Claim progress: stage ${stageIdx + 1} of ${CLAIM_STAGES.length} — ${claimStageLabel(claim.stage)}`}
+        className="mt-3 flex gap-1"
+      >
+        {CLAIM_STAGES.map((s, i) => (
+          <span
+            key={s.key}
+            aria-hidden="true"
+            className={`h-2 flex-1 rounded ${i <= stageIdx ? "bg-[var(--accent)]" : "bg-[var(--surface2)]"}`}
+          />
+        ))}
+      </div>
+      <p className="mt-1.5 text-sm font-bold text-[var(--text)]">
+        Stage {stageIdx + 1} of {CLAIM_STAGES.length} · {claimStageLabel(claim.stage)}
+      </p>
+      <p className="mt-1 text-sm text-[var(--dim)]">{stageDef.blurb}</p>
+      <div className="mt-2">
+        <button
+          type="button"
+          aria-label={`About this stage in the Claims guide — ${claimStageLabel(claim.stage)}`}
+          onClick={() => goTo("claims", stageDef.claimsAnchor)}
+          className={linkCls}
+        >
+          About this stage in the Claims guide
+        </button>
+      </div>
+
+      <div className="mt-4">
+        <label htmlFor={`claim-stage-${claim.id}`} className={labelCls}>
+          Move this claim to a stage
+        </label>
+        <select
+          id={`claim-stage-${claim.id}`}
+          aria-label={`Claim stage for ${claim.label}`}
+          value={claim.stage}
+          disabled={save.isPending}
+          onChange={(e) => save.mutate({ stage: e.target.value as ClaimStage })}
+          className={inputCls}
+        >
+          {CLAIM_STAGES.map((s) => (
+            <option key={s.key} value={s.key}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        {save.isError ? (
+          <p className="mt-2 text-sm text-[var(--red)]">That change couldn&apos;t be saved. Try again.</p>
+        ) : null}
+      </div>
+
+      <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
+        {(
+          [
+            { label: "Intent to file", value: claim.itfDate },
+            { label: "Filed", value: claim.filedDate },
+            { label: "C&P exam", value: claim.examDate },
+          ] as { label: string; value: string }[]
+        ).map((d) => (
+          <div key={d.label} className="rounded-[var(--radius)] bg-[var(--surface2)] px-2 py-2.5">
+            <dt className="text-xs font-bold tracking-wide text-[var(--dim)]">{d.label.toUpperCase()}</dt>
+            <dd className="mt-0.5 text-sm font-bold text-[var(--text)]">
+              {d.value ? fmtClaimDate(d.value) : "Not set"}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      {countdown ? (
+        <div
+          className={`mt-3 rounded-[var(--radius)] p-3 ${
+            countdown.urgent
+              ? "border-2 border-[var(--amber)] bg-[var(--amber-bg)]"
+              : "border border-[var(--border)] bg-[var(--surface2)]"
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-bold text-[var(--text)]">
+              Intent-to-file deadline: {countdown.deadlineLabel}
+            </p>
+            {countdown.expired ? (
+              <Badge tone="red">EXPIRED</Badge>
+            ) : countdown.urgent ? (
+              <Badge tone="amber">INSIDE 60 DAYS</Badge>
+            ) : null}
+          </div>
+          <p className="mt-1 text-sm text-[var(--text)]">
+            {countdown.expired
+              ? `The 1 year from your ${fmtClaimDate(claim.itfDate)} intent to file has run out. Filing a new intent to file starts a new effective date.`
+              : `${countdown.daysLeft} day${countdown.daysLeft === 1 ? "" : "s"} left to complete and file this claim and keep the ${fmtClaimDate(claim.itfDate)} effective date — an intent to file gives you 1 year, one active at a time.`}
+          </p>
+        </div>
+      ) : null}
+
+      <fieldset className="mt-4">
+        <legend className="text-sm font-semibold text-[var(--text)]">
+          Evidence checklist — {claim.evidence.length} of {CLAIM_EVIDENCE.length} gathered
+        </legend>
+        <div className="mt-2 space-y-2">
+          {CLAIM_EVIDENCE.map((item) => {
+            const checked = claim.evidence.includes(item.key);
+            return (
+              <button
+                key={item.key}
+                type="button"
+                aria-label={`Evidence: ${item.label}`}
+                aria-pressed={checked}
+                disabled={save.isPending}
+                onClick={() => toggleEvidence(item.key)}
+                className={`flex w-full items-start gap-3 rounded-[var(--radius)] border p-3 text-left disabled:opacity-60 ${
+                  checked
+                    ? "border-[var(--accent)] bg-[var(--surface2)]"
+                    : "border-[var(--border)] bg-[var(--surface)]"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`font-display mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded border text-sm font-bold ${
+                    checked
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-text)]"
+                      : "border-[var(--border)] bg-[var(--surface)] text-transparent"
+                  }`}
+                >
+                  ✓
+                </span>
+                <span>
+                  <span className="block text-base font-semibold text-[var(--text)]">
+                    {item.label}
+                  </span>
+                  <span className="block text-sm text-[var(--dim)]">{item.hint}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      {claim.notes ? (
+        <div className="mt-4">
+          <p className="text-sm font-semibold text-[var(--text)]">Your notes</p>
+          <p className="mt-1 whitespace-pre-wrap text-base text-[var(--text)]">{claim.notes}</p>
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <a
+          href={VA_CLAIM_STATUS_URL}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Check the official status of “${claim.label}” on VA.gov (opens in new tab)`}
+          className={linkCls}
+        >
+          Check official status on VA.gov ↗
+        </a>
+        <button
+          type="button"
+          aria-label={`Edit claim: ${claim.label}`}
+          onClick={onEdit}
+          className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--text)]"
+        >
+          Edit
+        </button>
+        {confirmDelete ? (
+          <>
+            <button
+              type="button"
+              aria-label={`Confirm delete claim: ${claim.label}`}
+              disabled={remove.isPending}
+              onClick={() => remove.mutate()}
+              className="rounded-[var(--radius)] bg-[var(--red)] px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {remove.isPending ? "Deleting…" : "Confirm delete"}
+            </button>
+            <button
+              type="button"
+              aria-label="Cancel delete"
+              onClick={() => setConfirmDelete(false)}
+              className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--text)]"
+            >
+              Keep it
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            aria-label={`Delete claim: ${claim.label}`}
+            onClick={() => setConfirmDelete(true)}
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--red)]"
+          >
+            Delete
+          </button>
+        )}
+      </div>
+      {remove.isError && confirmDelete ? (
+        <p className="mt-2 text-sm text-[var(--red)]">Could not delete that claim. Try again.</p>
+      ) : null}
+    </article>
+  );
+}
+
+function ClaimForm({
+  claim,
+  onDone,
+  onCancel,
+}: {
+  claim?: TrackedClaim;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [label, setLabel] = useState(claim?.label ?? "");
+  const [claimType, setClaimType] = useState<ClaimType>(claim?.claimType ?? "new");
+  const [stage, setStage] = useState<ClaimStage>(claim?.stage ?? "intent");
+  const [itfDate, setItfDate] = useState(claim?.itfDate ?? "");
+  const [filedDate, setFiledDate] = useState(claim?.filedDate ?? "");
+  const [examDate, setExamDate] = useState(claim?.examDate ?? "");
+  const [notes, setNotes] = useState(claim?.notes ?? "");
+
+  const canSubmit = label.trim().length > 0;
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        label: label.trim(),
+        claimType,
+        stage,
+        itfDate,
+        filedDate,
+        examDate,
+        notes: notes.trim(),
+      };
+      if (claim) {
+        await api.updateClaim({ id: claim.id, ...payload, evidence: claim.evidence });
+      } else {
+        await api.addClaim({ ...payload, evidence: [] });
+      }
+    },
+    onSuccess: onDone,
+  });
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    if (canSubmit) save.mutate();
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      aria-label={claim ? "Edit tracked claim" : "Add a tracked claim"}
+      className="mb-5 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4"
+    >
+      <h3 className="font-display text-lg font-bold text-[var(--text)]">
+        {claim ? "Edit claim" : "Add a claim"}
+      </h3>
+      <p className="mt-1 text-sm text-[var(--dim)]">
+        In your own words — this stays on your profile only. Dates are optional; add the ones you know and the
+        tracker works out the intent-to-file countdown from the date you enter.
+      </p>
+
+      <div className="mt-4">
+        <label htmlFor="claim-label" className={labelCls}>
+          What is this claim for?
+        </label>
+        <input
+          id="claim-label"
+          type="text"
+          aria-label="Claim label — what the claim is for"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="e.g., Left knee"
+          maxLength={140}
+          className={inputCls}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="claim-type" className={labelCls}>
+            Claim type
+          </label>
+          <select
+            id="claim-type"
+            aria-label="Claim type"
+            value={claimType}
+            onChange={(e) => setClaimType(e.target.value as ClaimType)}
+            className={inputCls}
+          >
+            {CLAIM_TYPES.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="claim-form-stage" className={labelCls}>
+            Where it sits now
+          </label>
+          <select
+            id="claim-form-stage"
+            aria-label="Claim stage"
+            value={stage}
+            onChange={(e) => setStage(e.target.value as ClaimStage)}
+            className={inputCls}
+          >
+            {CLAIM_STAGES.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div>
+          <label htmlFor="claim-itf-date" className={labelCls}>
+            Intent-to-file date
+          </label>
+          <input
+            id="claim-itf-date"
+            type="date"
+            aria-label="Intent-to-file date"
+            value={itfDate}
+            onChange={(e) => setItfDate(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label htmlFor="claim-filed-date" className={labelCls}>
+            Filed date
+          </label>
+          <input
+            id="claim-filed-date"
+            type="date"
+            aria-label="Filed date"
+            value={filedDate}
+            onChange={(e) => setFiledDate(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label htmlFor="claim-exam-date" className={labelCls}>
+            C&amp;P exam date
+          </label>
+          <input
+            id="claim-exam-date"
+            type="date"
+            aria-label="C&P exam date"
+            value={examDate}
+            onChange={(e) => setExamDate(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <label htmlFor="claim-notes" className={labelCls}>
+          Notes
+        </label>
+        <textarea
+          id="claim-notes"
+          aria-label="Claim notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+          maxLength={2000}
+          placeholder="Anything you want to remember about this claim — rep's name, what you're waiting on, what you sent and when."
+          className={inputCls}
+        />
+      </div>
+
+      {save.isError ? (
+        save.error instanceof OfflineQueuedError ? (
+          <p className="mt-3 text-sm font-semibold text-[var(--amber)]" role="status">
+            You&apos;re offline — this claim is saved on this device and will send when you&apos;re back. The tracker updates when it sends.
+          </p>
+        ) : (
+          <p className="mt-3 text-sm text-[var(--red)]">That claim couldn&apos;t be saved. Check the label and dates, then try again.</p>
+        )
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="submit" aria-label={claim ? "Save claim changes" : "Save claim"} disabled={!canSubmit || save.isPending} className={btnPrimary}>
+          {save.isPending ? "Saving…" : claim ? "Save changes" : "Save claim"}
+        </button>
+        <button type="button" aria-label="Cancel" onClick={onCancel} className={btnGhost}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/* ------------------------- Readiness & Life Skills ------------------------ */
+
+function ReadinessView({ go, focusAnchor, focusCard }: { go: (v: View) => void; focusAnchor?: string | null; focusCard?: string | null }) {
+  // Rule 10 is ordering-only: nothing hides here — in Special Duties
+  // & Assignments, the duties your branch owns lead the list.
+  const scope = useSectionScope("readiness");
+  const profile = scope.profile;
+  return (
+    <div>
+      <SectionHead
+        title="Duties, Uniforms & Everyday Know-How"
         sub="Pre-deployment readiness, special duties and assignments, your branch's uniform publication, first-home-station life skills, money traps, and FVAP absentee voting — each card in plain language with its official link."
       />
 
@@ -4765,7 +13540,30 @@ function ReadinessView({ go }: { go: (v: View) => void }) {
         <p className="text-base font-semibold text-[var(--text)]">{READINESS_STANDING_NOTE}</p>
       </div>
 
-      {READINESS_GROUPS.map((group) => (
+      <ScopeToggle
+        sectionKey="readiness"
+        itemNoun="cards"
+        heldBack={0}
+        mineLine="Everything is shown — in Special Duties & Assignments, your branch's duties lead the list."
+        allLine="Everything is shown, in the book's order."
+      />
+
+      <GroupedHub
+        groups={READINESS_GROUPS}
+        noun="topics"
+        focusAnchor={focusAnchor}
+        focusCard={focusCard}
+        renderGroup={(i) => {
+          const group = READINESS_GROUPS[i]!;
+          const orderedEntries =
+            group.title === "Special Duties & Assignments" && profile?.branch
+              ? [...group.entries].sort(
+                  (a, b) =>
+                    (branchesNamedIn(a.name).includes(profile.branch) ? 0 : 1) -
+                    (branchesNamedIn(b.name).includes(profile.branch) ? 0 : 1),
+                )
+              : group.entries;
+          return (
         <section key={group.title} aria-label={group.title} className="mb-8">
           <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
           {group.note ? (
@@ -4774,19 +13572,22 @@ function ReadinessView({ go }: { go: (v: View) => void }) {
             </p>
           ) : null}
           <div className="space-y-3">
-            {group.entries.map((entry) => (
+            {orderedEntries.map((entry) => (
               <ReadinessCard key={entry.name} entry={entry} go={go} />
             ))}
           </div>
         </section>
-      ))}
+      
+          );
+        }}
+      />
     </div>
   );
 }
 
 function ReadinessCard({ entry, go }: { entry: ReadinessEntry; go: (v: View) => void }) {
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   const renderLinks = (links: ReadinessLink[]) => (
     <>
       {links.map((l) => (
@@ -4873,7 +13674,7 @@ function ReadinessCard({ entry, go }: { entry: ReadinessEntry; go: (v: View) => 
 
 /* ----------------------------- Retirement Hub ---------------------------- */
 
-function RetirementView({ go }: { go: (v: View) => void }) {
+function RetirementView({ go, goTo, focusAnchor, focusCard }: { go: (v: View) => void; goTo?: (v: View, anchor?: string) => void; focusAnchor?: string | null; focusCard?: string | null }) {
   return (
     <div>
       <SectionHead
@@ -4885,7 +13686,24 @@ function RetirementView({ go }: { go: (v: View) => void }) {
         <p className="text-base font-semibold text-[var(--text)]">{RETIREMENT_STANDING_NOTE}</p>
       </div>
 
-      {RETIREMENT_GROUPS.map((group) => (
+      <CalcPointerCard
+        tileLabel="Retirement Estimator"
+        title="Retirement Estimator"
+        text="Run the published formulas on a base you enter: Legacy 2.5% and BRS 2.0% per year with the DFAS round-down, Reserve points ÷ 360, BRS continuation pay from a Service-supplied multiplier, and the BRS TSP government-contribution table. An estimate only — not a retirement determination. The BRS lump-sum option is described there with NO dollar figure: the current Government Discount Rate was not captured, and none is guessed."
+        go={go}
+        goTo={goTo}
+      />
+
+      <HonestyLine />
+
+      <GroupedHub
+        groups={RETIREMENT_GROUPS}
+        noun="topics"
+        focusAnchor={focusAnchor}
+        focusCard={focusCard}
+        renderGroup={(i) => {
+          const group = RETIREMENT_GROUPS[i]!;
+          return (
         <section key={group.title} aria-label={group.title} className="mb-8">
           <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
           {group.note ? (
@@ -4899,14 +13717,17 @@ function RetirementView({ go }: { go: (v: View) => void }) {
             ))}
           </div>
         </section>
-      ))}
+      
+          );
+        }}
+      />
     </div>
   );
 }
 
 function RetirementCard({ entry, go }: { entry: RetirementEntry; go: (v: View) => void }) {
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   const renderLinks = (links: RetirementLink[]) => (
     <>
       {links.map((l) => (
@@ -4991,11 +13812,11 @@ function RetirementCard({ entry, go }: { entry: RetirementEntry; go: (v: View) =
 
 /* ------------------------- Records & DD214 Center ----------------------- */
 
-function RecordsView({ go }: { go: (v: View) => void }) {
+function RecordsView({ go, focusAnchor, focusCard }: { go: (v: View) => void; focusAnchor?: string | null; focusCard?: string | null }) {
   return (
     <div>
       <SectionHead
-        title="Records & DD214 Center"
+        title="Your Records & DD214"
         sub="How to get your service records, replace what's lost, and ask for corrections — each card in plain language with its official link, VA.gov and the National Archives first."
       />
 
@@ -5003,7 +13824,16 @@ function RecordsView({ go }: { go: (v: View) => void }) {
         <p className="text-base font-semibold text-[var(--text)]">{RECORDS_STANDING_NOTE}</p>
       </div>
 
-      {RECORDS_GROUPS.map((group) => (
+      <HonestyLine />
+
+      <GroupedHub
+        groups={RECORDS_GROUPS}
+        noun="topics"
+        focusAnchor={focusAnchor}
+        focusCard={focusCard}
+        renderGroup={(i) => {
+          const group = RECORDS_GROUPS[i]!;
+          return (
         <section key={group.title} aria-label={group.title} className="mb-8">
           <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
           {group.note ? (
@@ -5017,14 +13847,17 @@ function RecordsView({ go }: { go: (v: View) => void }) {
             ))}
           </div>
         </section>
-      ))}
+      
+          );
+        }}
+      />
     </div>
   );
 }
 
 function RecordsCard({ entry, go }: { entry: RecordsEntry; go: (v: View) => void }) {
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   const renderLinks = (links: RecordsLink[]) => (
     <>
       {links.map((l) => (
@@ -5110,6 +13943,15 @@ function RecordsCard({ entry, go }: { entry: RecordsEntry; go: (v: View) => void
 /* ----------------------------- Change Your Job ---------------------------- */
 
 function ChangeJobView({ go }: { go: (v: View) => void }) {
+  // Rule 16: the shared picture always shows; in "Your Branch's
+  // Program", the other services' programs step aside in the My
+  // branch view.
+  const scope = useSectionScope("changejob");
+  const profile = scope.profile;
+  const cjHeldBack =
+    scope.scope !== "all" && profile?.branch
+      ? CHANGE_JOB_GROUPS.reduce((n, g) => n + g.entries.filter((e) => !visibleForProfile(e.name, profile)).length, 0)
+      : 0;
   return (
     <div>
       <SectionHead
@@ -5121,7 +13963,14 @@ function ChangeJobView({ go }: { go: (v: View) => void }) {
         <p className="text-base font-semibold text-[var(--text)]">{CHANGE_JOB_STANDING_NOTE}</p>
       </div>
 
-      {CHANGE_JOB_GROUPS.map((group) => (
+      <ScopeToggle sectionKey="changejob" itemNoun="programs" heldBack={cjHeldBack} />
+
+      {CHANGE_JOB_GROUPS.map((group) => {
+        const visibleEntries =
+          scope.scope !== "all" && profile?.branch
+            ? group.entries.filter((e) => visibleForProfile(e.name, profile))
+            : group.entries;
+        return (
         <section key={group.title} aria-label={group.title} className="mb-8">
           <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
           {group.note ? (
@@ -5130,12 +13979,14 @@ function ChangeJobView({ go }: { go: (v: View) => void }) {
             </p>
           ) : null}
           <div className="space-y-3">
-            {group.entries.map((entry) => (
+            {visibleEntries.map((entry) => (
               <ChangeJobCard key={entry.name} entry={entry} go={go} />
             ))}
           </div>
         </section>
-      ))}
+        );
+      })}
+      <ShowEverythingFooter sectionKey="changejob" heldBack={cjHeldBack} />
     </div>
   );
 }
@@ -5143,7 +13994,7 @@ function ChangeJobView({ go }: { go: (v: View) => void }) {
 function ChangeJobCard({ entry, go }: { entry: ChangeJobEntry; go: (v: View) => void }) {
   const [done, setDone] = useState<Record<number, boolean>>({});
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   const renderLinks = (links: ChangeJobLink[]) => (
     <>
       {links.map((l) => (
@@ -5266,12 +14117,25 @@ function SwitchBranchesView() {
     <div>
       <SectionHead
         title="Switch Branches"
-        sub="Moving to a different branch: the two paths, the reality checks, each gaining branch's official door, and the checklist — in that order."
+        sub="Join a different branch: the two paths, the reality checks, each gaining branch's official door, and the checklist — in that order."
       />
 
       <div className="mb-6 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
         <p className="text-base font-semibold text-[var(--text)]">{SWITCH_STANDING_NOTE}</p>
       </div>
+
+      {/* Rule 17 / H-5: this section deliberately defaults to All
+          branches — its whole subject is the OTHER services. The
+          toggle renders so the choice is visible; nothing is ever
+          held back here. */}
+      <ScopeToggle
+        sectionKey="switchbranches"
+        itemNoun="paths"
+        heldBack={0}
+        defaultScope="all"
+        mineLine="Your branch's road out still leads — and every other service's road in stays right here. This section is never narrowed."
+        allLine="Showing every service's transfer path — this section defaults to all branches on purpose: its whole job is the other services."
+      />
 
       {SWITCH_GROUPS.map((group) => (
         <section key={group.title} aria-label={group.title} className="mb-8">
@@ -5295,7 +14159,7 @@ function SwitchBranchesView() {
 function SwitchCard({ entry }: { entry: SwitchEntry }) {
   const [done, setDone] = useState<Record<string, boolean>>({});
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   const renderLinks = (links: SwitchLink[]) => (
     <>
       {links.map((l) => (
@@ -5393,7 +14257,7 @@ function SwitchCard({ entry }: { entry: SwitchEntry }) {
 
 /* ------------------------------ Care & Crisis ---------------------------- */
 
-function CareView({ go }: { go: (v: View) => void }) {
+function CareView({ go, focusAnchor, focusCard }: { go: (v: View) => void; focusAnchor?: string | null; focusCard?: string | null }) {
   return (
     <div>
       {/* Pinned crisis strip — the pack's design requirement: unmissable,
@@ -5449,7 +14313,34 @@ function CareView({ go }: { go: (v: View) => void }) {
         <p className="text-base font-semibold text-[var(--text)]">{CARE_STANDING_NOTE}</p>
       </div>
 
-      {CARE_GROUPS.map((group) => (
+      <section
+        aria-label="When It Goes Wrong — the emergency deck"
+        className="mb-6 rounded-[var(--radius)] border-2 border-[var(--red)] bg-[var(--surface)] p-4"
+      >
+        <h3 className="font-display text-lg font-bold text-[var(--text)]">When It Goes Wrong — the first-24-hours deck</h3>
+        <p className="mt-1 text-sm text-[var(--text)]">
+          A family emergency at home, a lost CAC, an accident or arrest overseas, a death in the family, a lost
+          passport, identity theft, a medical emergency overseas: 8 calm, ordered action cards — DO FIRST, CALL,
+          THEN, WATCH OUT — with every number verified on its owner&apos;s page.
+        </p>
+        <button
+          type="button"
+          aria-label="Open When It Goes Wrong — the emergency deck"
+          onClick={() => go("emergencydeck")}
+          className="mt-3 rounded-[var(--radius)] bg-[var(--accent)] px-4 py-3 text-base font-bold text-[var(--accent-text)]"
+        >
+          Open the emergency deck →
+        </button>
+      </section>
+
+      <GroupedHub
+        groups={CARE_GROUPS}
+        noun="topics"
+        focusAnchor={focusAnchor}
+        focusCard={focusCard}
+        renderGroup={(i) => {
+          const group = CARE_GROUPS[i]!;
+          return (
         <section key={group.title} aria-label={group.title} className="mb-8">
           <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
           {group.note ? (
@@ -5463,14 +14354,17 @@ function CareView({ go }: { go: (v: View) => void }) {
             ))}
           </div>
         </section>
-      ))}
+      
+          );
+        }}
+      />
     </div>
   );
 }
 
 function CareCard({ entry, go }: { entry: CareEntry; go: (v: View) => void }) {
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   const renderLinks = (links: CareLink[]) => (
     <>
       {links.map((l) => (
@@ -5564,8 +14458,19 @@ function CareCard({ entry, go }: { entry: CareEntry; go: (v: View) => void }) {
 
 /* ----------------------------- Find Anything ----------------------------- */
 
-function FindView() {
+function FindView({ focusAnchor, focusCard }: { focusAnchor?: string | null; focusCard?: string | null }) {
   const [query, setQuery] = useState("");
+  // Hub migration (§B.2): the eight locator categories are tiles;
+  // typing in the directory search switches to the flat match list
+  // exactly as before, and a deep link opens its category directly.
+  const slugify = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const [tile, setTile] = useState<string | null>(() => {
+    const want = focusCard ?? focusAnchor;
+    if (!want) return null;
+    const w = slugify(want);
+    const g = FIND_GROUPS.find((g) => slugify(g.title) === w || g.entries.some((e) => slugify(e.name) === w));
+    return g ? g.title : null;
+  });
   const q = query.trim().toLowerCase();
   const filtered = q
     ? FIND_GROUPS.map((group) => ({
@@ -5585,13 +14490,15 @@ function FindView() {
   return (
     <div>
       <SectionHead
-        title="Find Anything"
+        title="Find an Office, Number, or Service"
         sub="The official locator directory: 27 finder tools in 8 categories — what each one finds, who it's for, and its official link. Dead, merged, and missing locators are flagged on their cards, not hidden."
       />
 
       <div className="mb-6 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
         <p className="text-base font-semibold text-[var(--text)]">{FIND_STANDING_NOTE}</p>
       </div>
+
+      <HonestyLine />
 
       <div className="mb-6">
         <label htmlFor="find-search" className={labelCls}>Search the directory</label>
@@ -5612,27 +14519,54 @@ function FindView() {
         </p>
       </div>
 
-      {filtered.length === 0 ? (
-        <p className="text-base text-[var(--dim)]">
-          Nothing in the directory matches that search. Try a broader word — an office (“legal”, “finance”), a place
-          type (“installation”, “clinic”), or a task (“move”, “passport”).
-        </p>
+      {q ? (
+        filtered.length === 0 ? (
+          <p className="text-base text-[var(--dim)]">
+            Nothing in the directory matches that search. Try a broader word — an office (“legal”, “finance”), a place
+            type (“installation”, “clinic”), or a task (“move”, “passport”).
+          </p>
+        ) : (
+          filtered.map((group) => (
+            <section key={group.title} aria-label={group.title} className="mb-8">
+              <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
+              {group.note ? (
+                <p className="mb-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3 text-sm text-[var(--text)]">
+                  {group.note}
+                </p>
+              ) : null}
+              <div className="space-y-3">
+                {group.entries.map((entry) => (
+                  <FindCard key={entry.name} entry={entry} />
+                ))}
+              </div>
+            </section>
+          ))
+        )
+      ) : tile === null ? (
+        <HubTileGrid
+          tiles={FIND_GROUPS.map((g) => ({ key: g.title, label: g.title, sub: `${g.entries.length} locators` }))}
+          onOpen={setTile}
+          label="locator categories"
+        />
       ) : (
-        filtered.map((group) => (
-          <section key={group.title} aria-label={group.title} className="mb-8">
-            <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
-            {group.note ? (
-              <p className="mb-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3 text-sm text-[var(--text)]">
-                {group.note}
-              </p>
-            ) : null}
-            <div className="space-y-3">
-              {group.entries.map((entry) => (
-                <FindCard key={entry.name} entry={entry} />
-              ))}
-            </div>
-          </section>
-        ))
+        <div>
+          <HubBackButton ariaLabel="Back to all locator categories" text="All categories" onBack={() => setTile(null)} />
+          {FIND_GROUPS.filter((group) => group.title === tile).map((group) => (
+            <section key={group.title} aria-label={group.title} className="mb-8">
+              <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
+              {group.note ? (
+                <p className="mb-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3 text-sm text-[var(--text)]">
+                  {group.note}
+                </p>
+              ) : null}
+              <div className="space-y-3">
+                {group.entries.map((entry) => (
+                  <FindCard key={entry.name} entry={entry} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -5640,7 +14574,7 @@ function FindView() {
 
 function FindCard({ entry }: { entry: FindEntry }) {
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   const renderLinks = (links: FindLink[]) => (
     <>
       {links.map((l) => (
@@ -5769,7 +14703,7 @@ function StatesView({
           <span className="mt-1 block text-sm text-[var(--dim)]">
             Your home state, from your profile — its veterans agency and headline benefits.
           </span>
-          <span className="mt-2 block text-sm font-bold text-[var(--accent)]">Open {homeName} benefits →</span>
+          <span className="mt-2 block text-sm font-bold text-[var(--accent-word)]">Open {homeName} benefits →</span>
         </button>
       ) : null}
 
@@ -5787,7 +14721,7 @@ function StatesView({
             target="_blank"
             rel="noreferrer"
             aria-label="NASDVA official site (opens in new tab)"
-            className="inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+            className="inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
           >
             NASDVA — nasdva.us ↗
           </a>
@@ -5886,7 +14820,7 @@ function StateCard({ entry }: { entry: StateEntry }) {
           target="_blank"
           rel="noreferrer"
           aria-label={`${entry.state} — official veterans affairs site (opens in new tab)`}
-          className="inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+          className="inline-block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
         >
           Official site ↗
         </a>
@@ -5947,7 +14881,7 @@ function BeltSection({ belt }: { belt: CombatBelt }) {
                 <TechniqueDiagram category={t.category} />
                 <div className="min-w-0">
                   <p className="font-display text-base font-bold text-[var(--text)]">{t.name}</p>
-                  <p className="text-xs font-bold tracking-wide text-[var(--accent)] uppercase">
+                  <p className="text-xs font-bold tracking-wide text-[var(--accent-word)] uppercase">
                     {t.category} · {belt.belt}
                   </p>
                   <p className="mt-1 text-sm text-[var(--dim)]">{t.purpose}</p>
@@ -5984,7 +14918,7 @@ function BeltSection({ belt }: { belt: CombatBelt }) {
 function CombatView() {
   return (
     <div>
-      <h2 className="font-display text-2xl font-bold text-[var(--text)]">Close Combat</h2>
+      <h2 className="font-display text-2xl font-bold text-[var(--text)]">Hand-to-Hand Programs</h2>
       <p className="mt-1 text-base text-[var(--dim)]">
         The services' close-combat programs as published curricula: the MCMAP technique catalog belt by belt,
         Army Combatives by course level, and the other branches at the depth their public programs support.
@@ -5999,7 +14933,7 @@ function CombatView() {
 
       <section aria-label="MCMAP program overview" className="mt-4 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
         <h3 className="font-display text-xl font-bold text-[var(--text)]">USMC — Marine Corps Martial Arts Program (MCMAP)</h3>
-        <p className="font-display mt-1 text-lg font-bold text-[var(--accent)]">“{MCMAP_FRAMING.motto}”</p>
+        <p className="font-display mt-1 text-lg font-bold text-[var(--accent-word)]">“{MCMAP_FRAMING.motto}”</p>
         <p className="mt-2 text-sm text-[var(--text)]">{MCMAP_FRAMING.purpose}</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {MCMAP_FRAMING.disciplines.map((d) => (
@@ -6101,7 +15035,15 @@ function CombatView() {
   );
 }
 
-function FieldcraftView() {
+function FieldcraftView({
+  go,
+  onPrintCard,
+  onPrintKillCard,
+}: {
+  go: (v: View) => void;
+  onPrintCard: (card: SketchCardData) => void;
+  onPrintKillCard: (card: KillCardData) => void;
+}) {
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [distance, setDistance] = useState(6);
   const [pace, setPace] = useState(15);
@@ -6135,10 +15077,28 @@ function FieldcraftView() {
     <div>
       <SectionHead title="Fieldcraft" sub="Interactive tools, not articles: pack it, weigh it, plan the movement." />
 
+      <button
+        type="button"
+        aria-label="Open Field Tools"
+        onClick={() => go("fieldtools")}
+        className="mb-4 flex w-full items-center gap-3 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4 text-left"
+      >
+        <span className="shrink-0 text-[var(--accent-word)]">
+          <NavIcon name="compass" size={30} />
+        </span>
+        <span>
+          <span className="font-display block text-lg font-bold leading-tight text-[var(--text)]">Field Tools</span>
+          <span className="mt-0.5 block text-sm leading-snug text-[var(--dim)]">
+            The on-device kit: compass, red lens light, pace counter, Zulu clock, light data, grid reference,
+            and the comms card — everything computed on your phone.
+          </span>
+        </span>
+      </button>
+
       <section aria-label="Ruck packing checklist" className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <h3 className="font-display text-xl font-bold text-[var(--text)]">Ruck / Packing Checklist</h3>
-          <p className="font-display text-2xl font-bold text-[var(--accent)]" role="status" aria-label="Estimated pack weight">
+          <p className="font-display text-2xl font-bold text-[var(--accent-word)]" role="status" aria-label="Estimated pack weight">
             {totalWeight.toFixed(1)} lb
           </p>
         </div>
@@ -6241,6 +15201,8 @@ function FieldcraftView() {
           ))}
         </div>
       </section>
+
+      <FieldCardsSections onOpenMedical={() => go("medical")} onPrintCard={onPrintCard} onPrintKillCard={onPrintKillCard} />
     </div>
   );
 }
@@ -6254,7 +15216,52 @@ const EQUIPMENT_OPTIONS = [
   { value: "none", label: "No equipment — bodyweight" },
 ];
 
-function PlanDisplay({ result }: { result: PlanResult }) {
+/** Render a plan line with exercise names as deep links into the
+ * Exercise Library (PLAN_LINKS — the research pack's Coverage Summary
+ * mapping). Flagged-register items (dead bugs, swim work, the generic
+ * accessories) have no pattern and stay plain text on purpose. */
+function linkifyPlanText(text: string, onOpen: (id: string) => void): ReactNode {
+  const lower = text.toLowerCase();
+  type Hit = { start: number; end: number; id: string; label: string };
+  const hits: Hit[] = [];
+  let cursor = 0;
+  while (cursor < lower.length) {
+    let best: Hit | null = null;
+    for (const { pattern, exerciseId } of PLAN_LINKS) {
+      const idx = lower.indexOf(pattern, cursor);
+      if (idx === -1) continue;
+      if (!best || idx < best.start || (idx === best.start && pattern.length > best.end - best.start)) {
+        best = { start: idx, end: idx + pattern.length, id: exerciseId, label: text.slice(idx, idx + pattern.length) };
+      }
+    }
+    if (!best) break;
+    hits.push(best);
+    cursor = best.end;
+  }
+  if (hits.length === 0) return text;
+  const out: ReactNode[] = [];
+  let last = 0;
+  hits.forEach((h, i) => {
+    if (h.start > last) out.push(text.slice(last, h.start));
+    const ex = exerciseById(h.id);
+    out.push(
+      <button
+        key={`${h.start}-${i}`}
+        type="button"
+        aria-label={`Open the Exercise Library card for ${ex?.name ?? h.label}`}
+        onClick={() => onOpen(h.id)}
+        className="font-semibold text-[var(--accent-word)] underline decoration-dotted underline-offset-2"
+      >
+        {h.label}
+      </button>,
+    );
+    last = h.end;
+  });
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+function PlanDisplay({ result, onOpenExercise }: { result: PlanResult; onOpenExercise?: (id: string) => void }) {
   const queryClient = useQueryClient();
   const [logTitle, setLogTitle] = useState("");
   const [logDetail, setLogDetail] = useState("");
@@ -6275,7 +15282,15 @@ function PlanDisplay({ result }: { result: PlanResult }) {
       ) : null}
       {result.testEvents.length > 0 ? (
         <p className="mt-2 text-base text-[var(--text)]">
-          <strong>Test events this plan trains:</strong> {result.testEvents.join(" · ")}
+          <strong>Test events this plan trains:</strong>{" "}
+          {onOpenExercise
+            ? result.testEvents.map((ev, i) => (
+                <span key={ev}>
+                  {i > 0 ? " · " : ""}
+                  {linkifyPlanText(ev, onOpenExercise)}
+                </span>
+              ))
+            : result.testEvents.join(" · ")}
         </p>
       ) : null}
       {result.caloriesLow != null ? (
@@ -6296,7 +15311,7 @@ function PlanDisplay({ result }: { result: PlanResult }) {
             <p className="font-display text-lg font-bold text-[var(--text)]">{d.day} — {d.focus}</p>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-base text-[var(--text)]">
               {d.items.map((it) => (
-                <li key={it}>{it}</li>
+                <li key={it}>{onOpenExercise ? linkifyPlanText(it, onOpenExercise) : it}</li>
               ))}
             </ul>
           </article>
@@ -6321,7 +15336,7 @@ function PlanDisplay({ result }: { result: PlanResult }) {
         <button type="submit" aria-label="Add workout log entry" disabled={addLog.isPending || !logTitle.trim()} className={btnPrimary}>
           Log workout
         </button>
-        {addLog.isSuccess ? <p className="text-sm font-semibold text-[var(--accent)]">Logged. It is in your workout history below.</p> : null}
+        {addLog.isSuccess ? <p className="text-sm font-semibold text-[var(--accent-word)]">Logged. It is in your workout history below.</p> : null}
       </form>
     </div>
   );
@@ -6337,7 +15352,7 @@ function storyLinks(links: StoryLink[], ownerName: string) {
       target="_blank"
       rel="noreferrer"
       aria-label={`${ownerName} — ${l.label} (opens in new tab)`}
-      className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+      className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
     >
       {l.label} ↗
     </a>
@@ -6705,6 +15720,10 @@ const TRADITION_LABEL_TONES: Record<TraditionLabel, "official" | "amber" | "red"
 };
 
 function TraditionsView() {
+  // Rule 46 (ordering-only): in Branch Traditions, your branch's
+  // entries lead — the branch subheads follow the entries, so the
+  // regrouping stays labeled.
+  const tradProfile = useScopeProfile();
   return (
     <div>
       <SectionHead
@@ -6728,13 +15747,19 @@ function TraditionsView() {
               </p>
             ) : null}
             <div className="space-y-3">
-              {group.entries.map((entry) => {
+              {(group.title === "Branch Traditions" && tradProfile?.branch
+                ? [...group.entries].sort(
+                    (a, b) =>
+                      (a.branch === tradProfile.branch ? 0 : 1) - (b.branch === tradProfile.branch ? 0 : 1),
+                  )
+                : group.entries
+              ).map((entry) => {
                 const showBranch = entry.branch !== undefined && entry.branch !== lastBranch;
                 lastBranch = entry.branch;
                 return (
                   <div key={entry.name}>
                     {showBranch ? (
-                      <h4 className="font-display mb-2 mt-5 text-base font-bold tracking-wide text-[var(--accent)]">
+                      <h4 className="font-display mb-2 mt-5 text-base font-bold tracking-wide text-[var(--accent-word)]">
                         {entry.branch}
                       </h4>
                     ) : null}
@@ -6752,7 +15777,7 @@ function TraditionsView() {
 
 function TraditionCard({ entry }: { entry: TraditionItem }) {
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   return (
     <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -7245,7 +16270,7 @@ function MailCallView() {
                           target="_blank"
                           rel="noreferrer"
                           aria-label={`${group.title} — ${l.label} (opens in new tab)`}
-                          className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline"
+                          className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline"
                         >
                           {l.label} ↗
                         </a>
@@ -7291,7 +16316,7 @@ function AddressingRuleCard() {
     },
   ];
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   return (
     <article className="rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -7383,7 +16408,7 @@ function ExampleAddressesBlock() {
 
 function MailCard({ entry }: { entry: MailEntry }) {
   const linkCls =
-    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent)] underline";
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
   const showExamples = entry.name.startsWith("USPS's Example Addresses");
   const showTable = entry.name.startsWith("2026 Send-By Dates");
   return (
@@ -7556,9 +16581,11 @@ function WarStoriesView({ profile, goReview }: { profile: Profile; goReview: () 
                 </article>
               ))}
             </div>
-            <button type="button" aria-label="Open the review queue" onClick={goReview} className={`${btnGhost} mt-3`}>
-              Open the Review Queue
-            </button>
+            {goReview ? (
+              <button type="button" aria-label="Open the review queue" onClick={goReview} className={`${btnGhost} mt-3`}>
+                Open the Review Queue
+              </button>
+            ) : null}
           </div>
         ) : null}
       </section>
@@ -7664,7 +16691,7 @@ function TributeCard({ tribute, lit }: { tribute: MemberTribute; lit: boolean })
   );
 }
 
-function WallOfHonorView({ profile, goReview }: { profile: Profile; goReview: () => void }) {
+function WallOfHonorView({ profile, goReview }: { profile: Profile; goReview?: () => void }) {
   const publishedQ = useQuery({
     queryKey: ["tributes", "published"],
     queryFn: () => api.listTributes({ scope: "published" }),
@@ -7793,9 +16820,11 @@ function WallOfHonorView({ profile, goReview }: { profile: Profile; goReview: ()
                 </article>
               ))}
             </div>
-            <button type="button" aria-label="Open the review queue" onClick={goReview} className={`${btnGhost} mt-3`}>
-              Open the Review Queue
-            </button>
+            {goReview ? (
+              <button type="button" aria-label="Open the review queue" onClick={goReview} className={`${btnGhost} mt-3`}>
+                Open the Review Queue
+              </button>
+            ) : null}
           </div>
         ) : null}
       </section>
@@ -8687,7 +17716,7 @@ function MentorBrowseCard({ mentor, isOwn }: { mentor: MemberMentor; isOwn: bool
           Paused — this mentor isn&apos;t taking new requests right now.
         </p>
       ) : sent ? (
-        <p className="mt-3 text-sm font-semibold text-[var(--accent)]" role="status">
+        <p className="mt-3 text-sm font-semibold text-[var(--accent-word)]" role="status">
           Request sent. When {mentor.displayName} accepts, you&apos;ll connect in Check-In — watch Your Connections
           above.
         </p>
@@ -8746,8 +17775,2624 @@ function MentorBrowseCard({ mentor, isOwn }: { mentor: MemberMentor; isOwn: bool
   );
 }
 
-function FitnessView({ profile }: { profile: Profile }) {
+/* --------------------------- Find Your People --------------------------- */
+
+function BlockPersonButton({
+  profileId,
+  name,
+  compact,
+}: {
+  profileId: number;
+  name: string;
+  compact?: boolean;
+}) {
   const queryClient = useQueryClient();
+  const [confirm, setConfirm] = useState(false);
+  const [done, setDone] = useState(false);
+  const block = useMutation({
+    mutationFn: () => api.blockPerson({ profileId }),
+    onSuccess: () => {
+      setDone(true);
+      setConfirm(false);
+      void queryClient.invalidateQueries({ queryKey: ["peopleListings"] });
+      void queryClient.invalidateQueries({ queryKey: ["peopleRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["peopleBlocks"] });
+      void queryClient.invalidateQueries({ queryKey: ["squads"] });
+    },
+  });
+  if (done) {
+    return (
+      <span className="self-center text-sm font-semibold text-[var(--amber)]" role="status">
+        Blocked — you&apos;re hidden from each other in this directory.
+      </span>
+    );
+  }
+  if (confirm) {
+    return (
+      <span className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold text-[var(--red)]">
+          Block {name}? You&apos;ll be hidden from each other, any open request or connection between you ends,
+          and neither of you can send the other a request.
+        </span>
+        <button
+          type="button"
+          aria-label={`Confirm block ${name}`}
+          disabled={block.isPending}
+          onClick={() => block.mutate()}
+          className="text-sm font-bold text-[var(--red)]"
+        >
+          {block.isPending ? "Blocking…" : "Yes — block"}
+        </button>
+        <button
+          type="button"
+          aria-label="Cancel block"
+          onClick={() => setConfirm(false)}
+          className="text-sm font-bold text-[var(--dim)]"
+        >
+          Cancel
+        </button>
+        {block.isError ? <span className="text-sm text-[var(--red)]">Could not block. Try again.</span> : null}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      aria-label={`Block ${name}`}
+      onClick={() => setConfirm(true)}
+      className={compact ? "text-sm font-bold text-[var(--red)]" : "self-center text-sm font-bold text-[var(--red)]"}
+    >
+      Block
+    </button>
+  );
+}
+
+function PeopleView({
+  profile,
+  go,
+  goReview,
+}: {
+  profile: Profile;
+  go: (v: View) => void;
+  goReview: () => void;
+}) {
+  const publishedQ = useQuery({
+    queryKey: ["peopleListings", "published"],
+    queryFn: () => api.listPeopleListings({ scope: "published" }),
+  });
+  const mineQ = useQuery({
+    queryKey: ["peopleListings", "mine"],
+    queryFn: () => api.listPeopleListings({ scope: "mine" }),
+  });
+  const requestsQ = useQuery({
+    queryKey: ["peopleRequests"],
+    queryFn: () => api.listPeopleRequests({}),
+  });
+  const blocksQ = useQuery({
+    queryKey: ["peopleBlocks"],
+    queryFn: () => api.listPeopleBlocks({}),
+  });
+  const [branchFilter, setBranchFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [stateFilter, setStateFilter] = useState("All");
+  const [upForFilter, setUpForFilter] = useState("All");
+
+  const published = publishedQ.data?.listings ?? [];
+  const mine = mineQ.data?.listings ?? [];
+  const ownListing = mine.find((l) => l.reviewStatus !== "rejected") ?? mine[0] ?? null;
+  const requests = requestsQ.data?.requests ?? [];
+  const incomingPending = requests.filter((r) => !r.mine && r.status === "pending");
+  const connections = requests.filter((r) => r.status === "accepted");
+  const outgoing = requests.filter((r) => r.mine && r.status !== "accepted");
+  const blocks = blocksQ.data?.blocks ?? [];
+
+  // Filter options come from the section's full vocabularies — every
+  // service status and every state — unioned with any values published
+  // listings actually carry. Deriving them from published listings
+  // alone left both dropdowns with nothing to select until listings
+  // existed (the reported "won't let me select a state or status").
+  const statusOptions = [
+    ...new Set([...PEOPLE_SERVICE_STATUSES, ...published.map((l) => l.serviceStatus).filter(Boolean)]),
+  ];
+  const stateOptions = [
+    ...new Set([...STATE_ENTRIES.map((s) => s.state), ...published.map((l) => l.state).filter(Boolean)]),
+  ].sort();
+  const browse = published
+    .filter((l) => !l.mine)
+    .filter((l) => (branchFilter === "All" ? true : l.branch === branchFilter))
+    .filter((l) => (statusFilter === "All" ? true : l.serviceStatus === statusFilter))
+    .filter((l) => (stateFilter === "All" ? true : l.state === stateFilter))
+    .filter((l) => (upForFilter === "All" ? true : l.upFor.includes(upForFilter)));
+
+  return (
+    <div>
+      <SectionHead
+        title="Find Your People"
+        sub="Past and current service members who've been where you are — for mentorship, workouts and rucks, hunting and fishing, work talk, or just someone to talk to. Opt-in only, every listing reviewed before it publishes, and nothing opens until both people say yes."
+      />
+
+      <section aria-label="Meet smart" className="mb-4 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+        <h3 className="font-display text-lg font-bold text-[var(--text)]">Meet smart</h3>
+        <ul className="mt-2 space-y-2">
+          {PEOPLE_MEET_SMART.map((m) => (
+            <li key={m.title} className="text-base text-[var(--text)]">
+              <span className="font-bold">{m.title}. </span>
+              {m.text}
+            </li>
+          ))}
+        </ul>
+      </section>
+      <p className="mb-6 rounded-[var(--radius)] bg-[var(--surface2)] p-3 text-sm text-[var(--dim)]">
+        {PEOPLE_STANDING_LINE}
+      </p>
+
+      <section aria-label="Your listing" className="mb-8">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Your Listing</h3>
+        {ownListing ? (
+          <OwnPersonCard listing={ownListing} profile={profile} />
+        ) : (
+          <>
+            <p className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+              You&apos;re not listed yet. Nobody can find or request you until you opt in — and your listing goes
+              to review before anyone sees it.
+            </p>
+            <PeopleListingForm profile={profile} />
+          </>
+        )}
+        {ownListing && (ownListing.reviewStatus === "pending" || ownListing.reviewStatus === "returned") ? (
+          <button type="button" aria-label="Open the review queue" onClick={goReview} className={`${btnGhost} mt-3`}>
+            Open the Review Queue
+          </button>
+        ) : null}
+      </section>
+
+      <section aria-label="Requests for you" className="mb-8">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">
+          Requests for You{incomingPending.length > 0 ? ` — ${incomingPending.length} waiting` : ""}
+        </h3>
+        {requestsQ.isPending ? <p className="text-base text-[var(--dim)]">Loading requests…</p> : null}
+        {!requestsQ.isPending && incomingPending.length === 0 ? (
+          <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+            No requests yet. When someone sends one to your listing, it waits here — declining is silent, and
+            accepting opens a private connection in Check-In.
+          </p>
+        ) : null}
+        <div className="space-y-3">
+          {incomingPending.map((r) => (
+            <PeopleIncomingCard key={r.id} request={r} />
+          ))}
+        </div>
+      </section>
+
+      <section aria-label="Your connections" className="mb-8">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Your Connections</h3>
+        {connections.length === 0 ? (
+          <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+            No active connections yet. When a request is accepted — by you or by them — the pair connects here,
+            and as a private two-person squad in Check-In, where the conversation lives.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {connections.map((r) => (
+              <PeopleConnectionCard key={r.id} request={r} go={go} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section aria-label="Browse the directory" className="mb-8">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Browse the Directory</h3>
+        <div className="mb-3 grid gap-2 sm:grid-cols-2">
+          <div>
+            <label htmlFor="people-branch-filter" className={labelCls}>Branch</label>
+            <select id="people-branch-filter" aria-label="Filter listings by branch" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} className={inputCls}>
+              <option value="All">All branches</option>
+              {BRANCHES.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="people-status-filter" className={labelCls}>Status</label>
+            <select id="people-status-filter" aria-label="Filter listings by service status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={inputCls}>
+              <option value="All">All statuses</option>
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="people-state-filter" className={labelCls}>State</label>
+            <select id="people-state-filter" aria-label="Filter listings by state" value={stateFilter} onChange={(e) => setStateFilter(e.target.value)} className={inputCls}>
+              <option value="All">All states</option>
+              {stateOptions.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="people-upfor-filter" className={labelCls}>Up for</label>
+            <select id="people-upfor-filter" aria-label="Filter listings by what they're up for" value={upForFilter} onChange={(e) => setUpForFilter(e.target.value)} className={inputCls}>
+              <option value="All">Anything</option>
+              {PEOPLE_UP_FOR.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {publishedQ.isPending ? <p className="text-base text-[var(--dim)]">Loading the directory…</p> : null}
+        {!publishedQ.isPending && published.filter((l) => !l.mine).length === 0 ? (
+          <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5 text-base text-[var(--text)]">
+            No one else is listed yet — the directory fills as members opt in.
+          </p>
+        ) : null}
+        {!publishedQ.isPending && published.filter((l) => !l.mine).length > 0 && browse.length === 0 ? (
+          <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+            No listings match those filters.
+          </p>
+        ) : null}
+        <div className="space-y-3">
+          {browse.map((l) => (
+            <PersonBrowseCard key={l.id} listing={l} hasOwnListing={ownListing !== null} />
+          ))}
+        </div>
+      </section>
+
+      <section aria-label="Requests you sent" className="mb-8">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Requests You Sent</h3>
+        {outgoing.length === 0 ? (
+          <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+            You haven&apos;t sent a request yet. Find someone in the directory above and say hello — a short note
+            is the whole ask.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {outgoing.map((r) => (
+              <PeopleOutgoingRow key={r.id} request={r} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {blocks.length > 0 ? (
+        <section aria-label="Blocked members" className="mb-8">
+          <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Blocked Members</h3>
+          <p className="mb-3 text-sm text-[var(--dim)]">
+            People you&apos;ve blocked are hidden from you in this directory, and you from them. Unblocking makes
+            you visible to each other again — it doesn&apos;t restore any connection that ended.
+          </p>
+          <div className="space-y-2">
+            {blocks.map((b) => (
+              <BlockedRow key={b.profileId} block={b} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function BlockedRow({ block }: { block: { profileId: number; displayName: string } }) {
+  const queryClient = useQueryClient();
+  const unblock = useMutation({
+    mutationFn: () => api.unblockPerson({ profileId: block.profileId }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["peopleBlocks"] });
+      void queryClient.invalidateQueries({ queryKey: ["peopleListings"] });
+    },
+  });
+  return (
+    <article className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3">
+      <span className="text-base font-semibold text-[var(--text)]">{block.displayName}</span>
+      <button
+        type="button"
+        aria-label={`Unblock ${block.displayName}`}
+        disabled={unblock.isPending}
+        onClick={() => unblock.mutate()}
+        className="text-sm font-bold text-[var(--accent-word)]"
+      >
+        {unblock.isPending ? "Unblocking…" : "Unblock"}
+      </button>
+      {unblock.isError ? <span className="text-sm text-[var(--red)]">Could not unblock. Try again.</span> : null}
+    </article>
+  );
+}
+
+function PeopleListingForm({
+  profile,
+  existing,
+  onDone,
+}: {
+  profile: Profile;
+  existing?: MemberPerson;
+  onDone?: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(Boolean(existing));
+  const profileEntry = ALL_MOS_ENTRIES.find(
+    (e) => e.branch === profile.branch && e.code.toUpperCase() === profile.mosCode.toUpperCase(),
+  );
+  const branchJobs = ALL_MOS_ENTRIES.filter((e) => e.branch === profile.branch);
+  const [jobId, setJobId] = useState<string>(profileEntry?.id ?? branchJobs[0]?.id ?? "");
+  const selectedJob = branchJobs.find((e) => e.id === jobId) ?? profileEntry ?? branchJobs[0];
+  // The listing's service status is chosen here, in the form — it
+  // defaults to the profile's status (or the listing's saved one when
+  // editing) but is the member's to change; it never writes back to
+  // the profile.
+  const [serviceStatus, setServiceStatus] = useState(existing?.serviceStatus ?? profile.status ?? "Active duty");
+  const statusChoices = (PEOPLE_SERVICE_STATUSES as readonly string[]).includes(serviceStatus)
+    ? [...PEOPLE_SERVICE_STATUSES]
+    : [serviceStatus, ...PEOPLE_SERVICE_STATUSES];
+  const [state, setState] = useState(existing?.state ?? profile.homeState ?? "");
+  const [city, setCity] = useState(existing?.city ?? "");
+  const [gender, setGender] = useState<"male" | "female" | "">(existing?.gender ?? "");
+  const [connectWith, setConnectWith] = useState<"men" | "women" | "any">(existing?.connectWith ?? "any");
+  const [upFor, setUpFor] = useState<PeopleUpFor[]>((existing?.upFor as PeopleUpFor[] | undefined) ?? []);
+  const [about, setAbout] = useState(existing?.about ?? "");
+  const [availabilityChoice, setAvailabilityChoice] = useState<"open" | "paused">("open");
+
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["peopleListings"] });
+  const create = useMutation({
+    mutationFn: () =>
+      api.createPeopleListing({
+        jobCode: selectedJob?.code ?? profile.mosCode,
+        jobTitle: selectedJob?.title ?? "",
+        serviceStatus: serviceStatus as (typeof PEOPLE_SERVICE_STATUSES)[number],
+        state,
+        city: city.trim(),
+        gender: gender as "male" | "female",
+        connectWith,
+        upFor,
+        about: about.trim(),
+        availability: availabilityChoice,
+      }),
+    onSuccess: () => {
+      setOpen(false);
+      invalidate();
+      onDone?.();
+    },
+  });
+  const update = useMutation({
+    mutationFn: () =>
+      api.updatePeopleListing({
+        id: existing!.id,
+        serviceStatus: serviceStatus as (typeof PEOPLE_SERVICE_STATUSES)[number],
+        state,
+        city: city.trim(),
+        gender: gender as "male" | "female",
+        connectWith,
+        upFor,
+        about: about.trim(),
+      }),
+    onSuccess: () => {
+      invalidate();
+      onDone?.();
+    },
+  });
+  const busy = create.isPending || update.isPending;
+  const failed = create.isError || update.isError;
+  const failMsg = (create.error ?? update.error) instanceof Error ? ((create.error ?? update.error) as Error).message : null;
+
+  if (!open && !existing) {
+    return (
+      <button
+        type="button"
+        aria-label="Create your Find Your People listing — open the form"
+        onClick={() => setOpen(true)}
+        className={`${btnPrimary} w-full`}
+      >
+        List me — your listing goes to the review queue first
+      </button>
+    );
+  }
+  if (!open) return null;
+
+  const toggleUpFor = (u: PeopleUpFor) =>
+    setUpFor((prev) => (prev.includes(u) ? prev.filter((x) => x !== u) : [...prev, u]));
+
+  return (
+    <form
+      className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
+      onSubmit={(e: FormEvent) => {
+        e.preventDefault();
+        if (existing) update.mutate();
+        else create.mutate();
+      }}
+    >
+      <p className="font-display text-base font-bold text-[var(--text)]">
+        {existing ? "Edit your listing" : "Your directory listing"}
+      </p>
+      <p className="text-sm text-[var(--dim)]">
+        Built from your profile — {profile.displayName || "your name"}, {profile.branch}
+        {profile.component ? ` · ${profile.component}` : ""}. Name, branch, and component come from your
+        profile; your status, state, and city below are yours to set for this listing.{" "}
+        {existing
+          ? "Saving an edit to a published listing sends it back to PENDING review before it publishes again."
+          : "Your listing goes to PENDING review and publishes only after a moderator approves it. Nothing publishes on submission."}
+      </p>
+      {!existing ? (
+        <div>
+          <label htmlFor="people-job" className={labelCls}>Your job — from your profile, pick from the Library</label>
+          <select id="people-job" aria-label="Your job from the MOS Library" value={selectedJob?.id ?? ""} onChange={(e) => setJobId(e.target.value)} className={inputCls}>
+            {branchJobs.map((e) => (
+              <option key={e.id} value={e.id}>{e.code} — {e.title}</option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      <fieldset>
+        <legend className="mb-1 text-sm font-semibold text-[var(--text)]">I am — required to list</legend>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Your gender">
+          {PEOPLE_GENDERS.map((g) => (
+            <button
+              key={g.value}
+              type="button"
+              aria-label={`Gender: ${g.label}`}
+              aria-pressed={gender === g.value}
+              onClick={() => setGender(g.value)}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${gender === g.value ? "bg-[var(--accent)] text-[var(--accent-text)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <div>
+        <label htmlFor="people-connect-with" className={labelCls}>I want to connect with — shown on your card, and enforced</label>
+        <select id="people-connect-with" aria-label="Who you want to connect with" value={connectWith} onChange={(e) => setConnectWith(e.target.value as "men" | "women" | "any")} className={inputCls}>
+          {PEOPLE_CONNECT_WITH.map((c) => (
+            <option key={c.value} value={c.value}>{c.label}</option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-[var(--dim)]">
+          This isn&apos;t just a label: requests that don&apos;t match — in either direction — are refused before
+          they&apos;re sent.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label htmlFor="people-status" className={labelCls}>Service status</label>
+          <select id="people-status" aria-label="Your service status" value={serviceStatus} onChange={(e) => setServiceStatus(e.target.value)} className={inputCls}>
+            {statusChoices.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="people-state" className={labelCls}>State</label>
+          <select id="people-state" aria-label="Your state" value={state} onChange={(e) => setState(e.target.value)} className={inputCls}>
+            <option value="">No state listed</option>
+            {STATE_ENTRIES.map((s) => (
+              <option key={s.state} value={s.state}>{s.state}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label htmlFor="people-city" className={labelCls}>City (optional)</label>
+        <input id="people-city" aria-label="Your city, optional" value={city} onChange={(e) => setCity(e.target.value)} maxLength={60} className={inputCls} placeholder="e.g., Columbus" />
+      </div>
+      <p className="text-xs text-[var(--dim)]">
+        Your city is optional, public to members on your listing only, and yours to change or clear at any time.
+        Nothing else about your location is ever shown — no address, no map pin, no distance.
+      </p>
+      <fieldset>
+        <legend className="mb-1 text-sm font-semibold text-[var(--text)]">I&apos;m up for — pick at least one</legend>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="What you're up for">
+          {PEOPLE_UP_FOR.map((u) => {
+            const on = upFor.includes(u);
+            return (
+              <button
+                key={u}
+                type="button"
+                aria-label={`Up for: ${u}`}
+                aria-pressed={on}
+                onClick={() => toggleUpFor(u)}
+                className={`rounded-full px-3 py-2 text-sm font-bold ${on ? "bg-[var(--accent)] text-[var(--accent-text)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+              >
+                {u}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+      <div>
+        <label htmlFor="people-about" className={labelCls}>About line</label>
+        <textarea id="people-about" aria-label="Your about line" value={about} onChange={(e) => setAbout(e.target.value)} required minLength={10} maxLength={600} rows={3} className={inputCls} placeholder="A sentence or two: where you served, what you're into, what a good hang looks like. No phone, email, or social handles — contact stays inside the app." />
+      </div>
+      {!existing ? (
+        <div>
+          <label htmlFor="people-availability" className={labelCls}>Availability</label>
+          <select id="people-availability" aria-label="Your availability for new requests" value={availabilityChoice} onChange={(e) => setAvailabilityChoice(e.target.value as "open" | "paused")} className={inputCls}>
+            <option value="open">Open — I&apos;m taking requests</option>
+            <option value="paused">Paused — list me, but no new requests</option>
+          </select>
+        </div>
+      ) : null}
+      {failed ? (
+        <p className="text-sm text-[var(--red)]" role="alert">{failMsg ?? "Could not save your listing. Check the fields, then try again."}</p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="submit"
+          aria-label={existing ? "Save listing edits" : "Submit Find Your People listing for review"}
+          disabled={busy || gender === "" || upFor.length === 0 || about.trim().length < 10}
+          className={btnPrimary}
+        >
+          {busy ? "Saving…" : existing ? "Save — back to PENDING review" : "Submit — goes to PENDING review"}
+        </button>
+        <button
+          type="button"
+          aria-label="Cancel listing form"
+          onClick={() => {
+            setOpen(false);
+            onDone?.();
+          }}
+          className={btnGhost}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function OwnPersonCard({ listing, profile }: { listing: MemberPerson; profile: Profile }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["peopleListings"] });
+  const availability = useMutation({
+    mutationFn: (next: "open" | "paused") => api.setPeopleListingAvailability({ id: listing.id, availability: next }),
+    onSuccess: invalidate,
+  });
+  const remove = useMutation({
+    mutationFn: () => api.deletePeopleListing({ id: listing.id }),
+    onSuccess: () => {
+      setConfirmRemove(false);
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["peopleRequests"] });
+    },
+  });
+  const jobLabel = [listing.jobCode, listing.jobTitle].filter(Boolean).join(" — ");
+  const place = [listing.city, listing.state].filter(Boolean).join(", ");
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={listing.reviewStatus === "approved" ? "official" : listing.reviewStatus === "pending" ? "amber" : "red"}>
+          {listing.reviewStatus.toUpperCase()}
+        </Badge>
+        {listing.reported ? <Badge tone="red">REPORTED</Badge> : null}
+        {listing.reviewStatus === "approved" ? (
+          <Badge tone={listing.availability === "open" ? "official" : "amber"}>
+            {listing.availability === "open" ? "OPEN TO REQUESTS" : "PAUSED"}
+          </Badge>
+        ) : null}
+        <span className="text-sm text-[var(--dim)]">
+          {listing.branch}
+          {jobLabel ? ` · ${jobLabel}` : ""}
+        </span>
+      </div>
+      <p className="font-display mt-2 text-lg font-bold text-[var(--text)]">{listing.displayName}</p>
+      <p className="mt-1 text-sm text-[var(--dim)]">
+        {PEOPLE_GENDER_LABEL[listing.gender]} · Connect with: {PEOPLE_CONNECT_LABEL[listing.connectWith]}
+        {listing.component ? ` · ${listing.component}` : ""} · {listing.serviceStatus}
+        {place ? ` · ${place}` : ""}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {listing.upFor.map((u) => (
+          <Badge key={u}>{u}</Badge>
+        ))}
+      </div>
+      <p className="mt-2 text-base text-[var(--text)]">{listing.about}</p>
+      {listing.reviewStatus === "pending" ? (
+        <p className="mt-2 text-sm text-[var(--dim)]">In the review queue — not visible in the directory until it is approved.</p>
+      ) : null}
+      {listing.reviewStatus === "returned" && listing.reviewNote ? (
+        <p className="mt-2 text-sm text-[var(--text)]">
+          <span className="font-bold">Returned by review: </span>
+          {listing.reviewNote}
+        </p>
+      ) : null}
+      {editing ? (
+        <div className="mt-3">
+          <PeopleListingForm profile={profile} existing={listing} onDone={() => setEditing(false)} />
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" aria-label="Edit your Find Your People listing" onClick={() => setEditing(true)} className={btnGhost}>
+            Edit listing
+          </button>
+          {listing.reviewStatus === "approved" ? (
+            <button
+              type="button"
+              aria-label={listing.availability === "open" ? "Pause your Find Your People listing" : "Reopen your Find Your People listing"}
+              disabled={availability.isPending}
+              onClick={() => availability.mutate(listing.availability === "open" ? "paused" : "open")}
+              className={btnGhost}
+            >
+              {listing.availability === "open" ? "Pause listing" : "Reopen listing"}
+            </button>
+          ) : null}
+          {confirmRemove ? (
+            <>
+              <button type="button" aria-label="Confirm remove your Find Your People listing" disabled={remove.isPending} onClick={() => remove.mutate()} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base font-semibold text-[var(--red)] disabled:opacity-50">
+                Confirm — remove it
+              </button>
+              <button type="button" aria-label="Keep your Find Your People listing" onClick={() => setConfirmRemove(false)} className={btnGhost}>
+                Keep it
+              </button>
+            </>
+          ) : (
+            <button type="button" aria-label="Remove your Find Your People listing" onClick={() => setConfirmRemove(true)} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base font-semibold text-[var(--red)]">
+              Remove listing
+            </button>
+          )}
+        </div>
+      )}
+      {availability.isError || remove.isError ? (
+        <p className="mt-2 text-sm text-[var(--red)]">That change couldn&apos;t be saved. Try again.</p>
+      ) : null}
+    </article>
+  );
+}
+
+function PersonBrowseCard({ listing, hasOwnListing }: { listing: MemberPerson; hasOwnListing: boolean }) {
+  const queryClient = useQueryClient();
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [reported, setReported] = useState(false);
+  const [note, setNote] = useState("");
+  const paused = listing.availability !== "open";
+  const jobLabel = [listing.jobCode, listing.jobTitle].filter(Boolean).join(" — ");
+  const place = [listing.city, listing.state].filter(Boolean).join(", ");
+  const request = useMutation({
+    mutationFn: () => api.sendPeopleRequest({ listingId: listing.id, note: note.trim() }),
+    onSuccess: () => {
+      setSent(true);
+      setRequestOpen(false);
+      setNote("");
+      void queryClient.invalidateQueries({ queryKey: ["peopleRequests"] });
+    },
+  });
+  const report = useMutation({
+    mutationFn: () => api.reportPeopleListing({ id: listing.id }),
+    onSuccess: () => {
+      setReported(true);
+      void queryClient.invalidateQueries({ queryKey: ["peopleListings"] });
+    },
+  });
+  return (
+    <article className={`rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 ${paused ? "opacity-75" : ""}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={paused ? "amber" : "official"}>{paused ? "PAUSED" : "OPEN"}</Badge>
+        <span className="text-sm text-[var(--dim)]">
+          {listing.branch}
+          {jobLabel ? ` · ${jobLabel}` : ""}
+        </span>
+      </div>
+      <p className="font-display mt-2 text-lg font-bold text-[var(--text)]">{listing.displayName}</p>
+      <p className="mt-1 text-sm text-[var(--dim)]">
+        {PEOPLE_GENDER_LABEL[listing.gender]} · Connect with: {PEOPLE_CONNECT_LABEL[listing.connectWith]}
+        {listing.component ? ` · ${listing.component}` : ""} · {listing.serviceStatus}
+        {place ? ` · ${place}` : ""}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {listing.upFor.map((u) => (
+          <Badge key={u}>{u}</Badge>
+        ))}
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-base text-[var(--text)]">{listing.about}</p>
+      {paused ? (
+        <p className="mt-3 text-sm font-semibold text-[var(--amber)]">
+          Paused — {listing.displayName} isn&apos;t taking new requests right now.
+        </p>
+      ) : sent ? (
+        <p className="mt-3 text-sm font-semibold text-[var(--accent-word)]" role="status">
+          Request sent. When {listing.displayName} accepts, you&apos;ll connect in Check-In — watch Your
+          Connections above.
+        </p>
+      ) : requestOpen ? (
+        <form
+          className="mt-3 space-y-3 border-t border-[var(--border)] pt-3"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            request.mutate();
+          }}
+        >
+          <div>
+            <label htmlFor={`people-req-note-${listing.id}`} className={labelCls}>A short note</label>
+            <textarea id={`people-req-note-${listing.id}`} aria-label={`Note to ${listing.displayName}`} value={note} onChange={(e) => setNote(e.target.value)} required minLength={1} maxLength={500} rows={3} className={inputCls} placeholder="Say hello: your branch, what you're up for, why you'd get along. No phone, email, or social handles — contact stays inside the app." />
+          </div>
+          {request.isError ? (
+            <p className="text-sm text-[var(--red)]" role="alert">
+              {request.error instanceof Error ? request.error.message : "Could not send that request. Try again."}
+            </p>
+          ) : null}
+          {!hasOwnListing ? (
+            <p className="text-sm text-[var(--dim)]">
+              Heads up: sending needs your own listing first — your gender and connect-with choices live on it
+              and are checked before the request goes out.
+            </p>
+          ) : null}
+          <div className="flex gap-2">
+            <button type="submit" aria-label={`Send connection request to ${listing.displayName}`} disabled={request.isPending || note.trim().length === 0} className={btnPrimary}>
+              {request.isPending ? "Sending…" : "Send request"}
+            </button>
+            <button type="button" aria-label={`Cancel request to ${listing.displayName}`} onClick={() => setRequestOpen(false)} className={btnGhost}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button type="button" aria-label={`Request to connect with ${listing.displayName}`} onClick={() => setRequestOpen(true)} className={btnPrimary}>
+            Request to connect
+          </button>
+          {reported ? (
+            <span className="text-sm font-semibold text-[var(--amber)]" role="status">
+              Reported — this listing is back in the review queue.
+            </span>
+          ) : (
+            <button type="button" aria-label={`Report listing by ${listing.displayName}`} disabled={report.isPending} onClick={() => report.mutate()} className="text-sm font-bold text-[var(--red)]">
+              Report this listing
+            </button>
+          )}
+          <BlockPersonButton profileId={listing.profileId} name={listing.displayName} compact />
+        </div>
+      )}
+      {report.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not send that report. Try again.</p> : null}
+    </article>
+  );
+}
+
+function PeopleIncomingCard({ request }: { request: MemberPeopleRequest }) {
+  const queryClient = useQueryClient();
+  const [reported, setReported] = useState(false);
+  const respond = useMutation({
+    mutationFn: (decision: "accepted" | "declined") => api.respondPeopleRequest({ id: request.id, decision }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["peopleRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["squads"] });
+    },
+  });
+  const report = useMutation({
+    mutationFn: () => api.reportPeopleRequest({ id: request.id }),
+    onSuccess: () => setReported(true),
+  });
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="amber">REQUEST</Badge>
+        <span className="text-sm text-[var(--dim)]">From {request.requesterName}</span>
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-base text-[var(--text)]">{request.note}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" aria-label={`Accept the connection request from ${request.requesterName}`} disabled={respond.isPending} onClick={() => respond.mutate("accepted")} className={btnPrimary}>
+          Accept — connect in Check-In
+        </button>
+        <button type="button" aria-label={`Decline the connection request from ${request.requesterName}`} disabled={respond.isPending} onClick={() => respond.mutate("declined")} className={btnGhost}>
+          Decline
+        </button>
+        {reported ? (
+          <span className="self-center text-sm font-semibold text-[var(--amber)]" role="status">Reported to moderation.</span>
+        ) : (
+          <button type="button" aria-label={`Report the connection request from ${request.requesterName}`} disabled={report.isPending} onClick={() => report.mutate()} className="self-center text-sm font-bold text-[var(--red)]">
+            Report
+          </button>
+        )}
+        <BlockPersonButton profileId={request.requesterProfileId} name={request.requesterName} />
+      </div>
+      {respond.isError ? (
+        <p className="mt-2 text-sm text-[var(--red)]" role="alert">
+          {respond.error instanceof Error ? respond.error.message : "Could not answer that request. Try again."}
+        </p>
+      ) : null}
+      {report.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not send that report. Try again.</p> : null}
+    </article>
+  );
+}
+
+function PeopleConnectionCard({ request, go }: { request: MemberPeopleRequest; go: (v: View) => void }) {
+  const queryClient = useQueryClient();
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [reported, setReported] = useState(false);
+  const otherName = request.mine ? request.targetName : request.requesterName;
+  const otherProfileId = request.mine ? request.targetProfileId : request.requesterProfileId;
+  const end = useMutation({
+    mutationFn: () => api.endPeopleConnection({ id: request.id }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["peopleRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["squads"] });
+    },
+  });
+  const report = useMutation({
+    mutationFn: () => api.reportPeopleRequest({ id: request.id }),
+    onSuccess: () => setReported(true),
+  });
+  return (
+    <article className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="official">CONNECTED</Badge>
+        <span className="text-sm text-[var(--dim)]">
+          With {otherName}
+          {request.targetBranch ? ` · ${request.targetBranch}` : ""}
+          {request.targetJobLabel ? ` · ${request.targetJobLabel}` : ""}
+        </span>
+      </div>
+      <p className="mt-2 text-sm text-[var(--dim)]">
+        This connection lives in Check-In as a private squad named for it — that&apos;s where you talk. No
+        contact details were exchanged, and none are needed.
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" aria-label={`Open Check-In for your connection with ${otherName}`} onClick={() => go("checkin")} className={btnPrimary}>
+          Open Check-In
+        </button>
+        {confirmEnd ? (
+          <>
+            <button type="button" aria-label={`Confirm ending your connection with ${otherName}`} disabled={end.isPending} onClick={() => end.mutate()} className={btnGhost}>
+              Confirm — end it
+            </button>
+            <button type="button" aria-label="Keep the connection" onClick={() => setConfirmEnd(false)} className={btnGhost}>
+              Keep it
+            </button>
+          </>
+        ) : (
+          <button type="button" aria-label={`End your connection with ${otherName}`} onClick={() => setConfirmEnd(true)} className={btnGhost}>
+            End connection
+          </button>
+        )}
+        {reported ? (
+          <span className="self-center text-sm font-semibold text-[var(--amber)]" role="status">Reported to moderation.</span>
+        ) : (
+          <button type="button" aria-label={`Report your connection with ${otherName}`} disabled={report.isPending} onClick={() => report.mutate()} className="self-center text-sm font-bold text-[var(--red)]">
+            Report
+          </button>
+        )}
+        <BlockPersonButton profileId={otherProfileId} name={otherName} />
+      </div>
+      {end.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not end that connection. Try again.</p> : null}
+      {report.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not send that report. Try again.</p> : null}
+    </article>
+  );
+}
+
+function PeopleOutgoingRow({ request }: { request: MemberPeopleRequest }) {
+  const [reported, setReported] = useState(false);
+  const report = useMutation({
+    mutationFn: () => api.reportPeopleRequest({ id: request.id }),
+    onSuccess: () => setReported(true),
+  });
+  const tone = request.status === "pending" ? "amber" : "plain";
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={tone}>{request.status.toUpperCase()}</Badge>
+        <span className="text-sm text-[var(--dim)]">To {request.targetName}</span>
+      </div>
+      <p className="mt-1 text-base text-[var(--text)]">{request.note}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {request.status === "pending" ? (
+          reported ? (
+            <span className="text-sm font-semibold text-[var(--amber)]" role="status">Reported to moderation.</span>
+          ) : (
+            <button type="button" aria-label={`Report your request to ${request.targetName}`} disabled={report.isPending} onClick={() => report.mutate()} className="text-sm font-bold text-[var(--red)]">
+              Report
+            </button>
+          )
+        ) : null}
+        {request.status === "pending" ? (
+          <BlockPersonButton profileId={request.targetProfileId} name={request.targetName} compact />
+        ) : null}
+      </div>
+      {report.isError ? <p className="mt-1 text-sm text-[var(--red)]">Could not send that report. Try again.</p> : null}
+    </article>
+  );
+}
+
+/* ------------------- Find Your People review queue ------------------- */
+
+/* ------------------------------ Spouse Hub ------------------------------ */
+// The spouse-first reference section. Members can open it to READ (it
+// is information — e.g., to share with their own spouse); spouses reach
+// it from their home and bottom bar. Entries cross-link into Family &
+// Life Events, Benefits, PCS Move Center, Mail Call, Care & Crisis,
+// and the State Benefits Finder instead of duplicating them.
+
+function SpouseHubGroupSection({ group, go, branchFilter }: { group: SpouseGroup; go: (v: View) => void; branchFilter?: string[] | null }) {
+  return (
+    <section aria-label={group.title} className="mb-8">
+      <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">{group.title}</h3>
+      {group.note ? (
+        <p className="mb-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] p-3 text-sm text-[var(--text)]">
+          {group.note}
+        </p>
+      ) : null}
+      <div className="space-y-3">
+        {group.entries.map((entry) => (
+          <SpouseHubCard key={entry.name} entry={entry} go={go} branchFilter={branchFilter} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SpouseHubView({ profile, go }: { profile: Profile; go: (v: View) => void }) {
+  // Rule 38: the Hub's per-service bullets narrow to the member's
+  // branch (H-3 — a spouse profile's branch IS the member's). Only
+  // bullets whose title names a service narrow; everything else in
+  // the Hub is every spouse's.
+  const scope = useSectionScope("spousehub");
+  const hubHeldBack =
+    scope.scope !== "all" && profile.branch
+      ? [...SPOUSE_HUB_GROUPS, SURVIVING_SPOUSE_HUB_GROUP].reduce(
+          (n, g) =>
+            n +
+            g.entries.reduce(
+              (m, e) => m + (e.bullets ?? []).filter((b) => (b.title ? !visibleForProfile(b.title, profile) : false)).length,
+              0,
+            ),
+          0,
+        )
+      : 0;
+  // Household-aware (F-1): bullets narrow to the household's branches
+  // — for a serving spouse, their own branch's bullets show alongside
+  // the member's.
+  const hubBranchFilter =
+    scope.applicable && scope.scope !== "all" && profile.branch ? householdBranches(profile) : null;
+  // A surviving spouse's Hub leads with the survivor cross-link group;
+  // every other profile — spouses with another family status and
+  // members reading the Hub alike — gets the standard order only.
+  const showSurvivorGroup =
+    profile.track === "spouse" && profile.familyStatus === SURVIVING_SPOUSE_FAMILY_STATUS;
+  return (
+    <div>
+      <SectionHead
+        title="Spouse Hub"
+        sub="Everything a military spouse needs, written spouse-first: your orientation program and your unit's family structure under their current names, the federal hiring doors, license reimbursement printed per service, money and legal, deployment support, and spouse scholarships — with the detail that already lives elsewhere in Battle Book cross-linked, never copied."
+      />
+
+      <div className="mb-6 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+        <p className="text-base font-semibold text-[var(--text)]">{SPOUSE_HUB_STANDING_NOTE}</p>
+      </div>
+
+      <button
+        type="button"
+        aria-label="Open Spouse Connect — the spouses-only directory"
+        onClick={() => go("spouseconnect")}
+        className="mb-8 block w-full rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5 text-left"
+      >
+        <span className="flex flex-wrap items-center gap-2">
+          <Badge tone="official">SPOUSES ONLY</Badge>
+          <span className="text-sm font-semibold text-[var(--dim)]">The other half of the spouse side</span>
+        </span>
+        <span className="font-display mt-2 block text-2xl font-bold text-[var(--text)]">Spouse Connect</span>
+        <span className="mt-1 block text-sm text-[var(--dim)]">
+          Find spouses living the same life — by branch, by life stage, by state — for someone to talk to, a hang
+          out, deployment support, or kids &amp; playdates. Opt-in reviewed listings, your gender and
+          connect-with choices enforced, and nothing opens until both spouses say yes.
+        </span>
+        <span className="mt-2 block text-sm font-bold text-[var(--accent-word)]">Open Spouse Connect →</span>
+      </button>
+
+      <ScopeToggle sectionKey="spousehub" itemNoun="notes" heldBack={hubHeldBack} />
+
+      {showSurvivorGroup ? <SpouseHubGroupSection group={SURVIVING_SPOUSE_HUB_GROUP} go={go} branchFilter={hubBranchFilter} /> : null}
+
+      {SPOUSE_HUB_GROUPS.map((group) => (
+        <SpouseHubGroupSection key={group.title} group={group} go={go} branchFilter={hubBranchFilter} />
+      ))}
+      <ShowEverythingFooter sectionKey="spousehub" heldBack={hubHeldBack} />
+    </div>
+  );
+}
+
+function SpouseHubCard({ entry, go, branchFilter }: { entry: SpouseEntry; go: (v: View) => void; branchFilter?: string[] | null }) {
+  const linkCls =
+    "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-bold text-[var(--accent-word)] underline";
+  const renderLinks = (links: SpouseEntry["links"]) => (
+    <>
+      {links.map((l) => (
+        <a
+          key={l.url}
+          href={l.url}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`${entry.name} — ${l.label} (opens in new tab)`}
+          className={linkCls}
+        >
+          {l.label} ↗
+        </a>
+      ))}
+    </>
+  );
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-display text-lg font-bold text-[var(--text)]">{entry.name}</h4>
+        <Badge>{entry.kind}</Badge>
+        {entry.alertBadge ? <Badge tone="red">{entry.alertBadge}</Badge> : null}
+      </div>
+      <p className="mt-1 text-base text-[var(--text)]">{entry.summary}</p>
+      {entry.who ? (
+        <p className="mt-2 text-sm text-[var(--dim)]">
+          <span className="font-bold text-[var(--text)]">Who it&apos;s for / when: </span>
+          {entry.who}
+        </p>
+      ) : null}
+      {entry.details?.map((d) => (
+        <p key={d.slice(0, 32)} className="mt-2 text-sm text-[var(--text)]">
+          {d}
+        </p>
+      ))}
+      {entry.bullets ? (
+        <ul className="mt-2 space-y-2">
+          {(branchFilter ? entry.bullets.filter((b) => (b.title ? visibleForBranches(b.title, branchFilter) : true)) : entry.bullets).map((b, i) => (
+            <li key={i} className="text-sm text-[var(--text)]">
+              {b.title ? <span className="font-bold">{b.title}: </span> : null}
+              {b.text}
+              {b.links && b.links.length > 0 ? (
+                <span className="mt-1 flex flex-wrap gap-2">{renderLinks(b.links)}</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {entry.flag ? (
+        <p className="mt-2 rounded bg-[var(--amber-bg)] p-2 text-sm font-semibold text-[var(--amber)]">
+          {entry.flag.startsWith("⚠") ? entry.flag : `⚠ ${entry.flag}`}
+        </p>
+      ) : null}
+      {entry.links.length > 0 || (entry.crossRefs && entry.crossRefs.length > 0) ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {renderLinks(entry.links)}
+          {(entry.crossRefs ?? []).map((c) => (
+            <button
+              key={`${c.view}-${c.label}`}
+              type="button"
+              aria-label={`Open ${c.label} (cross-reference from ${entry.name})`}
+              onClick={() => go(c.view as View)}
+              className={linkCls}
+            >
+              {c.label} →
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <CardTools
+        cardRef={{
+          section: "spousehub",
+          itemKey: entry.name,
+          title: entry.name,
+          summary: entry.summary,
+          source: sourceFromLinks(entry.links),
+        }}
+      />
+    </article>
+  );
+}
+
+/* --------------------------- Spouse home & More --------------------------- */
+
+const SPOUSE_LOCKED_AREAS = [
+  "Practice Trainers",
+  "Barracks Daily Life",
+  "Board Prep",
+  "Writing Helpers",
+  "Security Clearances",
+  "Special Forces & Elite Units",
+  "Allied Special Forces",
+  "Qualifications, Schools & Certifications",
+  "MOS Library — deep job content",
+  "Weapons & Qualification",
+  "Field Tools",
+  "Check-In & Squads",
+  "VA Claim Tracker",
+  "Find Your People",
+  "Find a Mentor",
+  "Fitness Coach",
+  "News",
+  "War Stories — submit a story",
+  "Wall of Honor — add a tribute",
+  "My Service Timeline",
+  "Guided Paths & Deadlines",
+  "Review Queue",
+];
+
+function SpouseLockedGrid() {
+  return (
+    <section aria-label="Members area" className="mt-6">
+      <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">Members area</h3>
+      <p className="mb-3 text-sm text-[var(--dim)]">
+        These areas belong to the service member&apos;s own record and squads, so they stay locked on a spouse
+        profile. Your service member can open any of them from their own profile — and the Spouse Hub above is
+        fully readable on theirs, so you can share cards back and forth.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {SPOUSE_LOCKED_AREAS.map((name) => (
+          <div key={name} className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--surface2)] p-4">
+            <span className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-display text-base font-bold text-[var(--dim)]">{name}</span>
+              <Badge>LOCKED</Badge>
+            </span>
+            <span className="mt-1 block text-sm text-[var(--dim)]">Members area — opens on a service-member profile</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SpouseHomeView({
+  profile,
+  go,
+  onSwitchProfile,
+}: {
+  profile: Profile;
+  go: (v: View) => void;
+  onSwitchProfile: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const openCards: { view: View; title: string; blurb: string }[] = [
+    { view: "buddy", title: "Battle Buddy", blurb: "The AI helper: ask anything about spouse life — licenses, benefits, mail, family support — and it answers from the spouse sections, naming the section and linking you straight there. Or just talk." },
+    { view: "spousehub", title: "Spouse Hub", blurb: "Your orientation program, your unit's family structure under its current name, spouse jobs and licenses, money and legal, deployment support, and scholarships — spouse-first, from the services' own pages." },
+    { view: "spouseconnect", title: "Spouse Connect", blurb: "Spouses only: find spouses by branch, life stage, and state — someone to talk to, hang out with, or get through a deployment alongside. Reviewed listings, mutual accept, report and block on every card." },
+    { view: "benefits", title: "Benefits", blurb: "VA & DoD benefits, TRICARE, and branch programs — the full Benefits section, open to you." },
+    { view: "deals", title: "Deals & Discounts", blurb: "Military deal platforms, the near-you finder, and on-base life: exchanges, commissary, MWR, and Space-A." },
+    { view: "mailcall", title: "Mail Call", blurb: "Care packages and military mail done right — APO/FPO/DPO addressing, send-by dates, what to send, and the verified letter routes." },
+    { view: "family", title: "Family & Life Events", blurb: "The Hub's backbone: DEERS and ID cards, SpouseWorks and MSEP, childcare and school, EFMP by branch, and the support centers and counselors." },
+    { view: "pcs", title: "PCS Move Center", blurb: "The whole move — timeline, entitlements, household goods, housing, and claims — including the license reimbursement timed to it." },
+    { view: "care", title: "Care & Crisis", blurb: "Crisis lines pinned first, then the aid societies' emergency help — the same organizations whose scholarships are in the Hub." },
+    { view: "states", title: "State Benefits Finder", blurb: "Your state's veterans agency and its headline benefits — plus the state licensing boards at the end of every license transfer." },
+    { view: "lingo", title: "Lingo", blurb: "The family-facing dictionary: the phonetic alphabet as the FAA and NATO publish it, plus 172 plain-English definitions — the pay words, the roles, the daily-life vocabulary, the move words, and the slang, labeled SLANG." },
+    { view: "trails", title: "Trails & Camping", blurb: "The family finder for getting outside: type a place and it builds the platforms' own search links for trails and campsites — plus FamCamps and installation campgrounds with DoD's eligibility framing and the check-ahead rule, ODR gear rentals, the UNOFFICIAL military campground directory labeled as such, and guides on dispersed camping, trails near bases, camping overseas, and Leave No Trace." },
+    { view: "emergency", title: "My Emergency Card", blurb: "Your own private quick card: up to three emergency contacts with one-tap call buttons, unit, self-reported blood type, allergies, and medications. Filled in by you, visible only to you, never shared." },
+    { view: "installation", title: "My Installation", blurb: profile.installationName ? `${profile.installationName} is set as your family's installation — open its on-base guide (food, exchange, commissary, child care, housing, medical, legal, chaplain, library, and the rest, every link from its own MilitaryINSTALLATIONS pages) plus the off-base guide for the ~50 miles around it.` : "Set your family's installation from the MilitaryINSTALLATIONS directory's own list — 409 installations worldwide — and this becomes its guide: on-base amenities by category routing to the installation's own official pages, the national locators, and what's off base within ~50 miles." },
+    { view: "rights", title: "Know Your Rights", blurb: "Your money and legal life too: SCRA protections extend to dependents and spouses in the situations DOJ names, USERRA protects the household when service pulls your member away, and the MLA covers spouses as borrowers — the laws, the deadlines, and the escalation ladders, from the agencies that run them." },
+    { view: "deployment", title: "Family Care Plan & Deployment Readiness", blurb: "The plan that says who cares for your family when duty takes your member away — who must have one, your service's form and timeline, what a plan legally cannot do, and the 32-item readiness checklist you can work through together." },
+    { view: "homeloan", title: "VA Home Loan Center", blurb: "Buying on the VA benefit, including in a surviving spouse's own name: the COE, entitlement and the second-tier math, the funding-fee chart as VA publishes it with all five exemptions, and VA's own help if payments get hard. No lenders, no rates." },
+    { view: "partners", title: "Partner Forces", blurb: "For the exercises, deployments, and key-leader engagements in your family's future: the NATO grade codes with the U.S. correspondence, 17 allied and partner rank profiles from each country's own official pages — gaps printed, never filled — and the courtesy basics from AR 600-25." },
+    { view: "songs", title: "Songs, Anthem & Pledge + Flags", blurb: "For every ceremony your family will stand through: the six service songs in full, the anthem and Pledge etiquette, the 17 allies' anthems in their native languages — English only where the government publishes it — and 24 flags with official descriptions and honestly labeled symbolism." },
+    { view: "kids", title: "Kids & Schools", blurb: "The families' section: School Liaisons, the Interstate Compact (MIC3) provision by provision from the Commission at mic3.net, IEP & 504 continuity, DoDEA / NDSP / DVHS, Impact Aid, homeschooling, and youth programs." },
+    { view: "travelhq", title: "Travel, Space-A & Lodging", blurb: "Space-A done properly — categories per DoDI 4515.13 Table 3, the signup flux printed as flux — Patriot Express, DoD lodging and the AFRC resorts, and airport benefits. No prices anywhere." },
+    { view: "taxes", title: "Tax & Residency", blurb: "MilTax free filing, the combat-zone formula in full, and the MSRRA election — your household can elect the member's residence, the spouse's residence, or the duty station for taxation, from the enrolled text." },
+    { view: "voting", title: "Voting Center", blurb: "Vote from anywhere: a new FPCA every January and every move, the 45-day MOVE Act protection, and the FWAB backup ballot — every state deadline routed to FVAP's own state tool. Strictly nonpartisan." },
+    { view: "healthhq", title: "Health Care & TRICARE", blurb: "Which door for what: milConnect for enrollment/DEERS, GENESIS for records and appointments, your contractor portal for claims and referrals, Express Scripts for pharmacy — and the Nurse Advice Line, 1-800-TRICARE, option 1, around the clock." },
+    { view: "components", title: "Switching Components", blurb: "Component moves are family decisions — read the whole section here: how your service member leaves active duty for the Reserve/Guard without a break (RCCC, DAP, AC2SELRES, Palace Front/Chase, R2R) or comes back the other way (CAD, RC2AC, VLPAD, EAD), and the part written for you — what carries over: grade honestly hedged, retirement continuity, health care flipping both ways (TAMP → TRICARE Reserve Select; 30+ day orders put the family on active-duty coverage), and the full 10-item Before You Sign checklist." },
+    { view: "reenlist", title: "Reenlistment & IRR", blurb: "Reenlistment is a family decision too — read the whole section here: the windows and gates branch by branch, the bonus programs as structures (no current amounts anywhere), RE codes, and the 8-item Before You Sign checklist you can work together. Plus the IRR half: if your service member leaves active duty with obligation remaining, what they still owe (reporting duties, annual screening, muster), what can call them back, and the plain status answers — no pay while inactive, no TRICARE in IRR status." },
+    { view: "first30", title: "First 30 Days", blurb: "Your family's first month at the new station, as a checkable path: the family view of all four phases — childcare and school landing, EFMP check-in, spouse employment, the TRICARE 90-day window from the DEERS update — with your own progress saved on your spouse profile, separate from the member's." },
+    { view: "emergencydeck", title: "When It Goes Wrong", blurb: "The first-24-hours deck, in full for families: 8 action cards (DO FIRST → CALL → THEN → WATCH OUT) — the Red Cross Hero Care message route at 1-877-272-7337 for a family emergency, lost CAC, accident or arrest overseas, a death in the family, a lost passport, identity theft, and TRICARE Overseas medical help. Never filtered on the spouse track." },
+    { view: "firstyear", title: "First Year Out", blurb: "Your family's year across the transition, as a checkable path: 31 tasks in five phases from 12 months before separation to 12 months after — TAP, Capstone, and BDD deadlines, the TRICARE/TAMP clocks with the voluntary-ETS exclusion printed, VGLI at 240 days — with your own progress saved on your spouse profile, separate from the member's." },
+    { view: "commissioning", title: "Commissioning from the Ranks", blurb: "A corps change is a family decision too — read the whole section here: every published enlisted → officer and enlisted → warrant route (OCS, Green to Gold, MECEP, STA-21, the new Air Force warrant program), the degree each route builds in or requires, and the obligations they carry — plus Officer → Enlisted, where the honest finding is zero dedicated programs and the real mechanisms are separation and prior-service enlistment." },
+    { view: "cool", title: "Credentials for Your Job", blurb: "Credentials are a family budget decision too — read the whole section here: what each service's COOL/CA program funds (Army CA $2,000/FY, Navy's finite pool, USMC vouchers, AF COOL's lifetime cap, the CG reimbursement route), the JST, DANTES, USMAP, and the VA test route." },
+    { view: "assignments", title: "How Assignments Work", blurb: "Orders shape the whole family's life — read the whole section here: how assignments actually happen per service, and co-location's five programs under five names (MACP, Dual-Mil, Navy Co-location, Join Spouse, CG Colocation) for dual-military households." },
+    { view: "fedjobs", title: "Veterans' Preference & Federal Jobs", blurb: "The parts of the federal-jobs system that reach spouses directly: derived preference (claiming through your veteran, inside OPM's controlling limits) and the military spouse appointing authority, §315.612, named and routed to the Spouse Hub." },
+    { view: "tsp", title: "TSP Center", blurb: "The family's retirement account, as the FRTIB publishes it: the five funds, the BRS match exactly as DoD publishes it, 2026 limits year-labeled, Roth vs Traditional, and the guardrails — no projections, no recommendations, no personal numbers stored." },
+    { view: "calculators", title: "Calculators", blurb: "The household calculators open to spouses in full \u2014 PCS Entitlements (HHG weight, CY2026 DLA, TLE under the $290/day cap, travel days, PPM) and Debt Payoff (CFPB snowball vs avalanche with a minimums-only baseline; SCRA 6% only as a user-confirmed or labeled what-if). The Retirement Estimator and VA Combined Ratings tiles stay locked on a spouse profile (Retirement opens for surviving spouses), matching their hubs." },
+    { view: "channels", title: "Official Channels", blurb: "The complaint and help doors, open to you in full: IG, EO/MEO and EEO (the civilian system, separate), SAPR with the Safe Helpline at 877-995-5247 and survivor-filing authority, and congressional casework — Congress's own expectation-setting." },
+    { view: "relief", title: "Relief Societies", blurb: "The aid societies cover dependents too — and CGMA covers civilians and surviving spouses: emergency assistance, education help, and the published caps, with the after-hours routes." },
+    { view: "paycharts", title: "Pay Charts & Rates", blurb: "Read the whole section here: the full 2026 DFAS basic pay tables and the five DTMO allowance calculators — no allowance rate printed anywhere in the Book." },
+    { view: "chaplains", title: "Chaplains & Religious Life", blurb: "Chaplains serve families, not just members: MRE 503 confidentiality verbatim, how to reach one, accommodation, and faith resources — open to you in full." },
+    { view: "honors", title: "Honors & Burial", blurb: "VA burial benefits and allowances (dated as VA publishes them), pre-need planning, funeral honors, and Arlington — the planning layer families carry, open to you in full." },
+    { view: "oconus", title: "OCONUS Family Papers", blurb: "The paperwork that decides whether the family can go: no-fee passports, SOFA status by theater, command sponsorship, and the source-traced checklist — open to you in full." },
+    { view: "ides", title: "MEB/PEB (IDES) Guide", blurb: "The disability evaluation process in plain language, open to you in full: the stages in order, your member's rights at each one (impartial review, the formal board, the one-time VARR), the 30% retirement rule and severance formula, the PEBLO's role and its limit, and the free counsel routes. Timelines print as published goals — both the 180-day and 295-day figures — never as promises. Process only, not legal or medical advice." },
+    { view: "clepjst", title: "CLEP/DANTES + JST", blurb: "Free exams and the transcript, open to you in full: DANTES first-attempt funding, ACE credit, the JST — and the eligibility asymmetry that matters to spouses: Coast Guard spouses are DANTES-funded for CLEP/DSST; other services' spouses are not, as published. The DSST retest conflict prints both sides." },
+    { view: "housing", title: "Housing Pack", blurb: "Open to you in full: the Tenant Bill of Rights quoted from the Aug 2021 DoD document — all 18 rights, each savable — barracks and dorm life at the published level (with the standing caution that no DoD-wide inspection/CQ standard exists), and off-post renting with the free housing-office lease review. SCRA lease-termination law itself lives in Know Your Rights; this pack points there." },
+    { view: "carbuying", title: "Car-Buying Guide", blurb: "Household car buying, open to you in full: total cost over monthly payment (CFPB), the traps by their official names, add-on data as published, and the MLA CORRECTION printed prominently — the 36% MAPR cap excludes purchase auto loans. The SCRA 6% cap prints with CFPB's warning that it doesn't reach loans signed on active duty; the FTC CARS Rule prints only with its vacatur." },
+    { view: "opsec", title: "OPSEC & Social Media", blurb: "Open to you in full — family OPSEC is half this section: the 5-step process in both the Marine Corps and Army printings, the handbook do/don'ts, geolocation risks, and the layered reporting route including Army iSALUTE 1-800-225-5779. No DoD-wide OPSEC hotline exists, and the section prints the layered route instead of inventing one." },
+    { view: "giveback", title: "Give-Back", blurb: "Open to you in full: the Armed Services Blood Program (the CONUS 17+/110 lb and Landstuhl 18+ eligibility frames printed both sides), Salute to Life marrow registration (the site's own 3 criteria, ~1-in-430 odds as published), and organ donation at published level — no DoD registry exists, printed as the finding." },
+    { view: "spousework", title: "Spouse Work Abroad & After a PCS", blurb: "Open to you in full — this one is yours: working in Germany under SOFA from the Kaiserslautern Legal handout (labor permit, German-economy rules, on-base jobs with Military Spouse Preference, telework), U.S. licenses with the German-economy recognition gap printed as the finding, and unemployment insurance after a PCS quit with the filing-state conflict printed both sides." },
+    { view: "caregiver", title: "VA Caregiver Support & EFMP Respite", blurb: "Open to you in full: PCAFC and PGCSS with the stipend as VA's published formula (no dollar figure exists to print), VA respite, the Caregiver Support Line 1-855-260-3274, and EFMP respite by service — the Army's hours printed as a conflict with no single figure, the Coast Guard's Special Needs Program named as what it is." },
+    { view: "germany", title: "Germany Living Guide", blurb: "Open to you in full: VAT relief (NF-1 / NF-2 + UTAP) with its installation conflicts printed, bringing a pet to Germany, off-post housing before you sign, and teenagers in Germany — licensing and Summer Hire." },
+    { view: "credit", title: "Building Credit From Zero", blurb: "Open to you in full: the CFPB starter routes — secured cards, credit-builder loans, authorized-user status — and the fee-harvester warning with the CARD Act's 25% first-year fee limit." },
+    { view: "generalorders", title: "General Orders", blurb: "Open to you in full: the Army's 3, the Marine Corps' 11, and the Navy's 11 General Orders, verbatim as each service publishes them, differences printed and never harmonized." },
+    { view: "retireewear", title: "Retiree Uniform & Ceremony", blurb: "Open to you in full: when a retiree may wear the uniform again (each service's own list; the USMC list flagged as not yet retrieved, never borrowed from the Navy) and retirement ceremony planning — the flag, the certificates, and the shadow box as pointers only." },
+  ];
+  return (
+    <div>
+      <section aria-label="Your spouse profile" className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+        <MastheadBand />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <MastheadEmblem branch={profile.branch} />
+          <div className="min-w-52 flex-1">
+            <p className="font-display text-sm font-bold tracking-widest text-[var(--dim)]">
+              {(profile.branch || "MILITARY").toUpperCase()} FAMILY
+            </p>
+            <h1 className="font-display mt-1 text-3xl font-bold text-[var(--text)]">
+              {profile.displayName || "Military Spouse"}
+            </h1>
+            <p className="mt-1 text-base text-[var(--dim)]">
+              {profile.familyStatus || "Military spouse"}
+              {profile.branch ? ` · Service member: ${profile.branch}` : ""}
+              {profile.homeState ? ` · Home state: ${profile.homeState}` : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" aria-label="Edit spouse profile" onClick={() => setEditing((v) => !v)} className={btnGhost}>
+              {editing ? "Close" : "Edit profile"}
+            </button>
+            <button type="button" aria-label="Switch profile" onClick={onSwitchProfile} className={btnGhost}>
+              Switch profile
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Badge tone="amber">MILITARY SPOUSE</Badge>
+          <Badge tone="amber">Self-Reported — Not Verified</Badge>
+        </div>
+        <p className="mt-2 text-sm text-[var(--dim)]">
+          This is the spouse side of Battle Book. Sign-in is simulated in this prototype: switching profile signs
+          you in as a different person, with their own listings and connections.
+        </p>
+        {editing ? (
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            <SpouseProfileForm initial={profile} submitLabel="Save profile changes" onDone={() => setEditing(false)} />
+          </div>
+        ) : null}
+      </section>
+
+      <ThemePanel profile={profile} />
+
+      <div className="mt-4">
+        <WhatChangedCard profile={profile} go={go} />
+      </div>
+
+      {/* Spouse For You row (§B.3): the member's branch (H-3), the
+          family installation, and the spouse's own front doors. */}
+      <section aria-label="For you" className="mt-4">
+        <h2 className="font-display mb-3 text-xl font-bold text-[var(--text)]">For you</h2>
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          <button
+            type="button"
+            aria-label="For you: your service member's branch benefits"
+            onClick={() => go("benefits")}
+            className="min-w-40 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="block text-xs font-bold tracking-widest text-[var(--dim)]">THEIR BRANCH</span>
+            <span className="font-display mt-1 block text-base font-bold leading-tight text-[var(--text)]">
+              {profile.branch || "Set their branch"}
+            </span>
+            <span className="mt-0.5 block text-sm text-[var(--dim)]">Benefits default to their branch</span>
+          </button>
+          <button
+            type="button"
+            aria-label="For you: family installation"
+            onClick={() => go("installation")}
+            className="min-w-40 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="block text-xs font-bold tracking-widest text-[var(--dim)]">FAMILY INSTALLATION</span>
+            <span className="font-display mt-1 block text-base font-bold leading-tight text-[var(--text)]">
+              {profile.installationName || "Set your installation"}
+            </span>
+            <span className="mt-0.5 block text-sm text-[var(--dim)]">Its on-base guide, food, and services</span>
+          </button>
+          <button
+            type="button"
+            aria-label="For you: spouse hub"
+            onClick={() => go("spousehub")}
+            className="min-w-40 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="block text-xs font-bold tracking-widest text-[var(--dim)]">SPOUSE HUB</span>
+            <span className="font-display mt-1 block text-base font-bold leading-tight text-[var(--text)]">Start here, spouse-first</span>
+            <span className="mt-0.5 block text-sm text-[var(--dim)]">Orientation, careers, and your unit's family structure</span>
+          </button>
+          <button
+            type="button"
+            aria-label="For you: mail call"
+            onClick={() => go("mailcall")}
+            className="min-w-40 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="block text-xs font-bold tracking-widest text-[var(--dim)]">MAIL CALL</span>
+            <span className="font-display mt-1 block text-base font-bold leading-tight text-[var(--text)]">Packages &amp; military mail</span>
+            <span className="mt-0.5 block text-sm text-[var(--dim)]">APO/FPO/DPO done right, and send-by dates</span>
+          </button>
+        </div>
+      </section>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {openCards.map((c) => (
+          <button
+            key={c.view}
+            type="button"
+            aria-label={`Open ${c.title}`}
+            onClick={() => go(c.view)}
+            className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="font-display text-base font-bold leading-tight text-[var(--text)]">{c.title}</span>
+            <span className="text-sm leading-snug text-[var(--dim)]">{c.blurb}</span>
+          </button>
+        ))}
+      </div>
+
+      <SpouseLockedGrid />
+    </div>
+  );
+}
+
+function SpouseMoreView({ profile, go }: { profile: Profile; go: (v: View) => void }) {
+  const binder = useBinder();
+  const openCards: { view: View; title: string; blurb: string }[] = [
+    { view: "whatchanged", title: "What Changed", blurb: "What's new in the book — and what got corrected — since your last visit. Corrections are listed in the open, marked CORRECTED." },
+    { view: "buddy", title: "Battle Buddy", blurb: "Ask the AI helper — it answers from the Spouse Hub, Benefits, Mail Call, Deals, and Family sections, with the section named and linked." },
+    { view: "deals", title: "Deals & Discounts", blurb: "Deal apps like GovX and Vet Tix, the near-you finder, and on-base life — MCCS, MWR, ITT, Space-A, and the commissary." },
+    { view: "family", title: "Family & Life Events", blurb: "Life-event checklists, SpouseWorks and MSEP, childcare and school, EFMP by branch, and family support centers and counselors." },
+    { view: "pcs", title: "PCS Move Center", blurb: "Move timeline, forgotten entitlements, household goods, housing decisions, special cases, and the travel claim." },
+    { view: "care", title: "Care & Crisis", blurb: "The Veterans Crisis Line pinned on top, Vet Centers, housing help, and the aid societies' emergency assistance." },
+    { view: "states", title: "State Benefits Finder", blurb: "Every state + DC: the official veterans agency and its headline benefits." },
+    { view: "binder", title: "My Binder", blurb: binder.items.length > 0 ? `${binder.items.length} card${binder.items.length === 1 ? "" : "s"} you've saved across the Spouse Hub and the open sections` : "Cards you save in the Spouse Hub and the open sections collect here." },
+    { view: "lingo", title: "Lingo", blurb: "The phonetic alphabet and the 172-word plain-English dictionary — pay, people, daily life, moves, medical words, radio words, and labeled slang." },
+    { view: "trails", title: "Trails & Camping", blurb: "The trails & camping finder — platform search links for any place, FamCamps and ODR rentals, the UNOFFICIAL directory labeled as such, and the four camping guides." },
+    { view: "emergency", title: "My Emergency Card", blurb: "Your own private quick card — emergency contacts with one-tap call buttons, unit, blood type, allergies, medications. Only you can see it." },
+    { view: "installation", title: "My Installation", blurb: profile.installationName ? `${profile.installationName} — your family's installation guide: on-base categories from its own MilitaryINSTALLATIONS pages, the national locators, and the off-base guide around it.` : "Set your family's installation and open its guide — on-base categories from its own MilitaryINSTALLATIONS pages, the national locators, and what's off base within ~50 miles." },
+    { view: "rights", title: "Know Your Rights", blurb: "SCRA, USERRA, and the MLA for the whole household — the 6% cap, the job-protection ladder, and the 36% MAPR, with legal assistance as the drafting route." },
+    { view: "deployment", title: "Family Care Plan & Deployment Readiness", blurb: "DoDI 1342.19 and your service's FCP rule, the legal limits of a plan, and the 32-item checklist — checkable, and each group saves to your Binder." },
+    { view: "homeloan", title: "VA Home Loan Center", blurb: "The COE, entitlement math, the funding-fee chart and its five exemptions, and VA's foreclosure-avoidance help — VA's rules only, no lenders or rates." },
+    { view: "partners", title: "Partner Forces", blurb: "The NATO grade codes with the U.S. correspondence and the officer offset, 17 allied and partner rank profiles at exactly the level each country's own official English pages support — Canada code-free by its own design, 8 profiles gap-flagged with the gaps printed — and courtesy & protocol from AR 600-25." },
+    { view: "songs", title: "Songs, Anthem & Pledge + Flags", blurb: "The six service songs, the anthem and Pledge with their etiquette, 18 allied anthems opening in their native languages, and 24 flags — conflicts and copyright credits printed, symbolism only where official." },
+    { view: "kids", title: "Kids & Schools", blurb: "School Liaisons, MIC3 provision by provision from mic3.net, IEP & 504 continuity, DoDEA / NDSP / DVHS, Impact Aid, homeschooling, and youth programs." },
+    { view: "travelhq", title: "Travel, Space-A & Lodging", blurb: "Space-A categories and the in-flux signup, Patriot Express, lodging and the AFRC resorts, booking channels, and airport benefits — zero prices." },
+    { view: "taxes", title: "Tax & Residency", blurb: "MilTax, the combat-zone formula, domicile, and the MSRRA three-way election from 50 U.S.C. § 4001(a)(3)." },
+    { view: "voting", title: "Voting Center", blurb: "The FPCA every January and every move, the 45-day protection, the FWAB backup — FVAP-only, nonpartisan, state deadlines routed to FVAP." },
+    { view: "healthhq", title: "Health Care & TRICARE", blurb: "The portal router: milConnect vs. GENESIS vs. your contractor portal vs. Express Scripts, plus the Nurse Advice Line (1-800-TRICARE, option 1). Routes only — no costs, no medical content." },
+    { view: "components", title: "Switching Components", blurb: "Active ⇄ Reserve in both directions — the programs branch by branch, what carries over (grade, retirement, health care), and the 10-item Before You Sign checklist, readable in full as a family-decision reference." },
+    { view: "reenlist", title: "Reenlistment & IRR", blurb: "Reenlistment branch by branch (windows, gates, SRB structures, RE codes, the checkable 8-item Before You Sign checklist) and the Individual Ready Reserve (the 8-year MSO, obligations, recall authorities, status answers) — readable in full as a family-decision reference." },
+    { view: "first30", title: "First 30 Days", blurb: "The guided newcomer path in its family view — 34 tasks in four phases, situation-filtered (family / EFMP / OCONUS), the four hard clocks as published, and per-profile check-off progress on your own spouse profile." },
+    { view: "emergencydeck", title: "When It Goes Wrong", blurb: "The first-24-hours deck, in full for families: 8 action cards (DO FIRST → CALL → THEN → WATCH OUT) — the Red Cross Hero Care message route at 1-877-272-7337 for a family emergency, lost CAC, accident or arrest overseas, a death in the family, a lost passport, identity theft, and TRICARE Overseas medical help. Never filtered on the spouse track." },
+    { view: "firstyear", title: "First Year Out", blurb: "Your family's year across the transition, as a checkable path: 31 tasks in five phases from 12 months before separation to 12 months after — TAP, Capstone, and BDD deadlines, the TRICARE/TAMP clocks with the voluntary-ETS exclusion printed, VGLI at 240 days — with your own progress saved on your spouse profile, separate from the member's." },
+    { view: "commissioning", title: "Commissioning from the Ranks", blurb: "Every published enlisted → officer and enlisted → warrant route — who can apply, the degree each builds in or requires, how to apply, sources and flags — readable in full as a family-decision reference, including the Officer → Enlisted finding (zero dedicated programs; the real mechanisms instead)." },
+    { view: "cool", title: "Credentials for Your Job", blurb: "Each service's credentialing funding in full — Army CA, Navy COOL, USMC vouchers, AF COOL, CG reimbursement — plus JST, DANTES, USMAP, and the VA test route, readable in full as a family-decision reference." },
+    { view: "assignments", title: "How Assignments Work", blurb: "How assignments happen per service, in full — systems, cycles, co-location's five programs, and the etiquette verdicts — readable in full as a family reference." },
+    { view: "fedjobs", title: "Veterans' Preference & Federal Jobs", blurb: "Derived preference and the spouse appointing authority (§315.612, routed to the Spouse Hub) — the two parts of OPM's system that reach spouses directly." },
+    { view: "tsp", title: "TSP Center", blurb: "The TSP in full as family finance reference: funds, BRS match, 2026 limits, Roth vs Traditional, loans and withdrawals — facts about the plan, never advice." },
+    { view: "nutrition", title: "Nutrition", blurb: "Fueling education (the military's own MDRI, hydration, OPSS, and MRE guidance), your own private calorie tracker with the safe-rate guardrails, meal plans built on the Dietary Guidelines 2025–2030 pattern around your allergies and dislikes, and the bundled USDA food database." },
+    { view: "calculators", title: "Calculators", blurb: "PCS Entitlements and Debt Payoff in full as household planning; the Retirement Estimator (surviving spouses) \u2014 VA Combined Ratings stays locked on a spouse profile, matching the VA Claims hub posture." },
+    { view: "ides", title: "MEB/PEB (IDES) Guide", blurb: "The IDES stages in order, MEB-stage rights, the formal board and VARR, the 30% rule and severance, goal timelines printed both ways (180 and 295 days, goals not promises), the PEBLO's limit, and free counsel — process only, not legal or medical advice." },
+    { view: "clepjst", title: "CLEP/DANTES + JST", blurb: "CLEP's 34 exams and DSST's 38, DANTES first-attempt funding, ACE credit, the JST — and the Coast Guard spouses-only funding asymmetry, printed as published; the DSST retest conflict prints both periods." },
+    { view: "housing", title: "Housing Pack", blurb: "All 18 Tenant Bill of Rights from the Aug 2021 DoD document, barracks/dorm published pattern (no DoD-wide standard exists — printed), and off-post renting with HSO lease review; SCRA legal text stays in Know Your Rights." },
+    { view: "carbuying", title: "Car-Buying Guide", blurb: "Total-cost method, yo-yo financing, dealer markup, payment packing, add-on data — and the MLA correction (the MAPR cap excludes purchase auto loans) with the SCRA warning and the vacated CARS Rule printed as vacated." },
+    { view: "opsec", title: "OPSEC & Social Media", blurb: "The 5-step process in both services' printings, family OPSEC, handbook do/don'ts, geotagging, and the layered reporting route (iSALUTE 1-800-225-5779) — no DoD-wide hotline exists." },
+    { view: "giveback", title: "Give-Back", blurb: "ASBP blood donation (both eligibility frames), Salute to Life marrow registration (3 criteria, ~1-in-430), and organ donation at published level — no DoD registry, printed as the finding." },
+    { view: "spousework", title: "Spouse Work Abroad & After a PCS", blurb: "SOFA spouse employment in Germany (Kaiserslautern Legal handout), telework, U.S. licenses (German-economy recognition not sourceable — printed as the finding), and UI after a PCS quit (filing-state conflict printed both sides)." },
+    { view: "caregiver", title: "VA Caregiver Support & EFMP Respite", blurb: "PCAFC (stipend as VA's formula — no dollar figure printed), PGCSS, VA respite, Caregiver Support Line 1-855-260-3274, and EFMP respite by service (Army hours a printed conflict; CG = Special Needs Program)." },
+    { view: "germany", title: "Germany Living Guide", blurb: "VAT relief NF-1/NF-2 + UTAP, pets to Germany, off-post housing (agent-fee rule not sourceable as one rule), and teens (17-vs-18 licensing conflict printed, Summer Hire)." },
+    { view: "credit", title: "Building Credit From Zero", blurb: "CFPB starter routes from an empty file, with the FICO percentages and the credit-builder term conflict flagged as published." },
+    { view: "generalorders", title: "General Orders", blurb: "Army 3 · Marine Corps 11 · Navy 11, verbatim as published, differences never harmonized." },
+    { view: "retireewear", title: "Retiree Uniform & Ceremony", blurb: "§ 772 as published, per-service occasion lists (USMC list flagged, not shipped), CFR Part 53 limits, the retirement flag and certificates, shadow box pointers only." },
+  ];
+  return (
+    <div>
+      <SectionHead
+        title="More"
+        sub={`${profile.displayName || "Military spouse"} — military spouse, self-reported. Everything open to you lives on Home, the bottom bar, and here.`}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        {openCards.map((c) => (
+          <button
+            key={c.view}
+            type="button"
+            aria-label={`Open ${c.title}`}
+            onClick={() => go(c.view)}
+            className="flex min-h-32 flex-col items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+          >
+            <span className="font-display text-base font-bold leading-tight text-[var(--text)]">{c.title}</span>
+            <span className="text-sm leading-snug text-[var(--dim)]">{c.blurb}</span>
+          </button>
+        ))}
+      </div>
+      <SpouseLockedGrid />
+    </div>
+  );
+}
+
+/* ---------------------------- Spouse Connect ---------------------------- */
+// The spouses-only directory on the Find Your People engine. Only
+// spouse-track profiles can list, browse, or request — the server
+// enforces that on every action; a non-spouse profile that lands here
+// (a member followed the Hub's Connect card) gets the refusal below.
+
+function SpouseConnectView({ profile }: { profile: Profile }) {
+  if (profile.track !== "spouse") {
+    return (
+      <div>
+        <SectionHead
+          title="Spouse Connect"
+          sub="The spouses-only directory: spouses finding spouses who are living the same life — same branch, same season of it — to talk to, hang out with, or get through a deployment alongside."
+        />
+        <section aria-label="Spouse Connect is spouses only" className="rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-5">
+          <h3 className="font-display text-xl font-bold text-[var(--text)]">Spouse Connect is for spouses</h3>
+          <p className="mt-2 text-base text-[var(--text)]">
+            You&apos;re signed in on a {profile.track === "future" ? "future-member" : "service-member"} profile, and
+            Spouse Connect opens only on a spouse profile — listings, requests, and connections are spouses-only,
+            enforced by the app, not just hidden. The Spouse Hub itself is fully open to you to read and share.
+          </p>
+          <p className="mt-2 text-base text-[var(--text)]">
+            If you&apos;re a military spouse, use Switch Profile and come in through the Spouse door —
+            &ldquo;I&apos;m a military spouse/partner&rdquo; — at sign-in.
+          </p>
+        </section>
+      </div>
+    );
+  }
+  return <SpouseConnectDirectory profile={profile} />;
+}
+
+function SpouseConnectDirectory({ profile }: { profile: Profile }) {
+  const publishedQ = useQuery({
+    queryKey: ["spouseListings", "published"],
+    queryFn: () => api.listSpouseListings({ scope: "published" }),
+  });
+  const mineQ = useQuery({
+    queryKey: ["spouseListings", "mine"],
+    queryFn: () => api.listSpouseListings({ scope: "mine" }),
+  });
+  const requestsQ = useQuery({
+    queryKey: ["spouseRequests"],
+    queryFn: () => api.listSpouseRequests({}),
+  });
+  const blocksQ = useQuery({
+    queryKey: ["spouseBlocks"],
+    queryFn: () => api.listSpouseBlocks({}),
+  });
+  const squadsQ = useQuery({ queryKey: ["squads"], queryFn: () => api.getSquads({}) });
+  const [branchFilter, setBranchFilter] = useState("All");
+  const [stageFilter, setStageFilter] = useState("All");
+  const [stateFilter, setStateFilter] = useState("All");
+  const [upForFilter, setUpForFilter] = useState("All");
+
+  const published = publishedQ.data?.listings ?? [];
+  const mine = mineQ.data?.listings ?? [];
+  const ownListing = mine.find((l) => l.reviewStatus !== "rejected") ?? mine[0] ?? null;
+  const requests = requestsQ.data?.requests ?? [];
+  const incomingPending = requests.filter((r) => !r.mine && r.status === "pending");
+  const connections = requests.filter((r) => r.status === "accepted");
+  const outgoing = requests.filter((r) => r.mine && r.status !== "accepted");
+  const blocks = blocksQ.data?.blocks ?? [];
+  const connectionSquads = (squadsQ.data?.squads ?? []).filter((s) => s.kind === "connection");
+
+  // Full state list (unioned with any published values), so the State
+  // filter is selectable even before any spouse listing publishes —
+  // same fix as the Find Your People directory filters.
+  const stateOptions = [
+    ...new Set([...STATE_ENTRIES.map((s) => s.state), ...published.map((l) => l.state).filter(Boolean)]),
+  ].sort();
+  const browse = published
+    .filter((l) => !l.mine)
+    .filter((l) => (branchFilter === "All" ? true : l.branch === branchFilter))
+    .filter((l) => (stageFilter === "All" ? true : l.lifeStages.includes(stageFilter)))
+    .filter((l) => (stateFilter === "All" ? true : l.state === stateFilter))
+    .filter((l) => (upForFilter === "All" ? true : l.upFor.includes(upForFilter)));
+
+  return (
+    <div>
+      <SectionHead
+        title="Spouse Connect"
+        sub="Spouses who've been where you are — new to this life, mid-deployment, mid-PCS, kids at home, dual-military, married to a veteran now, or a surviving spouse. Opt-in only, every listing reviewed before it publishes, and nothing opens until both spouses say yes."
+      />
+
+      <section aria-label="Meet smart" className="mb-4 rounded-[var(--radius)] border-2 border-[var(--amber)] bg-[var(--amber-bg)] p-4">
+        <h3 className="font-display text-lg font-bold text-[var(--text)]">Meet smart</h3>
+        <ul className="mt-2 space-y-2">
+          {SPOUSE_MEET_SMART.map((m) => (
+            <li key={m.title} className="text-base text-[var(--text)]">
+              <span className="font-bold">{m.title}. </span>
+              {m.text}
+            </li>
+          ))}
+        </ul>
+      </section>
+      <p className="mb-6 rounded-[var(--radius)] bg-[var(--surface2)] p-3 text-sm text-[var(--dim)]">
+        {SPOUSE_STANDING_LINE}
+      </p>
+
+      <section aria-label="Your listing" className="mb-8">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Your Listing</h3>
+        {ownListing ? (
+          <OwnSpouseCard listing={ownListing} profile={profile} />
+        ) : (
+          <>
+            <p className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+              You&apos;re not listed yet. Nobody can find or request you until you opt in — and your listing goes
+              to review before anyone sees it.
+            </p>
+            <SpouseListingForm profile={profile} />
+          </>
+        )}
+      </section>
+
+      <section aria-label="Requests for you" className="mb-8">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">
+          Requests for You{incomingPending.length > 0 ? ` — ${incomingPending.length} waiting` : ""}
+        </h3>
+        {requestsQ.isPending ? <p className="text-base text-[var(--dim)]">Loading requests…</p> : null}
+        {!requestsQ.isPending && incomingPending.length === 0 ? (
+          <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+            No requests yet. When someone sends one to your listing, it waits here — declining is silent, and
+            accepting opens a private connection in this area.
+          </p>
+        ) : null}
+        <div className="space-y-3">
+          {incomingPending.map((r) => (
+            <SpouseIncomingCard key={r.id} request={r} />
+          ))}
+        </div>
+      </section>
+
+      <section aria-label="Your connections" className="mb-8">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Your Connections</h3>
+        {connections.length === 0 ? (
+          <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+            No active connections yet. When a request is accepted — by you or by them — the pair connects here as
+            a private two-person connection, just the two of you.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {connections.map((r) => {
+              const squad = connectionSquads.find((s) => s.name === `Connection — ${r.requesterName}`);
+              return <SpouseConnectionCard key={r.id} request={r} squad={squad} />;
+            })}
+          </div>
+        )}
+      </section>
+
+      <section aria-label="Browse the directory" className="mb-8">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Browse the Directory</h3>
+        <div className="mb-3 grid gap-2 sm:grid-cols-2">
+          <div>
+            <label htmlFor="spouse-branch-filter" className={labelCls}>Service branch (of their service member)</label>
+            <select id="spouse-branch-filter" aria-label="Filter spouse listings by branch" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} className={inputCls}>
+              <option value="All">All branches</option>
+              {BRANCHES.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="spouse-stage-filter" className={labelCls}>Life stage</label>
+            <select id="spouse-stage-filter" aria-label="Filter spouse listings by life stage" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} className={inputCls}>
+              <option value="All">All life stages</option>
+              {SPOUSE_LIFE_STAGES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="spouse-state-filter" className={labelCls}>State</label>
+            <select id="spouse-state-filter" aria-label="Filter spouse listings by state" value={stateFilter} onChange={(e) => setStateFilter(e.target.value)} className={inputCls}>
+              <option value="All">All states</option>
+              {stateOptions.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="spouse-upfor-filter" className={labelCls}>Up for</label>
+            <select id="spouse-upfor-filter" aria-label="Filter spouse listings by what they're up for" value={upForFilter} onChange={(e) => setUpForFilter(e.target.value)} className={inputCls}>
+              <option value="All">Anything</option>
+              {SPOUSE_UP_FOR.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {publishedQ.isPending ? <p className="text-base text-[var(--dim)]">Loading the directory…</p> : null}
+        {!publishedQ.isPending && published.filter((l) => !l.mine).length === 0 ? (
+          <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5 text-base text-[var(--text)]">
+            No one else is listed yet — the directory fills as spouses opt in.
+          </p>
+        ) : null}
+        {!publishedQ.isPending && published.filter((l) => !l.mine).length > 0 && browse.length === 0 ? (
+          <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+            No listings match those filters.
+          </p>
+        ) : null}
+        <div className="space-y-3">
+          {browse.map((l) => (
+            <SpouseBrowseCard key={l.id} listing={l} hasOwnListing={ownListing !== null} />
+          ))}
+        </div>
+      </section>
+
+      <section aria-label="Requests you sent" className="mb-8">
+        <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Requests You Sent</h3>
+        {outgoing.length === 0 ? (
+          <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+            You haven&apos;t sent a request yet. Find someone in the directory above and say hello — a short note
+            is the whole ask.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {outgoing.map((r) => (
+              <SpouseOutgoingRow key={r.id} request={r} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {blocks.length > 0 ? (
+        <section aria-label="Blocked spouses" className="mb-8">
+          <h3 className="font-display mb-3 text-xl font-bold text-[var(--text)]">Blocked Spouses</h3>
+          <p className="mb-3 text-sm text-[var(--dim)]">
+            People you&apos;ve blocked are hidden from you in this directory, and you from them. Unblocking makes
+            you visible to each other again — it doesn&apos;t restore any connection that ended.
+          </p>
+          <div className="space-y-2">
+            {blocks.map((b) => (
+              <SpouseBlockedRow key={b.profileId} block={b} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function SpouseBlockedRow({ block }: { block: { profileId: number; displayName: string } }) {
+  const queryClient = useQueryClient();
+  const unblock = useMutation({
+    mutationFn: () => api.unblockSpousePerson({ profileId: block.profileId }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["spouseBlocks"] });
+      void queryClient.invalidateQueries({ queryKey: ["spouseListings"] });
+    },
+  });
+  return (
+    <article className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3">
+      <span className="text-base font-semibold text-[var(--text)]">{block.displayName}</span>
+      <button
+        type="button"
+        aria-label={`Unblock ${block.displayName}`}
+        disabled={unblock.isPending}
+        onClick={() => unblock.mutate()}
+        className="text-sm font-bold text-[var(--accent-word)]"
+      >
+        {unblock.isPending ? "Unblocking…" : "Unblock"}
+      </button>
+      {unblock.isError ? <span className="text-sm text-[var(--red)]">Could not unblock. Try again.</span> : null}
+    </article>
+  );
+}
+
+function BlockSpouseButton({
+  profileId,
+  name,
+  compact,
+}: {
+  profileId: number;
+  name: string;
+  compact?: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [confirm, setConfirm] = useState(false);
+  const [done, setDone] = useState(false);
+  const block = useMutation({
+    mutationFn: () => api.blockSpousePerson({ profileId }),
+    onSuccess: () => {
+      setDone(true);
+      setConfirm(false);
+      void queryClient.invalidateQueries({ queryKey: ["spouseListings"] });
+      void queryClient.invalidateQueries({ queryKey: ["spouseRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["spouseBlocks"] });
+      void queryClient.invalidateQueries({ queryKey: ["squads"] });
+    },
+  });
+  if (done) {
+    return (
+      <span className="self-center text-sm font-semibold text-[var(--amber)]" role="status">
+        Blocked — you&apos;re hidden from each other in this directory.
+      </span>
+    );
+  }
+  if (confirm) {
+    return (
+      <span className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold text-[var(--red)]">
+          Block {name}? You&apos;ll be hidden from each other, any open request or connection between you ends,
+          and neither of you can send the other a request.
+        </span>
+        <button
+          type="button"
+          aria-label={`Confirm block ${name}`}
+          disabled={block.isPending}
+          onClick={() => block.mutate()}
+          className="text-sm font-bold text-[var(--red)]"
+        >
+          {block.isPending ? "Blocking…" : "Yes — block"}
+        </button>
+        <button
+          type="button"
+          aria-label="Cancel block"
+          onClick={() => setConfirm(false)}
+          className="text-sm font-bold text-[var(--dim)]"
+        >
+          Cancel
+        </button>
+        {block.isError ? <span className="text-sm text-[var(--red)]">Could not block. Try again.</span> : null}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      aria-label={`Block ${name}`}
+      onClick={() => setConfirm(true)}
+      className={compact ? "text-sm font-bold text-[var(--red)]" : "self-center text-sm font-bold text-[var(--red)]"}
+    >
+      Block
+    </button>
+  );
+}
+
+function SpouseListingForm({
+  profile,
+  existing,
+  onDone,
+}: {
+  profile: Profile;
+  existing?: MemberSpouse;
+  onDone?: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(Boolean(existing));
+  const [state, setState] = useState(existing?.state ?? profile.homeState ?? "");
+  const [city, setCity] = useState(existing?.city ?? "");
+  const [gender, setGender] = useState<"male" | "female" | "">(existing?.gender ?? "");
+  const [connectWith, setConnectWith] = useState<"men" | "women" | "any">(existing?.connectWith ?? "any");
+  const [lifeStages, setLifeStages] = useState<SpouseLifeStage[]>((existing?.lifeStages as SpouseLifeStage[] | undefined) ?? []);
+  const [upFor, setUpFor] = useState<SpouseUpFor[]>((existing?.upFor as SpouseUpFor[] | undefined) ?? []);
+  const [about, setAbout] = useState(existing?.about ?? "");
+  const [availabilityChoice, setAvailabilityChoice] = useState<"open" | "paused">("open");
+
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["spouseListings"] });
+  const create = useMutation({
+    mutationFn: () =>
+      api.createSpouseListing({
+        state,
+        city: city.trim(),
+        gender: gender as "male" | "female",
+        connectWith,
+        lifeStages,
+        upFor,
+        about: about.trim(),
+        availability: availabilityChoice,
+      }),
+    onSuccess: () => {
+      setOpen(false);
+      invalidate();
+      onDone?.();
+    },
+  });
+  const update = useMutation({
+    mutationFn: () =>
+      api.updateSpouseListing({
+        id: existing!.id,
+        state,
+        city: city.trim(),
+        gender: gender as "male" | "female",
+        connectWith,
+        lifeStages,
+        upFor,
+        about: about.trim(),
+      }),
+    onSuccess: () => {
+      invalidate();
+      onDone?.();
+    },
+  });
+  const busy = create.isPending || update.isPending;
+  const failed = create.isError || update.isError;
+  const failMsg = (create.error ?? update.error) instanceof Error ? ((create.error ?? update.error) as Error).message : null;
+
+  if (!open && !existing) {
+    return (
+      <button
+        type="button"
+        aria-label="Create your Spouse Connect listing — open the form"
+        onClick={() => setOpen(true)}
+        className={`${btnPrimary} w-full`}
+      >
+        List me — your listing goes to the review queue first
+      </button>
+    );
+  }
+  if (!open) return null;
+
+  const toggleStage = (s: SpouseLifeStage) =>
+    setLifeStages((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
+  const toggleUpFor = (u: SpouseUpFor) =>
+    setUpFor((prev) => (prev.includes(u) ? prev.filter((x) => x !== u) : [...prev, u]));
+
+  return (
+    <form
+      className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
+      onSubmit={(e: FormEvent) => {
+        e.preventDefault();
+        if (existing) update.mutate();
+        else create.mutate();
+      }}
+    >
+      <p className="font-display text-base font-bold text-[var(--text)]">
+        {existing ? "Edit your listing" : "Your directory listing"}
+      </p>
+      <p className="text-sm text-[var(--dim)]">
+        Built from your spouse profile — {profile.displayName || "your name"}, {profile.branch} family
+        {profile.familyStatus ? ` · ${profile.familyStatus}` : ""}.{" "}
+        {existing
+          ? "Saving an edit to a published listing sends it back to PENDING review before it publishes again."
+          : "Your listing goes to PENDING review and publishes only after a moderator approves it. Nothing publishes on submission."}
+      </p>
+      <fieldset>
+        <legend className="mb-1 text-sm font-semibold text-[var(--text)]">I am — required to list</legend>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Your gender">
+          {PEOPLE_GENDERS.map((g) => (
+            <button
+              key={g.value}
+              type="button"
+              aria-label={`Gender: ${g.label}`}
+              aria-pressed={gender === g.value}
+              onClick={() => setGender(g.value)}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${gender === g.value ? "bg-[var(--accent)] text-[var(--accent-text)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <div>
+        <label htmlFor="spouse-connect-with" className={labelCls}>I want to connect with — shown on your card, and enforced</label>
+        <select id="spouse-connect-with" aria-label="Who you want to connect with" value={connectWith} onChange={(e) => setConnectWith(e.target.value as "men" | "women" | "any")} className={inputCls}>
+          {PEOPLE_CONNECT_WITH.map((c) => (
+            <option key={c.value} value={c.value}>{c.label}</option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-[var(--dim)]">
+          This isn&apos;t just a label: requests that don&apos;t match — in either direction — are refused before
+          they&apos;re sent.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label htmlFor="spouse-state" className={labelCls}>State</label>
+          <select id="spouse-state" aria-label="Your state" value={state} onChange={(e) => setState(e.target.value)} className={inputCls}>
+            <option value="">No state listed</option>
+            {STATE_ENTRIES.map((s) => (
+              <option key={s.state} value={s.state}>{s.state}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="spouse-city" className={labelCls}>City (optional)</label>
+          <input id="spouse-city" aria-label="Your city, optional" value={city} onChange={(e) => setCity(e.target.value)} maxLength={60} className={inputCls} placeholder="e.g., Columbus" />
+        </div>
+      </div>
+      <p className="text-xs text-[var(--dim)]">
+        Your city is optional, public to spouses on your listing only, and yours to change or clear at any time.
+        Nothing else about your location is ever shown — no address, no map pin, no distance.
+      </p>
+      <fieldset>
+        <legend className="mb-1 text-sm font-semibold text-[var(--text)]">Where I am in this life — pick at least one</legend>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Your life stages">
+          {SPOUSE_LIFE_STAGES.map((s) => {
+            const on = lifeStages.includes(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                aria-label={`Life stage: ${s}`}
+                aria-pressed={on}
+                onClick={() => toggleStage(s)}
+                className={`rounded-full px-3 py-2 text-sm font-bold ${on ? "bg-[var(--accent)] text-[var(--accent-text)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+              >
+                {s}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend className="mb-1 text-sm font-semibold text-[var(--text)]">I&apos;m up for — pick at least one</legend>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="What you're up for">
+          {SPOUSE_UP_FOR.map((u) => {
+            const on = upFor.includes(u);
+            return (
+              <button
+                key={u}
+                type="button"
+                aria-label={`Up for: ${u}`}
+                aria-pressed={on}
+                onClick={() => toggleUpFor(u)}
+                className={`rounded-full px-3 py-2 text-sm font-bold ${on ? "bg-[var(--accent)] text-[var(--accent-text)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+              >
+                {u}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+      <div>
+        <label htmlFor="spouse-about" className={labelCls}>About line</label>
+        <textarea id="spouse-about" aria-label="Your about line" value={about} onChange={(e) => setAbout(e.target.value)} required minLength={10} maxLength={600} rows={3} className={inputCls} placeholder="A sentence or two: your branch family, where you are in this life, what a good hang looks like. No phone, email, or social handles — contact stays inside the app." />
+      </div>
+      {!existing ? (
+        <div>
+          <label htmlFor="spouse-availability" className={labelCls}>Availability</label>
+          <select id="spouse-availability" aria-label="Your availability for new requests" value={availabilityChoice} onChange={(e) => setAvailabilityChoice(e.target.value as "open" | "paused")} className={inputCls}>
+            <option value="open">Open — I&apos;m taking requests</option>
+            <option value="paused">Paused — list me, but no new requests</option>
+          </select>
+        </div>
+      ) : null}
+      {failed ? (
+        <p className="text-sm text-[var(--red)]" role="alert">{failMsg ?? "Could not save your listing. Check the fields, then try again."}</p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="submit"
+          aria-label={existing ? "Save spouse listing edits" : "Submit Spouse Connect listing for review"}
+          disabled={busy || gender === "" || lifeStages.length === 0 || upFor.length === 0 || about.trim().length < 10}
+          className={btnPrimary}
+        >
+          {busy ? "Saving…" : existing ? "Save — back to PENDING review" : "Submit — goes to PENDING review"}
+        </button>
+        <button
+          type="button"
+          aria-label="Cancel spouse listing form"
+          onClick={() => {
+            setOpen(false);
+            onDone?.();
+          }}
+          className={btnGhost}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function SpouseListingMeta({ listing }: { listing: MemberSpouse }) {
+  const place = [listing.city, listing.state].filter(Boolean).join(", ");
+  return (
+    <>
+      <p className="mt-1 text-sm text-[var(--dim)]">
+        {PEOPLE_GENDER_LABEL[listing.gender]} · Connect with: {PEOPLE_CONNECT_LABEL[listing.connectWith]}
+        {listing.familyStatus ? ` · ${listing.familyStatus}` : ""}
+        {place ? ` · ${place}` : ""}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {listing.lifeStages.map((s) => (
+          <Badge key={s} tone="official">{s}</Badge>
+        ))}
+        {listing.upFor.map((u) => (
+          <Badge key={u}>{u}</Badge>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function OwnSpouseCard({ listing, profile }: { listing: MemberSpouse; profile: Profile }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["spouseListings"] });
+  const availability = useMutation({
+    mutationFn: (next: "open" | "paused") => api.setSpouseListingAvailability({ id: listing.id, availability: next }),
+    onSuccess: invalidate,
+  });
+  const remove = useMutation({
+    mutationFn: () => api.deleteSpouseListing({ id: listing.id }),
+    onSuccess: () => {
+      setConfirmRemove(false);
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["spouseRequests"] });
+    },
+  });
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={listing.reviewStatus === "approved" ? "official" : listing.reviewStatus === "pending" ? "amber" : "red"}>
+          {listing.reviewStatus.toUpperCase()}
+        </Badge>
+        {listing.reported ? <Badge tone="red">REPORTED</Badge> : null}
+        {listing.reviewStatus === "approved" ? (
+          <Badge tone={listing.availability === "open" ? "official" : "amber"}>
+            {listing.availability === "open" ? "OPEN TO REQUESTS" : "PAUSED"}
+          </Badge>
+        ) : null}
+        <span className="text-sm text-[var(--dim)]">{listing.branch} family</span>
+      </div>
+      <p className="font-display mt-2 text-lg font-bold text-[var(--text)]">{listing.displayName}</p>
+      <SpouseListingMeta listing={listing} />
+      <p className="mt-2 text-base text-[var(--text)]">{listing.about}</p>
+      {listing.reviewStatus === "pending" ? (
+        <p className="mt-2 text-sm text-[var(--dim)]">In the review queue — not visible in the directory until it is approved.</p>
+      ) : null}
+      {listing.reviewStatus === "returned" && listing.reviewNote ? (
+        <p className="mt-2 text-sm text-[var(--text)]">
+          <span className="font-bold">Returned by review: </span>
+          {listing.reviewNote}
+        </p>
+      ) : null}
+      {editing ? (
+        <div className="mt-3">
+          <SpouseListingForm profile={profile} existing={listing} onDone={() => setEditing(false)} />
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" aria-label="Edit your Spouse Connect listing" onClick={() => setEditing(true)} className={btnGhost}>
+            Edit listing
+          </button>
+          {listing.reviewStatus === "approved" ? (
+            <button
+              type="button"
+              aria-label={listing.availability === "open" ? "Pause your Spouse Connect listing" : "Reopen your Spouse Connect listing"}
+              disabled={availability.isPending}
+              onClick={() => availability.mutate(listing.availability === "open" ? "paused" : "open")}
+              className={btnGhost}
+            >
+              {listing.availability === "open" ? "Pause listing" : "Reopen listing"}
+            </button>
+          ) : null}
+          {confirmRemove ? (
+            <>
+              <button type="button" aria-label="Confirm remove your Spouse Connect listing" disabled={remove.isPending} onClick={() => remove.mutate()} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base font-semibold text-[var(--red)] disabled:opacity-50">
+                Confirm — remove it
+              </button>
+              <button type="button" aria-label="Keep your Spouse Connect listing" onClick={() => setConfirmRemove(false)} className={btnGhost}>
+                Keep it
+              </button>
+            </>
+          ) : (
+            <button type="button" aria-label="Remove your Spouse Connect listing" onClick={() => setConfirmRemove(true)} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base font-semibold text-[var(--red)]">
+              Remove listing
+            </button>
+          )}
+        </div>
+      )}
+      {availability.isError || remove.isError ? (
+        <p className="mt-2 text-sm text-[var(--red)]">That change couldn&apos;t be saved. Try again.</p>
+      ) : null}
+    </article>
+  );
+}
+
+function SpouseBrowseCard({ listing, hasOwnListing }: { listing: MemberSpouse; hasOwnListing: boolean }) {
+  const queryClient = useQueryClient();
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [reported, setReported] = useState(false);
+  const [note, setNote] = useState("");
+  const paused = listing.availability !== "open";
+  const request = useMutation({
+    mutationFn: () => api.sendSpouseRequest({ listingId: listing.id, note: note.trim() }),
+    onSuccess: () => {
+      setSent(true);
+      setRequestOpen(false);
+      setNote("");
+      void queryClient.invalidateQueries({ queryKey: ["spouseRequests"] });
+    },
+  });
+  const report = useMutation({
+    mutationFn: () => api.reportSpouseListing({ id: listing.id }),
+    onSuccess: () => {
+      setReported(true);
+      void queryClient.invalidateQueries({ queryKey: ["spouseListings"] });
+    },
+  });
+  return (
+    <article className={`rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 ${paused ? "opacity-75" : ""}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={paused ? "amber" : "official"}>{paused ? "PAUSED" : "OPEN"}</Badge>
+        <span className="text-sm text-[var(--dim)]">{listing.branch} family</span>
+      </div>
+      <p className="font-display mt-2 text-lg font-bold text-[var(--text)]">{listing.displayName}</p>
+      <SpouseListingMeta listing={listing} />
+      <p className="mt-2 whitespace-pre-wrap text-base text-[var(--text)]">{listing.about}</p>
+      {paused ? (
+        <p className="mt-3 text-sm font-semibold text-[var(--amber)]">
+          Paused — {listing.displayName} isn&apos;t taking new requests right now.
+        </p>
+      ) : sent ? (
+        <p className="mt-3 text-sm font-semibold text-[var(--accent-word)]" role="status">
+          Request sent. When {listing.displayName} accepts, you&apos;ll connect here — watch Your Connections
+          above.
+        </p>
+      ) : requestOpen ? (
+        <form
+          className="mt-3 space-y-3 border-t border-[var(--border)] pt-3"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            request.mutate();
+          }}
+        >
+          <div>
+            <label htmlFor={`spouse-req-note-${listing.id}`} className={labelCls}>A short note</label>
+            <textarea id={`spouse-req-note-${listing.id}`} aria-label={`Note to ${listing.displayName}`} value={note} onChange={(e) => setNote(e.target.value)} required minLength={1} maxLength={500} rows={3} className={inputCls} placeholder="Say hello: your branch family, where you are in this life, why you'd get along. No phone, email, or social handles — contact stays inside the app." />
+          </div>
+          {request.isError ? (
+            <p className="text-sm text-[var(--red)]" role="alert">
+              {request.error instanceof Error ? request.error.message : "Could not send that request. Try again."}
+            </p>
+          ) : null}
+          {!hasOwnListing ? (
+            <p className="text-sm text-[var(--dim)]">
+              Heads up: sending needs your own listing first — your gender and connect-with choices live on it
+              and are checked before the request goes out.
+            </p>
+          ) : null}
+          <div className="flex gap-2">
+            <button type="submit" aria-label={`Send spouse connection request to ${listing.displayName}`} disabled={request.isPending || note.trim().length === 0} className={btnPrimary}>
+              {request.isPending ? "Sending…" : "Send request"}
+            </button>
+            <button type="button" aria-label={`Cancel request to ${listing.displayName}`} onClick={() => setRequestOpen(false)} className={btnGhost}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button type="button" aria-label={`Request to connect with ${listing.displayName}`} onClick={() => setRequestOpen(true)} className={btnPrimary}>
+            Request to connect
+          </button>
+          {reported ? (
+            <span className="text-sm font-semibold text-[var(--amber)]" role="status">
+              Reported — this listing is back in the review queue.
+            </span>
+          ) : (
+            <button type="button" aria-label={`Report spouse listing by ${listing.displayName}`} disabled={report.isPending} onClick={() => report.mutate()} className="text-sm font-bold text-[var(--red)]">
+              Report this listing
+            </button>
+          )}
+          <BlockSpouseButton profileId={listing.profileId} name={listing.displayName} compact />
+        </div>
+      )}
+      {report.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not send that report. Try again.</p> : null}
+    </article>
+  );
+}
+
+function SpouseIncomingCard({ request }: { request: MemberSpouseRequest }) {
+  const queryClient = useQueryClient();
+  const [reported, setReported] = useState(false);
+  const respond = useMutation({
+    mutationFn: (decision: "accepted" | "declined") => api.respondSpouseRequest({ id: request.id, decision }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["spouseRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["squads"] });
+    },
+  });
+  const report = useMutation({
+    mutationFn: () => api.reportSpouseRequest({ id: request.id }),
+    onSuccess: () => setReported(true),
+  });
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="amber">REQUEST</Badge>
+        <span className="text-sm text-[var(--dim)]">From {request.requesterName}</span>
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-base text-[var(--text)]">{request.note}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" aria-label={`Accept the spouse connection request from ${request.requesterName}`} disabled={respond.isPending} onClick={() => respond.mutate("accepted")} className={btnPrimary}>
+          Accept — connect here
+        </button>
+        <button type="button" aria-label={`Decline the spouse connection request from ${request.requesterName}`} disabled={respond.isPending} onClick={() => respond.mutate("declined")} className={btnGhost}>
+          Decline
+        </button>
+        {reported ? (
+          <span className="self-center text-sm font-semibold text-[var(--amber)]" role="status">Reported to moderation.</span>
+        ) : (
+          <button type="button" aria-label={`Report the spouse connection request from ${request.requesterName}`} disabled={report.isPending} onClick={() => report.mutate()} className="self-center text-sm font-bold text-[var(--red)]">
+            Report
+          </button>
+        )}
+        <BlockSpouseButton profileId={request.requesterProfileId} name={request.requesterName} />
+      </div>
+      {respond.isError ? (
+        <p className="mt-2 text-sm text-[var(--red)]" role="alert">
+          {respond.error instanceof Error ? respond.error.message : "Could not answer that request. Try again."}
+        </p>
+      ) : null}
+      {report.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not send that report. Try again.</p> : null}
+    </article>
+  );
+}
+
+type SpouseSquad = ApiResponse<typeof api, "getSquads">["squads"][number];
+
+function SpouseConnectionCard({ request, squad }: { request: MemberSpouseRequest; squad?: SpouseSquad }) {
+  const queryClient = useQueryClient();
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [reported, setReported] = useState(false);
+  const otherName = request.mine ? request.targetName : request.requesterName;
+  const otherProfileId = request.mine ? request.targetProfileId : request.requesterProfileId;
+  const end = useMutation({
+    mutationFn: () => api.endSpouseConnection({ id: request.id }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["spouseRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["squads"] });
+    },
+  });
+  const report = useMutation({
+    mutationFn: () => api.reportSpouseRequest({ id: request.id }),
+    onSuccess: () => setReported(true),
+  });
+  return (
+    <article className="rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="official">CONNECTED</Badge>
+        <span className="text-sm text-[var(--dim)]">
+          With {otherName}
+          {request.targetBranch ? ` · ${request.targetBranch} family` : ""}
+          {request.targetFamilyStatus ? ` · ${request.targetFamilyStatus}` : ""}
+        </span>
+      </div>
+      <p className="mt-2 text-sm text-[var(--dim)]">
+        A private two-person connection, just the two of you — no contact details were exchanged, and none are
+        needed. Spouse connections live here in your Connect area, not in Check-In squads.
+      </p>
+      {squad ? (
+        <p className="mt-2 text-sm text-[var(--text)]">
+          <span className="font-bold">{squad.name}</span>
+          <span className="text-[var(--dim)]"> — {squad.members.map((m) => m.displayName).filter(Boolean).join(" · ")}</span>
+        </p>
+      ) : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {confirmEnd ? (
+          <>
+            <button type="button" aria-label={`Confirm ending your spouse connection with ${otherName}`} disabled={end.isPending} onClick={() => end.mutate()} className={btnGhost}>
+              Confirm — end it
+            </button>
+            <button type="button" aria-label="Keep the spouse connection" onClick={() => setConfirmEnd(false)} className={btnGhost}>
+              Keep it
+            </button>
+          </>
+        ) : (
+          <button type="button" aria-label={`End your spouse connection with ${otherName}`} onClick={() => setConfirmEnd(true)} className={btnGhost}>
+            End connection
+          </button>
+        )}
+        {reported ? (
+          <span className="self-center text-sm font-semibold text-[var(--amber)]" role="status">Reported to moderation.</span>
+        ) : (
+          <button type="button" aria-label={`Report your spouse connection with ${otherName}`} disabled={report.isPending} onClick={() => report.mutate()} className="self-center text-sm font-bold text-[var(--red)]">
+            Report
+          </button>
+        )}
+        <BlockSpouseButton profileId={otherProfileId} name={otherName} />
+      </div>
+      {end.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not end that connection. Try again.</p> : null}
+      {report.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not send that report. Try again.</p> : null}
+    </article>
+  );
+}
+
+function SpouseOutgoingRow({ request }: { request: MemberSpouseRequest }) {
+  const [reported, setReported] = useState(false);
+  const report = useMutation({
+    mutationFn: () => api.reportSpouseRequest({ id: request.id }),
+    onSuccess: () => setReported(true),
+  });
+  const tone = request.status === "pending" ? "amber" : "plain";
+  return (
+    <article className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3">
+      <span className="text-base text-[var(--text)]">
+        To <span className="font-semibold">{request.targetName}</span>
+        {request.targetBranch ? <span className="text-[var(--dim)]"> · {request.targetBranch} family</span> : null}
+      </span>
+      <span className="flex items-center gap-3">
+        <Badge tone={tone as "amber" | "plain"}>{request.status.toUpperCase()}</Badge>
+        {reported ? (
+          <span className="text-sm font-semibold text-[var(--amber)]" role="status">Reported</span>
+        ) : (
+          <button type="button" aria-label={`Report your sent request to ${request.targetName}`} disabled={report.isPending} onClick={() => report.mutate()} className="text-sm font-bold text-[var(--red)]">
+            Report
+          </button>
+        )}
+      </span>
+    </article>
+  );
+}
+
+function PeopleQueue() {
+  const queueQ = useQuery({
+    queryKey: ["peopleListings", "queue"],
+    queryFn: () => api.listPeopleListings({ scope: "queue" }),
+  });
+  const reportedQ = useQuery({
+    queryKey: ["peopleRequests", "reported"],
+    queryFn: () => api.listReportedPeopleRequests({}),
+  });
+  const queue = queueQ.data?.listings ?? [];
+  const reported = reportedQ.data?.requests ?? [];
+  return (
+    <div className="mt-8">
+      <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">Find Your People — awaiting review</h3>
+      <p className="mb-3 text-sm text-[var(--dim)]">
+        Directory listings sit here as PENDING — invisible in Find Your People — until review. The checklist: no
+        personal phone, email, or social handles anywhere in the listing; the member is presenting as a peer,
+        not an official or a recruiter; the about line and what-they&apos;re-up-for read honestly. Remember
+        listings are self-reported — review checks the app&apos;s rules, it does not verify service. A reported
+        listing comes back here for a keep / edit / remove decision, and reported requests land below.
+      </p>
+      {queueQ.isPending ? <p className="text-base text-[var(--dim)]">Loading Find Your People listings…</p> : null}
+      {!queueQ.isPending && queue.length === 0 ? (
+        <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+          No Find Your People listings are waiting. Submissions from Find Your People land here first.
+        </p>
+      ) : null}
+      <div className="space-y-3">
+        {queue.map((l) => (
+          <PeopleReviewCard key={l.id} listing={l} />
+        ))}
+      </div>
+      {reported.length > 0 ? (
+        <>
+          <h4 className="font-display mb-2 mt-6 text-lg font-bold text-[var(--text)]">Reported requests &amp; connections</h4>
+          <div className="space-y-3">
+            {reported.map((r) => (
+              <ReportedPeopleRequestCard key={r.id} request={r} />
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function PeopleReviewCard({ listing }: { listing: MemberPerson }) {
+  const queryClient = useQueryClient();
+  const [note, setNote] = useState("");
+  const review = useMutation({
+    mutationFn: (decision: "approved" | "returned" | "rejected") =>
+      api.reviewPeopleListing({ id: listing.id, decision, note }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["peopleListings"] }),
+  });
+  const jobLabel = [listing.jobCode, listing.jobTitle].filter(Boolean).join(" — ");
+  const place = [listing.city, listing.state].filter(Boolean).join(", ");
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="amber">PENDING</Badge>
+        {listing.reported ? <Badge tone="red">REPORTED</Badge> : null}
+        <Badge tone="amber">PEOPLE LISTING</Badge>
+        <span className="text-sm text-[var(--dim)]">
+          {listing.branch}
+          {jobLabel ? ` · ${jobLabel}` : ""}
+        </span>
+      </div>
+      <p className="font-display mt-2 text-lg font-bold text-[var(--text)]">{listing.displayName}</p>
+      <p className="mt-1 text-sm text-[var(--dim)]">
+        {PEOPLE_GENDER_LABEL[listing.gender]} · Connect with: {PEOPLE_CONNECT_LABEL[listing.connectWith]}
+        {listing.component ? ` · ${listing.component}` : ""} · {listing.serviceStatus}
+        {place ? ` · ${place}` : ""} · Availability: {listing.availability === "open" ? "Open" : "Paused"}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {listing.upFor.map((u) => (
+          <Badge key={u}>{u}</Badge>
+        ))}
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-base text-[var(--text)]">{listing.about}</p>
+      <div className="mt-3">
+        <label htmlFor={`people-note-${listing.id}`} className={labelCls}>Return reason (used when returning to the member)</label>
+        <input id={`people-note-${listing.id}`} aria-label={`Return reason for listing by ${listing.displayName}`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} className={inputCls} placeholder="e.g., Listing includes a phone number — contact stays inside the app" />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" aria-label={`Approve and publish listing by ${listing.displayName}`} disabled={review.isPending} onClick={() => review.mutate("approved")} className={btnPrimary}>
+          Approve — publish
+        </button>
+        <button type="button" aria-label={`Return listing by ${listing.displayName} to the member`} disabled={review.isPending} onClick={() => review.mutate("returned")} className={btnGhost}>
+          Return to member
+        </button>
+        <button type="button" aria-label={`Reject listing by ${listing.displayName}`} disabled={review.isPending} onClick={() => review.mutate("rejected")} className={btnGhost}>
+          Reject
+        </button>
+      </div>
+      {review.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not save that decision. Try again.</p> : null}
+    </article>
+  );
+}
+
+function ReportedPeopleRequestCard({ request }: { request: MemberPeopleRequest }) {
+  const queryClient = useQueryClient();
+  const resolve = useMutation({
+    mutationFn: (decision: "cleared" | "removed") =>
+      api.resolvePeopleRequestReport({ id: request.id, decision }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["peopleRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["squads"] });
+    },
+  });
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="red">REPORTED</Badge>
+        <Badge tone="amber">PEOPLE REQUEST</Badge>
+        <span className="text-sm text-[var(--dim)]">
+          From {request.requesterName} to {request.targetName} · status: {request.status}
+        </span>
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-base text-[var(--text)]">{request.note}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" aria-label={`Clear the report on the connection request from ${request.requesterName}`} disabled={resolve.isPending} onClick={() => resolve.mutate("cleared")} className={btnPrimary}>
+          Clear report — no action
+        </button>
+        <button type="button" aria-label={`Remove the reported connection request from ${request.requesterName}`} disabled={resolve.isPending} onClick={() => resolve.mutate("removed")} className={btnGhost}>
+          Remove request
+        </button>
+      </div>
+      {resolve.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not save that decision. Try again.</p> : null}
+    </article>
+  );
+}
+
+function SpouseQueue() {
+  const queueQ = useQuery({
+    queryKey: ["spouseListings", "queue"],
+    queryFn: () => api.listSpouseListings({ scope: "queue" }),
+  });
+  const reportedQ = useQuery({
+    queryKey: ["spouseRequests", "reported"],
+    queryFn: () => api.listReportedSpouseRequests({}),
+  });
+  const queue = queueQ.data?.listings ?? [];
+  const reported = reportedQ.data?.requests ?? [];
+  return (
+    <div className="mt-8">
+      <h3 className="font-display mb-2 text-xl font-bold text-[var(--text)]">Spouse Connect — awaiting review</h3>
+      <p className="mb-3 text-sm text-[var(--dim)]">
+        Spouse Connect listings sit here as PENDING — invisible in the directory — until review. The checklist is
+        the Find Your People one: no personal phone, email, or social handles anywhere in the listing; the spouse
+        is presenting as a peer spouse, not an official or a recruiter; the about line, life stages, and
+        what-they&apos;re-up-for read honestly. Remember listings are self-reported — review checks the app&apos;s
+        rules, it does not verify spouse status. A reported listing comes back here for a keep / edit / remove
+        decision, and reported requests land below.
+      </p>
+      {queueQ.isPending ? <p className="text-base text-[var(--dim)]">Loading Spouse Connect listings…</p> : null}
+      {!queueQ.isPending && queue.length === 0 ? (
+        <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-base text-[var(--text)]">
+          No Spouse Connect listings are waiting. Submissions from Spouse Connect land here first.
+        </p>
+      ) : null}
+      <div className="space-y-3">
+        {queue.map((l) => (
+          <SpouseReviewCard key={l.id} listing={l} />
+        ))}
+      </div>
+      {reported.length > 0 ? (
+        <>
+          <h4 className="font-display mb-2 mt-6 text-lg font-bold text-[var(--text)]">Reported spouse requests &amp; connections</h4>
+          <div className="space-y-3">
+            {reported.map((r) => (
+              <ReportedSpouseRequestCard key={r.id} request={r} />
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function SpouseReviewCard({ listing }: { listing: MemberSpouse }) {
+  const queryClient = useQueryClient();
+  const [note, setNote] = useState("");
+  const review = useMutation({
+    mutationFn: (decision: "approved" | "returned" | "rejected") =>
+      api.reviewSpouseListing({ id: listing.id, decision, note }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["spouseListings"] }),
+  });
+  const place = [listing.city, listing.state].filter(Boolean).join(", ");
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="amber">PENDING</Badge>
+        {listing.reported ? <Badge tone="red">REPORTED</Badge> : null}
+        <Badge tone="amber">SPOUSE LISTING</Badge>
+        <span className="text-sm text-[var(--dim)]">{listing.branch} family</span>
+      </div>
+      <p className="font-display mt-2 text-lg font-bold text-[var(--text)]">{listing.displayName}</p>
+      <p className="mt-1 text-sm text-[var(--dim)]">
+        {PEOPLE_GENDER_LABEL[listing.gender]} · Connect with: {PEOPLE_CONNECT_LABEL[listing.connectWith]}
+        {listing.familyStatus ? ` · ${listing.familyStatus}` : ""}
+        {place ? ` · ${place}` : ""} · Availability: {listing.availability === "open" ? "Open" : "Paused"}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {listing.lifeStages.map((s) => (
+          <Badge key={s} tone="official">{s}</Badge>
+        ))}
+        {listing.upFor.map((u) => (
+          <Badge key={u}>{u}</Badge>
+        ))}
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-base text-[var(--text)]">{listing.about}</p>
+      <div className="mt-3">
+        <label htmlFor={`spouse-note-${listing.id}`} className={labelCls}>Return reason (used when returning to the spouse)</label>
+        <input id={`spouse-note-${listing.id}`} aria-label={`Return reason for spouse listing by ${listing.displayName}`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} className={inputCls} placeholder="e.g., Listing includes a phone number — contact stays inside the app" />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" aria-label={`Approve and publish spouse listing by ${listing.displayName}`} disabled={review.isPending} onClick={() => review.mutate("approved")} className={btnPrimary}>
+          Approve — publish
+        </button>
+        <button type="button" aria-label={`Return spouse listing by ${listing.displayName} to the spouse`} disabled={review.isPending} onClick={() => review.mutate("returned")} className={btnGhost}>
+          Return to spouse
+        </button>
+        <button type="button" aria-label={`Reject spouse listing by ${listing.displayName}`} disabled={review.isPending} onClick={() => review.mutate("rejected")} className={btnGhost}>
+          Reject
+        </button>
+      </div>
+      {review.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not save that decision. Try again.</p> : null}
+    </article>
+  );
+}
+
+function ReportedSpouseRequestCard({ request }: { request: MemberSpouseRequest }) {
+  const queryClient = useQueryClient();
+  const resolve = useMutation({
+    mutationFn: (decision: "cleared" | "removed") =>
+      api.resolveSpouseRequestReport({ id: request.id, decision }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["spouseRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["squads"] });
+    },
+  });
+  return (
+    <article className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="red">REPORTED</Badge>
+        <Badge tone="amber">SPOUSE REQUEST</Badge>
+        <span className="text-sm text-[var(--dim)]">
+          From {request.requesterName} to {request.targetName} · status: {request.status}
+        </span>
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-base text-[var(--text)]">{request.note}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" aria-label={`Clear the report on the spouse connection request from ${request.requesterName}`} disabled={resolve.isPending} onClick={() => resolve.mutate("cleared")} className={btnPrimary}>
+          Clear report — no action
+        </button>
+        <button type="button" aria-label={`Remove the reported spouse connection request from ${request.requesterName}`} disabled={resolve.isPending} onClick={() => resolve.mutate("removed")} className={btnGhost}>
+          Remove request
+        </button>
+      </div>
+      {resolve.isError ? <p className="mt-2 text-sm text-[var(--red)]">Could not save that decision. Try again.</p> : null}
+    </article>
+  );
+}
+
+type FitnessTile = "calc" | "library" | "warmup" | "stretching" | "plans" | "nutrition";
+
+function FitnessView({ profile, focusAnchor, focusCard, goSpecOps, fitFocus, onFitFocusHandled, nutFocus, onNutFocusHandled }: { profile: Profile; focusAnchor?: string | null; focusCard?: string | null; goSpecOps?: () => void; fitFocus?: { kind: FitKind; id: string; n: number } | null; onFitFocusHandled?: () => void; nutFocus?: NutFocus; onNutFocusHandled?: () => void }) {
+  const queryClient = useQueryClient();
+  const [tile, setTile] = useState<FitnessTile | null>(null);
+  // Deep links: a calculator search/binder hit opens the Calculators
+  // tile (FitnessCalcView resolves the anchor/card itself); a Fitness
+  // depth hit opens its own tile and card.
+  useEffect(() => {
+    if (nutFocus) {
+      setTile("nutrition");
+      return;
+    }
+    if (fitFocus) {
+      setTile(fitFocus.kind === "exercise" ? "library" : fitFocus.kind === "warmup" ? "warmup" : "stretching");
+      return;
+    }
+    if (focusAnchor || focusCard) setTile("calc");
+  }, [nutFocus, fitFocus, focusAnchor, focusCard]);
+  // Plan deep link: tapping an exercise name inside a generated plan
+  // opens that exercise's Library card (the pack's Coverage Summary
+  // mapping, PLAN_LINKS in exercises.ts).
+  const [planLibFocus, setPlanLibFocus] = useState<{ id: string; n: number } | null>(null);
+  const openPlanExercise = (id: string) => {
+    setPlanLibFocus({ id, n: Date.now() });
+    setTile("library");
+  };
+  // Clear the deep-link focus shortly after the tile's view has had
+  // the commit it needs to open the card, so returning to Fitness
+  // later lands on the hub, not the stale card.
+  useEffect(() => {
+    if (!fitFocus) return;
+    const t = window.setTimeout(() => onFitFocusHandled?.(), 600);
+    return () => window.clearTimeout(t);
+  }, [fitFocus, onFitFocusHandled]);
   const [path, setPath] = useState<"test" | "dream" | null>(null);
   // Test prep state
   const [branch, setBranch] = useState(BRANCHES.includes(profile.branch as (typeof BRANCHES)[number]) ? profile.branch : "Marine Corps");
@@ -8804,8 +20449,73 @@ function FitnessView({ profile }: { profile: Profile }) {
 
   return (
     <div>
-      <SectionHead title="Fitness Coach" sub="Two paths. Test Prep builds around your branch's actual fitness test. Other builds the physique you want. This coach is a training aid, not medical care — pain or injury flags mean get checked, not push through." />
+      <SectionHead title="Fitness" sub="Score your branch's test, learn every exercise in your plan with sourced form and diagrams, and warm up, cool down, and stretch by the services' own books. This coach is a training aid, not medical care — pain or injury flags mean get checked, not push through." />
 
+      {tile === null ? (
+        <HubTileGrid
+          label="Fitness areas"
+          tiles={[
+            { key: "calc", label: "TESTS & CALCULATORS", sub: "Branch tests · SOF screens · allied" },
+            { key: "library", label: "EXERCISE LIBRARY", sub: "51 exercises · form + diagrams" },
+            { key: "warmup", label: "WARM-UP & COOL-DOWN", sub: "Official drill sequences" },
+            { key: "stretching", label: "STRETCHING", sub: "34 stretches · before / after" },
+            { key: "plans", label: "TRAINING PLANS", sub: "Test Prep · Dream Body · logs" },
+            { key: "nutrition", label: "NUTRITION", sub: "Fueling · tracker · meal plans · USDA foods" },
+          ]}
+          onOpen={(k) => setTile(k as FitnessTile)}
+        />
+      ) : (
+        <div>
+          <HubBackButton ariaLabel="Back to Fitness areas" text="Back to Fitness" onBack={() => setTile(null)} />
+          {tile === "calc" ? (
+            <section aria-label="Fitness Calculators">
+              <h3 className="font-display text-xl font-bold text-[var(--text)]">Fitness Calculators</h3>
+              <div className="mt-2">
+                <FitnessCalcView focusAnchor={focusAnchor ?? undefined} focusCard={focusCard ?? undefined} goSpecOps={goSpecOps} />
+              </div>
+            </section>
+          ) : null}
+          {tile === "library" ? (
+            <section aria-label="Exercise Library">
+              <h3 className="font-display text-xl font-bold text-[var(--text)]">Exercise Library</h3>
+              <div className="mt-2">
+                <ExerciseLibraryView
+                  focusId={fitFocus?.kind === "exercise" ? fitFocus.id : planLibFocus?.id ?? null}
+                  focusNonce={fitFocus?.kind === "exercise" ? fitFocus.n : planLibFocus?.n ?? 0}
+                  onOpenExercise={openPlanExercise}
+                />
+              </div>
+            </section>
+          ) : null}
+          {tile === "warmup" ? (
+            <section aria-label="Warm-Up and Cool-Down">
+              <h3 className="font-display text-xl font-bold text-[var(--text)]">Warm-Up &amp; Cool-Down</h3>
+              <div className="mt-2">
+                <WarmupView focusId={fitFocus?.kind === "warmup" ? fitFocus.id : null} focusNonce={fitFocus?.kind === "warmup" ? fitFocus.n : 0} />
+              </div>
+            </section>
+          ) : null}
+          {tile === "stretching" ? (
+            <section aria-label="Stretching">
+              <h3 className="font-display text-xl font-bold text-[var(--text)]">Stretching</h3>
+              <div className="mt-2">
+                <StretchingView focusId={fitFocus?.kind === "stretch" ? fitFocus.id : null} focusNonce={fitFocus?.kind === "stretch" ? fitFocus.n : 0} />
+              </div>
+            </section>
+          ) : null}
+          {tile === "nutrition" ? (
+            <section aria-label="Nutrition">
+              <h3 className="font-display text-xl font-bold text-[var(--text)]">Nutrition</h3>
+              <div className="mt-2">
+                <NutritionView focus={nutFocus ?? null} onFocusHandled={onNutFocusHandled} />
+              </div>
+            </section>
+          ) : null}
+          {tile === "plans" ? (
+            <section aria-label="Training Plans">
+              <h3 className="font-display text-xl font-bold text-[var(--text)]">Training Plans</h3>
+              <p className="mt-1 text-base text-[var(--text)]">Two paths. Test Prep builds around your branch's actual fitness test. Other builds the physique you want. Exercise names inside a generated plan open their Exercise Library card — form guidance is one tap from the workout itself.</p>
+              <div className="mt-3">
       <div className="grid grid-cols-2 gap-3" role="group" aria-label="Choose fitness path">
         <button type="button" aria-label="Choose Test Prep path" aria-pressed={path === "test"} onClick={() => setPath("test")} className={`rounded-[var(--radius)] border-2 p-4 text-left ${path === "test" ? "border-[var(--accent)] bg-[var(--surface)]" : "border-[var(--border)] bg-[var(--surface)]"}`}>
           <span className="font-display block text-lg font-bold text-[var(--text)]">Test Prep</span>
@@ -8962,7 +20672,7 @@ function FitnessView({ profile }: { profile: Profile }) {
       ) : null}
 
       {generate.isError ? <p className="mt-3 text-base text-[var(--red)]">The coach could not build that plan. Check the numbers and try again.</p> : null}
-      {latestAsResult ? <PlanDisplay result={latestAsResult} /> : null}
+      {latestAsResult ? <PlanDisplay result={latestAsResult} onOpenExercise={openPlanExercise} /> : null}
 
       <section aria-label="Weight log" className="mt-5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
         <h3 className="font-display text-xl font-bold text-[var(--text)]">Weight Log</h3>
@@ -9015,6 +20725,11 @@ function FitnessView({ profile }: { profile: Profile }) {
         Safety: this coach is a training aid, not medical care. Calorie and protein figures are estimates. If something
         hurts — sharp pain, numbness, chest pain, dizziness — stop and get checked by medical before training through it.
       </p>
+              </div>
+            </section>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
@@ -9164,7 +20879,7 @@ function NewsView({ profile }: { profile: Profile }) {
           <span className="text-sm text-[var(--dim)]">Latest story pulled {new Date(newsQ.data.fetchedAt).toLocaleDateString()}</span>
         ) : null}
       </div>
-      {refreshNote ? <p className="mb-3 text-sm font-semibold text-[var(--accent)]" role="status">{refreshNote}</p> : null}
+      {refreshNote ? <p className="mb-3 text-sm font-semibold text-[var(--accent-word)]" role="status">{refreshNote}</p> : null}
 
       {messages.length > 0 ? (
         <section aria-label="Official messages" className="mb-4 rounded-[var(--radius)] border-2 border-[var(--accent)] bg-[var(--surface)] p-4">
@@ -9172,7 +20887,7 @@ function NewsView({ profile }: { profile: Profile }) {
           <ul className="mt-2 space-y-2">
             {messages.slice(0, 4).map((m) => (
               <li key={m.id} className="text-base">
-                <a href={m.url} target="_blank" rel="noreferrer" aria-label={`Open official message: ${m.headline}`} className="font-semibold text-[var(--accent)] underline">
+                <a href={m.url} target="_blank" rel="noreferrer" aria-label={`Open official message: ${m.headline}`} className="font-semibold text-[var(--accent-word)] underline">
                   {m.headline}
                 </a>
                 <span className="text-sm text-[var(--dim)]"> · {m.publishedLabel}</span>
@@ -9319,23 +21034,32 @@ function SquadCard({ squad }: { squad: Squad }) {
         {squad.invitesPaused ? <Badge tone="amber">Invites paused</Badge> : null}
       </div>
 
-      <div className="mt-4 rounded bg-[var(--surface2)] p-4">
-        <p className="text-sm text-[var(--text)]">Share this with your people — they join by claiming their own seat.</p>
-        <p className="mt-2 flex flex-wrap items-center gap-3">
-          <span className="font-display text-2xl font-bold tracking-[0.2em] text-[var(--text)]">{squad.inviteCode}</span>
-          <CopyTextButton text={squad.inviteCode} label={`Copy invite code for ${squad.name}`} />
-        </p>
-        <p className="mt-2 break-all text-sm text-[var(--dim)]">{squadJoinLink(squad.inviteCode)}</p>
-        <div className="mt-1">
-          <CopyTextButton text={squadJoinLink(squad.inviteCode)} label={`Copy join link for ${squad.name}`} />
+      {squad.kind === "connection" ? (
+        <div className="mt-4 rounded bg-[var(--surface2)] p-4">
+          <p className="text-sm text-[var(--text)]">
+            A private Find Your People connection — just the two of you. There is no invite code and nobody else
+            can join. Manage or end this connection from Find Your People.
+          </p>
         </div>
-        <p className="mt-2 text-sm text-[var(--dim)]">
-          Send the code or the link however you normally reach them. Opening the link lands on Join a Squad with the
-          code filled in. There is no way to add someone by name — a seat exists only when its owner claims it.
-        </p>
-      </div>
+      ) : (
+        <div className="mt-4 rounded bg-[var(--surface2)] p-4">
+          <p className="text-sm text-[var(--text)]">Share this with your people — they join by claiming their own seat.</p>
+          <p className="mt-2 flex flex-wrap items-center gap-3">
+            <span className="font-display text-2xl font-bold tracking-[0.2em] text-[var(--text)]">{squad.inviteCode}</span>
+            <CopyTextButton text={squad.inviteCode} label={`Copy invite code for ${squad.name}`} />
+          </p>
+          <p className="mt-2 break-all text-sm text-[var(--dim)]">{squadJoinLink(squad.inviteCode)}</p>
+          <div className="mt-1">
+            <CopyTextButton text={squadJoinLink(squad.inviteCode)} label={`Copy join link for ${squad.name}`} />
+          </div>
+          <p className="mt-2 text-sm text-[var(--dim)]">
+            Send the code or the link however you normally reach them. Opening the link lands on Join a Squad with the
+            code filled in. There is no way to add someone by name — a seat exists only when its owner claims it.
+          </p>
+        </div>
+      )}
 
-      {isLeader ? (
+      {isLeader && squad.kind !== "connection" ? (
         <div className="mt-4 border-t border-[var(--border)] pt-3">
           <p className={labelCls}>Leader controls</p>
           {confirmRegen ? (
@@ -9383,7 +21107,7 @@ function SquadCard({ squad }: { squad: Squad }) {
               </span>
               <span className="flex items-center gap-2">
                 <Badge tone={m.role === "Leader" ? "official" : "plain"}>{m.role}</Badge>
-                {isLeader && !m.isYou && m.role !== "Leader" ? (
+                {isLeader && squad.kind !== "connection" && !m.isYou && m.role !== "Leader" ? (
                   <button
                     type="button"
                     aria-label={`Remove ${m.displayName || "member"} from ${squad.name}`}
@@ -9397,9 +21121,15 @@ function SquadCard({ squad }: { squad: Squad }) {
             </div>
             <p className="mt-0.5 text-sm text-[var(--dim)]">
               Joined {joinedDateLabel(m.joinedAt)}
-              {m.joinedVia === "invite" ? " · joined by invite" : ""}
-              {m.joinedVia === "created" ? " · created this squad" : ""}
-              {m.joinedVia === "legacy" ? " · in this squad since before invite codes" : ""}
+              {squad.kind === "connection"
+                ? " · connected through Find Your People"
+                : m.joinedVia === "invite"
+                  ? " · joined by invite"
+                  : m.joinedVia === "created"
+                    ? " · created this squad"
+                    : m.joinedVia === "legacy"
+                      ? " · in this squad since before invite codes"
+                      : ""}
             </p>
             {confirmRemoveId === m.membershipId ? (
               <div className="mt-2 rounded bg-[var(--red-bg)] p-3">
@@ -9421,7 +21151,12 @@ function SquadCard({ squad }: { squad: Squad }) {
         ))}
       </ul>
 
-      {confirmLeave ? (
+      {squad.kind === "connection" ? (
+        <p className="mt-3 text-sm text-[var(--dim)]">
+          To end this connection, open Find Your People — ending it there closes the connection for both of you
+          and removes this pair.
+        </p>
+      ) : confirmLeave ? (
         <div className="mt-3 rounded bg-[var(--amber-bg)] p-3">
           <p className="text-sm font-semibold text-[var(--amber)]">
             {isLeader && othersRemain
@@ -9444,7 +21179,7 @@ function SquadCard({ squad }: { squad: Squad }) {
           Leave this squad
         </button>
       )}
-      {notice ? <p className="mt-2 text-sm font-semibold text-[var(--accent)]" role="status">{notice}</p> : null}
+      {notice ? <p className="mt-2 text-sm font-semibold text-[var(--accent-word)]" role="status">{notice}</p> : null}
     </section>
   );
 }
@@ -9558,7 +21293,7 @@ function JoinSquadSection({ joinSeed }: { joinSeed: { code: string; n: number } 
         </div>
       ) : null}
       {claimMsg ? (
-        <p className={`mt-3 text-sm font-semibold ${claimMsg.ok ? "text-[var(--accent)]" : "text-[var(--amber)]"}`} role="status">
+        <p className={`mt-3 text-sm font-semibold ${claimMsg.ok ? "text-[var(--accent-word)]" : "text-[var(--amber)]"}`} role="status">
           {claimMsg.text}
         </p>
       ) : null}
@@ -9649,7 +21384,12 @@ function CheckinView({ profile, joinSeed }: { profile: Profile; joinSeed: { code
         <button type="button" aria-label="Save today's check-in" disabled={save.isPending} onClick={() => save.mutate()} className={`${btnPrimary} mt-3 w-full`}>
           {save.isPending ? "Saving…" : today ? "Update today's check-in" : "Check in"}
         </button>
-        {save.isSuccess ? <p className="mt-2 text-sm font-semibold text-[var(--accent)]" role="status">Saved. Your squad sees this status.</p> : null}
+        {save.isSuccess ? <p className="mt-2 text-sm font-semibold text-[var(--accent-word)]" role="status">Saved. Your squad sees this status.</p> : null}
+        {save.error instanceof OfflineQueuedError ? (
+          <p className="mt-2 text-sm font-semibold text-[var(--amber)]" role="status">
+            You&apos;re offline — this check-in is saved on this device and will send when you&apos;re back. Your squad sees it once it sends.
+          </p>
+        ) : null}
         {today && status === "talk" ? (
           <p className="mt-2 rounded bg-[var(--amber-bg)] p-3 text-sm font-semibold text-[var(--amber)]">
             You marked "Need to talk." Next rung on the ladder: your paired buddy reaches out. If nobody responds and
@@ -9724,7 +21464,7 @@ function CheckinView({ profile, joinSeed }: { profile: Profile; joinSeed: { code
             {createSquad.isPending ? "Creating…" : "Create squad"}
           </button>
         </form>
-        {createMsg ? <p className="mt-2 text-sm font-semibold text-[var(--accent)]" role="status">{createMsg}</p> : null}
+        {createMsg ? <p className="mt-2 text-sm font-semibold text-[var(--accent-word)]" role="status">{createMsg}</p> : null}
       </section>
 
       <JoinSquadSection joinSeed={joinSeed} />
