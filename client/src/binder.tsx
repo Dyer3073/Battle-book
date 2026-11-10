@@ -182,13 +182,179 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     remove: (section, itemKey) => removeM.mutate({ section, itemKey }),
     busy: toggleM.isPending || removeM.isPending,
   };
-  return <BinderContext.Provider value={value}>{children}</BinderContext.Provider>;
+  // PinsProvider rides inside BinderProvider so every mount site
+  // (all three shells + the print branches) gets pins with no
+  // additional wiring — anywhere a card can be saved, it can be pinned.
+  return (
+    <BinderContext.Provider value={value}>
+      <PinsProvider>{children}</PinsProvider>
+    </BinderContext.Provider>
+  );
 }
 
 export function useBinder(): BinderContextValue {
   const ctx = useContext(BinderContext);
   if (!ctx) throw new Error("useBinder must be used inside BinderProvider");
   return ctx;
+}
+
+/* ── Pin to Home (Nov 10, 2026) ─────────────────────────────────────
+ * A pin is a Home shortcut to a card — NOT a Binder save. It carries
+ * the same (section, itemKey, title) identity as the card's CardTools
+ * footer, but lives in its own per-profile store (home_pins) and
+ * renders only as the Pinned row at the top of the owning profile's
+ * Home. The pin control sits beside Save to Binder in CardTools with
+ * distinct iconography (📌 + amber treatment vs. the Binder's ★ +
+ * accent fill) so the two are never confused. PinsProvider is mounted
+ * inside BinderProvider below, so every shell that can save a card
+ * can pin one. */
+
+export type PinItem = ApiResponse<typeof api, "getHomePins">["pins"][number];
+
+export type PinRef = {
+  section: string;
+  itemKey: string;
+  title: string;
+};
+
+type PinsContextValue = {
+  pins: PinItem[];
+  isPinned: (section: string, itemKey: string) => boolean;
+  toggle: (ref: PinRef) => void;
+  remove: (section: string, itemKey: string) => void;
+  busy: boolean;
+};
+
+const PinsContext = createContext<PinsContextValue | null>(null);
+
+export function PinsProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+  const pinsQ = useQuery({ queryKey: ["homePins"], queryFn: () => api.getHomePins({}) });
+  const pins = pinsQ.data?.pins ?? [];
+
+  const toggleM = useMutation({
+    mutationFn: (ref: PinRef) =>
+      api.toggleHomePin({
+        section: ref.section,
+        itemKey: ref.itemKey,
+        title: ref.title,
+      }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["homePins"] }),
+  });
+  const removeM = useMutation({
+    mutationFn: (args: { section: string; itemKey: string }) => api.removeHomePin(args),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["homePins"] }),
+  });
+
+  const value: PinsContextValue = {
+    pins,
+    isPinned: (section, itemKey) => pins.some((p) => p.section === section && p.itemKey === itemKey),
+    toggle: (ref) => toggleM.mutate(ref),
+    remove: (section, itemKey) => removeM.mutate({ section, itemKey }),
+    busy: toggleM.isPending || removeM.isPending,
+  };
+  return <PinsContext.Provider value={value}>{children}</PinsContext.Provider>;
+}
+
+export function usePins(): PinsContextValue {
+  const ctx = useContext(PinsContext);
+  if (!ctx) throw new Error("usePins must be used inside PinsProvider");
+  return ctx;
+}
+
+/** Pseudo-sections whose cards live inside a host view (the same
+ * special cases openBinderItem routes): a pin's visibility in a
+ * shell is decided by its HOST view's place in that shell's
+ * whitelist, so a pin can never surface in a shell that cannot open
+ * its destination. */
+const PIN_HOST_VIEW: Record<string, string> = {
+  signals: "fieldtools",
+  landnav: "fieldtools",
+  firstaid: "fieldtools",
+  drill: "fieldtools",
+  fitnesslib: "fitness",
+  warmup: "fitness",
+  stretching: "fitness",
+};
+
+export function pinHostView(section: string): string {
+  return PIN_HOST_VIEW[section] ?? section;
+}
+
+/** Crisis/safety sections are exempt from pin filtering, always —
+ * the standing rule that safety content is never scope-hidden. */
+const PIN_ALWAYS_VISIBLE: ReadonlySet<string> = new Set(["care", "emergencydeck", "emergency"]);
+
+/**
+ * The Pinned row at the TOP of Home, above For You. Renders ONLY
+ * when the profile has at least one pin this shell may show
+ * (allowedViews = the shell's view whitelist; null = member shell,
+ * which opens every view). Pins filtered out by the whitelist are
+ * never rendered — pins cannot smuggle content across shells. When
+ * nothing is pinned, no row renders; in its place sits one
+ * unobtrusive hint line explaining that cards can be pinned.
+ * Each pinned card opens its real destination via onOpen (the same
+ * deep-link routing as My Binder) and can be unpinned in place.
+ */
+export function PinnedRow({
+  allowedViews,
+  onOpen,
+}: {
+  allowedViews: readonly string[] | null;
+  onOpen: (pin: PinItem) => void;
+}) {
+  const pins = usePins();
+  const visible = pins.pins.filter(
+    (p) =>
+      allowedViews === null ||
+      PIN_ALWAYS_VISIBLE.has(p.section) ||
+      allowedViews.includes(pinHostView(p.section)),
+  );
+  if (visible.length === 0) {
+    return (
+      <p className="mt-4 text-xs text-[var(--dim)]">
+        Tip: tap “Pin to Home” on any card to keep a shortcut to it right here, at the top of Home.
+      </p>
+    );
+  }
+  return (
+    <section aria-label="Pinned" className="mt-4">
+      <h2 className="font-display mb-3 text-xl font-bold text-[var(--text)]">
+        <span aria-hidden="true">📌 </span>Pinned
+      </h2>
+      <div className="flex gap-3 overflow-x-auto pb-1">
+        {visible.map((pin) => (
+          <div
+            key={`${pin.section}:${pin.itemKey}`}
+            className="relative min-w-40 flex-1 rounded-[var(--radius)] border border-[var(--amber)] bg-[var(--surface)] p-4"
+          >
+            <button
+              type="button"
+              aria-label={`Open pinned: ${pin.title}`}
+              onClick={() => onOpen(pin)}
+              className="block w-full pr-6 text-left"
+            >
+              <span className="block text-xs font-bold tracking-widest text-[var(--dim)]">
+                {binderSectionLabel(pin.section).toUpperCase()}
+              </span>
+              <span className="font-display mt-1 block text-base font-bold leading-tight text-[var(--text)]">
+                {pin.title}
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label={`Unpin “${pin.title}” from Home`}
+              disabled={pins.busy}
+              onClick={() => pins.remove(pin.section, pin.itemKey)}
+              className="absolute right-2 top-2 flex min-h-8 min-w-8 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-sm font-bold text-[var(--dim)] disabled:opacity-50"
+            >
+              <span aria-hidden="true">✕</span>
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 /** The trust line rendered on its own (print sheet, Binder list). */
@@ -364,6 +530,8 @@ export function EntryFlag({ cardRef, compact }: { cardRef: CardRef; compact?: bo
 export function CardTools({ cardRef, compact }: { cardRef: CardRef; compact?: boolean }) {
   const binder = useBinder();
   const saved = binder.isSaved(cardRef.section, cardRef.itemKey);
+  const pins = usePins();
+  const pinned = pins.isPinned(cardRef.section, cardRef.itemKey);
   return (
     <div data-card-anchor={anchorSlug(cardRef.title)}>
       <div
@@ -374,29 +542,54 @@ export function CardTools({ cardRef, compact }: { cardRef: CardRef; compact?: bo
         }
       >
         <p className="text-xs leading-snug text-[var(--dim)]">{trustLine(cardRef.source)}</p>
-        <button
-          type="button"
-          aria-label={
-            saved
-              ? `Remove “${cardRef.title}” from My Binder`
-              : `Save “${cardRef.title}” to My Binder`
-          }
-          aria-pressed={saved}
-          disabled={binder.busy}
-          onClick={() => binder.toggle(cardRef)}
-          className={`flex shrink-0 items-center justify-center gap-1.5 rounded-full border-2 font-bold whitespace-nowrap disabled:opacity-50 ${
-            compact ? "min-h-9 px-3 text-xs" : "min-h-10 px-4 text-sm"
-          } ${
-            saved
-              ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-text)]"
-              : "border-[var(--accent)] bg-[var(--surface)] text-[var(--accent-word)]"
-          }`}
-        >
-          <span aria-hidden="true" className={compact ? "text-sm leading-none" : "text-base leading-none"}>
-            {saved ? "★" : "☆"}
-          </span>
-          <span>{saved ? (compact ? "In Binder" : "In your Binder") : compact ? "Save" : "Save to Binder"}</span>
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            aria-label={
+              pinned
+                ? `Unpin “${cardRef.title}” from Home`
+                : `Pin “${cardRef.title}” to Home`
+            }
+            aria-pressed={pinned}
+            disabled={pins.busy}
+            onClick={() => pins.toggle({ section: cardRef.section, itemKey: cardRef.itemKey, title: cardRef.title })}
+            className={`flex shrink-0 items-center justify-center gap-1.5 rounded-full border-2 font-bold whitespace-nowrap disabled:opacity-50 ${
+              compact ? "min-h-9 px-3 text-xs" : "min-h-10 px-4 text-sm"
+            } ${
+              pinned
+                ? "border-[var(--amber)] bg-[var(--amber-bg)] text-[var(--amber)]"
+                : "border-[var(--border)] bg-[var(--surface)] text-[var(--dim)]"
+            }`}
+          >
+            <span aria-hidden="true" className={compact ? "text-sm leading-none" : "text-base leading-none"}>
+              📌
+            </span>
+            <span>{pinned ? "Pinned" : compact ? "Pin" : "Pin to Home"}</span>
+          </button>
+          <button
+            type="button"
+            aria-label={
+              saved
+                ? `Remove “${cardRef.title}” from My Binder`
+                : `Save “${cardRef.title}” to My Binder`
+            }
+            aria-pressed={saved}
+            disabled={binder.busy}
+            onClick={() => binder.toggle(cardRef)}
+            className={`flex shrink-0 items-center justify-center gap-1.5 rounded-full border-2 font-bold whitespace-nowrap disabled:opacity-50 ${
+              compact ? "min-h-9 px-3 text-xs" : "min-h-10 px-4 text-sm"
+            } ${
+              saved
+                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-text)]"
+                : "border-[var(--accent)] bg-[var(--surface)] text-[var(--accent-word)]"
+            }`}
+          >
+            <span aria-hidden="true" className={compact ? "text-sm leading-none" : "text-base leading-none"}>
+              {saved ? "★" : "☆"}
+            </span>
+            <span>{saved ? (compact ? "In Binder" : "In your Binder") : compact ? "Save" : "Save to Binder"}</span>
+          </button>
+        </div>
       </div>
       <EntryFlag cardRef={cardRef} compact={compact} />
     </div>

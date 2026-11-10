@@ -1141,7 +1141,53 @@ function buildIndex(): SearchHit[] {
   // pack flags it. In the future-member search scope (aspirational
   // reference, same entries); excluded from the spouse scope by
   // section name — spouses see the locked card.
+  //
+  // Country indexing (Nov 10, 2026 fix): the per-entry hits above are
+  // titled by unit, so a country name itself found nothing —
+  // "turkiye" returned no matches even though the Türkiye tile
+  // exists (its label carries ü, which the plain-ASCII query never
+  // matches, and no entry title or summary names the country). Each
+  // country therefore ALSO gets a country-level hit — title
+  // "<Country> — Allied Special Forces", summary from the country's
+  // own tile line + intro (existing wording only, level flags
+  // included), anchored to the country label exactly like the entry
+  // hits, so it opens AlliedView on that country's tile with its
+  // entries showing. The variant spellings members actually type
+  // ride in `keywords` (match-only, never printed) on BOTH the
+  // country hit and every entry hit for that country, so a country
+  // search surfaces the country's landing hit first (index order
+  // within a tier) and then its units. Keywords are country names
+  // and demonyms only — no content terms — so no other query's
+  // ranking changes.
+  const ALLIED_COUNTRY_KEYWORDS: Record<string, string> = {
+    germany: "germany german deutschland bundeswehr",
+    norway: "norway norwegian norge noreg",
+    canada: "canada canadian",
+    uk: "united kingdom uk britain great britain british england",
+    denmark: "denmark danish danmark",
+    france: "france french francais français",
+    australia: "australia australian aussie",
+    newzealand: "new zealand nz aotearoa kiwi",
+    japan: "japan japanese nippon nihon",
+    greece: "greece greek hellas hellenic",
+    netherlands: "netherlands holland dutch nederland",
+    italy: "italy italian italia",
+    spain: "spain spanish espana españa",
+    poland: "poland polish polska",
+    turkiye: "turkiye turkey türkiye turkish",
+    southkorea: "south korea korea rok republic of korea korean",
+    philippines: "philippines philippine filipino pilipinas",
+  };
   for (const c of ALLIED_COUNTRIES) {
+    const countryKeywords = ALLIED_COUNTRY_KEYWORDS[c.key] ?? c.label.toLowerCase();
+    out.push({
+      section: "Allied Special Forces",
+      view: "alliedsf",
+      title: `${c.label} — Allied Special Forces`,
+      summary: clip(`${c.tileSub}. ${c.intro}`),
+      anchor: c.label,
+      keywords: countryKeywords,
+    });
     for (const e of c.entries) {
       out.push({
         section: "Allied Special Forces",
@@ -1149,6 +1195,7 @@ function buildIndex(): SearchHit[] {
         title: e.name,
         summary: clip(e.summary),
         anchor: c.label,
+        keywords: countryKeywords,
       });
     }
   }

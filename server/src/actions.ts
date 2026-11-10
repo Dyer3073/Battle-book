@@ -1996,6 +1996,113 @@ export const Actions = {
     },
   }),
 
+  /* --------------------------- Home pins --------------------------- */
+  // Pin to Home (Nov 10, 2026): the signed-in profile's Home
+  // shortcuts. Owner-only by construction, exactly like the Binder:
+  // every handler resolves the profile server-side via
+  // currentProfileRow and no action accepts a profile id. A pin is
+  // the same (section, itemKey, title) identity the card's CardTools
+  // footer carries — but pins are Home shortcuts, NOT Binder saves,
+  // and live in their own table so neither store can leak into the
+  // other. One row per (profile, section, itemKey).
+
+  getHomePins: defineAction({
+    description:
+      "Returns the signed-in profile's own Home pins, in pin order. Owner-only — the profile is resolved server-side and only that profile's rows are ever read; no profile id is accepted.",
+    request: z.object({}),
+    response: z.object({
+      pins: z.array(
+        z.object({
+          id: z.number(),
+          section: z.string(),
+          itemKey: z.string(),
+          title: z.string(),
+        }),
+      ),
+    }),
+    async handler(ctx) {
+      const db = ctx.db<typeof schema>();
+      const me = await currentProfileRow(ctx);
+      if (!me) return { pins: [] };
+      const rows = await db
+        .select()
+        .from(schema.homePins)
+        .where(eq(schema.homePins.profileId, me.id))
+        .orderBy(asc(schema.homePins.id));
+      return {
+        pins: rows.map((r) => ({
+          id: r.id,
+          section: r.section,
+          itemKey: r.itemKey,
+          title: r.title,
+        })),
+      };
+    },
+  }),
+
+  toggleHomePin: defineAction({
+    description:
+      "Pins or unpins a card on the signed-in profile's own Home and returns whether the card is now pinned. Owner-only — the profile is resolved server-side; no profile id is accepted.",
+    request: z.object({
+      section: z.string().min(1).max(40),
+      itemKey: z.string().min(1).max(300),
+      title: z.string().min(1).max(300),
+    }),
+    response: z.object({ ok: z.literal(true), pinned: z.boolean() }),
+    async handler(ctx, args): Promise<{ ok: true; pinned: boolean }> {
+      const db = ctx.db<typeof schema>();
+      const me = await currentProfileRow(ctx);
+      if (!me) throw new Error("Set up your profile first.");
+      const rows = await db
+        .select()
+        .from(schema.homePins)
+        .where(
+          and(eq(schema.homePins.profileId, me.id), eq(schema.homePins.section, args.section)),
+        );
+      const existing = rows.find((r) => r.itemKey === args.itemKey);
+      if (existing) {
+        await db.delete(schema.homePins).where(eq(schema.homePins.id, existing.id));
+        ctx.invalidateQueries();
+        return { ok: true, pinned: false };
+      }
+      await db.insert(schema.homePins).values({
+        profileId: me.id,
+        section: args.section,
+        itemKey: args.itemKey,
+        title: args.title,
+      });
+      ctx.invalidateQueries();
+      return { ok: true, pinned: true };
+    },
+  }),
+
+  removeHomePin: defineAction({
+    description:
+      "Removes one pin from the signed-in profile's own Home by section and item key (the Pinned row's own unpin control). Owner-only — the profile is resolved server-side; no profile id is accepted.",
+    request: z.object({
+      section: z.string().min(1).max(40),
+      itemKey: z.string().min(1).max(300),
+    }),
+    response: z.object({ ok: z.literal(true) }),
+    async handler(ctx, args): Promise<{ ok: true }> {
+      const db = ctx.db<typeof schema>();
+      const me = await currentProfileRow(ctx);
+      if (!me) throw new Error("Set up your profile first.");
+      const rows = await db
+        .select()
+        .from(schema.homePins)
+        .where(
+          and(eq(schema.homePins.profileId, me.id), eq(schema.homePins.section, args.section)),
+        );
+      const existing = rows.find((r) => r.itemKey === args.itemKey);
+      if (existing) {
+        await db.delete(schema.homePins).where(eq(schema.homePins.id, existing.id));
+      }
+      ctx.invalidateQueries();
+      return { ok: true };
+    },
+  }),
+
   /* --------------------------- Contributions --------------------------- */
   listContributions: defineAction({
     description: "Lists contributions, optionally filtered by status and MOS/guide target.",

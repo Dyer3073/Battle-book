@@ -155,6 +155,8 @@ export function isReadAction(name: string): boolean {
 export const QUEUEABLE_ACTIONS: ReadonlySet<string> = new Set([
   // Binder
   "toggleBinderItem", "removeBinderItem",
+  // Home pins (same toggle/remove semantics as the Binder)
+  "toggleHomePin", "removeHomePin",
   // Checklists + guided paths
   "setChecklistItem", "setPathStep",
   // Trainers + calculators
@@ -190,7 +192,7 @@ export const QUEUEABLE_ACTIONS: ReadonlySet<string> = new Set([
  * upserts, deletes, full-payload saves). Appends and toggles are
  * deliberately absent. */
 export const IDEMPOTENT_ACTIONS: ReadonlySet<string> = new Set([
-  "removeBinderItem",
+  "removeBinderItem", "removeHomePin",
   "setChecklistItem", "setPathStep",
   "saveCalculatorState",
   "saveCheckin",
@@ -207,7 +209,7 @@ export const IDEMPOTENT_ACTIONS: ReadonlySet<string> = new Set([
 
 /** Toggles: a second identical queued toggle cancels the first
  * (net effect zero), so the pair is dropped instead of replayed. */
-const TOGGLE_ACTIONS: ReadonlySet<string> = new Set(["toggleBinderItem", "toggleBookmark", "toggleCandle"]);
+const TOGGLE_ACTIONS: ReadonlySet<string> = new Set(["toggleBinderItem", "toggleHomePin", "toggleBookmark", "toggleCandle"]);
 
 /** Identity for last-wins replacement of queued set-type writes.
  * Returns null for appends (every entry replays, in order). */
@@ -217,6 +219,9 @@ function queueIdentity(action: string, args: Record<string, unknown>): string | 
     case "toggleBinderItem":
     case "removeBinderItem":
       return `binder:${a.section}:${a.itemKey}`;
+    case "toggleHomePin":
+    case "removeHomePin":
+      return `homePins:${a.section}:${a.itemKey}`;
     case "toggleBookmark":
       return `bookmark:${a.storyId ?? JSON.stringify(args)}`;
     case "toggleCandle":
@@ -386,7 +391,7 @@ export function recordOutboxFailure(id: string): number {
 // copy. Community queues and other members' data are never persisted.
 
 export const SNAPSHOT_KEY_HEADS: ReadonlySet<string> = new Set([
-  "profile", "profiles", "binder", "pathProgress", "checklist",
+  "profile", "profiles", "binder", "homePins", "pathProgress", "checklist",
   "trainerstats", "calcstate", "myClaims", "checkins", "squads",
   "buddyHistory", "news", "emergencyCard", "killCard", "fieldKit",
   "fieldNotes", "sectionScopes", "changelogSeen", "alerts", "entryflags", "feedback",
